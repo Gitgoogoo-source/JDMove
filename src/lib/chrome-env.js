@@ -17,7 +17,10 @@ export const settingsRepo = createSettingsRepository(chromeStorage);
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 export const randomBetween = (min, max) => min + Math.random() * Math.max(0, max - min);
 
-const WINDOW_KEYS = { normal: 'workWindowId', incognito: 'collectIncognitoWindowId' };
+const INCOGNITO_WINDOW_KEY = 'collectIncognitoWindowId';
+const NAV_START_TIMEOUT_MS = 8000;
+const NAV_LOAD_TIMEOUT_MS = 45000;
+export const NAV_BLOCKED_MSG = '页面没有跳转（可能被“离开此网站？”拦截），请关闭该提示后重试';
 
 async function existingWindow(id) {
   if (!id) return null;
@@ -28,24 +31,35 @@ async function existingWindow(id) {
   }
 }
 
+/** 任务面板所在的浏览器窗口；取不到时退回最近使用的普通窗口 */
+async function currentNormalWindow() {
+  try {
+    const win = await chrome.windows.getCurrent();
+    if (win && win.type === 'normal' && !win.incognito) return win;
+  } catch {
+    /* 非页面环境没有“当前窗口” */
+  }
+  return chrome.windows.getLastFocused({ windowTypes: ['normal'] });
+}
+
 /**
- * 专用工作窗口：发布在普通窗口（商家登录态）；采集可在无痕窗口（独立 Cookie，可登录消费者账号）。
- * 窗口保持可见（非最小化），页面的动画/弹层才能正常工作。
+ * 工作窗口：发布/普通采集直接用当前浏览器窗口（新开标签页）；
+ * 无痕采集需要独立的无痕窗口（独立 Cookie，可登录消费者账号）。
  */
 export async function getWorkWindow({ incognito = false } = {}) {
-  const key = incognito ? WINDOW_KEYS.incognito : WINDOW_KEYS.normal;
-  const { [key]: id } = await chrome.storage.session.get(key);
+  if (!incognito) return currentNormalWindow();
+  const { [INCOGNITO_WINDOW_KEY]: id } = await chrome.storage.session.get(INCOGNITO_WINDOW_KEY);
   const win = await existingWindow(id);
   if (win) return win;
-  if (incognito && !(await chrome.extension.isAllowedIncognitoAccess())) {
+  if (!(await chrome.extension.isAllowedIncognitoAccess())) {
     throw new Error('请在 chrome://extensions 中打开本插件的“在无痕模式下启用”，或在设置中关闭“无痕窗口采集”');
   }
   const created = await chrome.windows.create({ url: 'about:blank', focused: false, width: 1366, height: 900, incognito });
-  await chrome.storage.session.set({ [key]: created.id });
+  await chrome.storage.session.set({ [INCOGNITO_WINDOW_KEY]: created.id });
   return created;
 }
 
-export function waitForTabComplete(tabId, timeoutMs = 45000) {
+export function waitForTabComplete(tabId, timeoutMs = NAV_LOAD_TIMEOUT_MS) {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
       chrome.tabs.onUpdated.removeListener(listener);
@@ -69,7 +83,54 @@ export function waitForTabComplete(tabId, timeoutMs = 45000) {
   });
 }
 
-/** 在工作窗口中新开标签页并等待加载完成 */
+/**
+ * 等待一次新的导航：必须先进入 loading 再 complete。
+ * 页面拦截跳转时不会进入 loading，此时报错，而不是把旧页面当成新页面继续执行。
+ */
+function waitForNavigation(tabId, { startTimeoutMs = NAV_START_TIMEOUT_MS, timeoutMs = NAV_LOAD_TIMEOUT_MS } = {}) {
+  return new Promise((resolve, reject) => {
+    let started = false;
+    const startTimer = setTimeout(() => started || finish(new Error(NAV_BLOCKED_MSG)), startTimeoutMs);
+    const loadTimer = setTimeout(() => finish(new Error('页面加载超时')), timeoutMs);
+    function finish(err, tab) {
+      clearTimeout(startTimer);
+      clearTimeout(loadTimer);
+      chrome.tabs.onUpdated.removeListener(listener);
+      if (err) reject(err);
+      else resolve(tab);
+    }
+    function listener(id, info, tab) {
+      if (id !== tabId) return;
+      if (info.status === 'loading') started = true;
+      else if (info.status === 'complete' && started) finish(null, tab);
+    }
+    chrome.tabs.onUpdated.addListener(listener);
+  });
+}
+
+/**
+ * 屏蔽页面的“离开此网站？”确认：工作标签页由插件驱动，跳转/关闭时不需要确认，
+ * 否则 Chrome 弹窗会挡住跳转，任务一直卡住。
+ */
+export async function disarmBeforeUnload(tabId) {
+  try {
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      world: 'MAIN',
+      func: function disarmBeforeUnloadInPage() {
+        window.onbeforeunload = null;
+        if (window.__JDMOVE_UNLOAD_DISARMED__) return;
+        window.__JDMOVE_UNLOAD_DISARMED__ = true;
+        // window 上的捕获监听在目标阶段先于页面的冒泡监听执行，截断后页面无法再要求确认
+        window.addEventListener('beforeunload', (e) => e.stopImmediatePropagation(), true);
+      },
+    });
+  } catch {
+    /* about:blank、无权限页面或已关闭的标签页：没有需要屏蔽的提示 */
+  }
+}
+
+/** 在工作窗口中新开标签页（保持激活，页面动画/弹层才能正常工作）并等待加载完成 */
 export async function openWorkTab(url, { incognito = false } = {}) {
   const win = await getWorkWindow({ incognito });
   const tab = await chrome.tabs.create({ windowId: win.id, url, active: true });
@@ -77,13 +138,24 @@ export async function openWorkTab(url, { incognito = false } = {}) {
   return waitForTabComplete(tab.id);
 }
 
-export async function navigateTab(tabId, url) {
-  await chrome.tabs.update(tabId, { url });
-  await sleep(300);
-  return waitForTabComplete(tabId);
+/**
+ * 在已有标签页中跳转并等待新页面加载完成
+ * @param {{startTimeoutMs?: number, timeoutMs?: number}} [opts]
+ */
+export async function navigateTab(tabId, url, opts) {
+  await disarmBeforeUnload(tabId);
+  const navigated = waitForNavigation(tabId, opts);
+  try {
+    await chrome.tabs.update(tabId, { url });
+  } catch (e) {
+    navigated.catch(() => undefined);
+    throw e;
+  }
+  return navigated;
 }
 
 export async function closeTab(tabId) {
+  await disarmBeforeUnload(tabId);
   try {
     await chrome.tabs.remove(tabId);
   } catch {

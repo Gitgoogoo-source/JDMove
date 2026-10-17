@@ -3,9 +3,10 @@ import { buildPublishPlan, descriptionHtml } from '../shared/publish-plan.js';
 import { pickCategory, parseCategoryText, matchCategoryMap } from '../shared/category-pick.js';
 import { buildPublishUrl, imgzoneUrl } from '../shared/url-utils.js';
 import { callBackend, openWorkTab, navigateTab, closeTab, sleep } from './chrome-env.js';
+import { CATEGORY_PAGE, CATEGORY_REDIRECT_MSG, landedPageKind } from './category-search.js';
 import { makeMainImage, makeDetailImages } from './images.js';
 
-const CATEGORY_PAGE = 'https://wares-jdm.jd.com/ware/categorySelectNew?source=1';
+const LOGIN_MSG = '商家后台需要重新登录';
 const DETAIL_CHUNK = 6;
 const MAX_DETAIL_SLICES = 40;
 
@@ -34,13 +35,21 @@ async function searchCategory(tabId, product, log) {
   return null;
 }
 
-async function resolveCategory(tabId, item, settings, log) {
+/** 手动指定或类目映射得到的目标类目；都没有时返回 null，需要到类目选择页自动搜索 */
+function presetCategory(item, settings) {
   if (item.edits?.cateList?.length) return { cateList: item.edits.cateList, name: item.edits.cateName || '手动指定', from: 'manual' };
   const mapped = matchCategoryMap(settings.categoryMap, item.product.crumbs);
   if (mapped) return { cateList: mapped.cateList, name: mapped.name || mapped.source, from: 'map' };
-  await navigateTab(tabId, CATEGORY_PAGE);
-  await sleep(1500);
-  return searchCategory(tabId, item.product, log);
+  return null;
+}
+
+/** 在类目选择页自动搜索；京麦把类目页跳到别处时直接返回原因，不再从发布页来回跳转 */
+async function autoCategory(tabId, product, log) {
+  const kind = await landedPageKind(tabId);
+  if (kind === 'login') return { error: LOGIN_MSG };
+  if (kind !== 'category') return { error: CATEGORY_REDIRECT_MSG };
+  const target = await searchCategory(tabId, product, log);
+  return target ? { target } : { error: `未找到匹配类目（源类目：${product.crumbs.join(' > ')}），请在编辑中指定` };
 }
 
 async function processImages(urls, maker, log) {
@@ -121,22 +130,37 @@ async function fillForm(tabId, item, settings, plan, log) {
  */
 export async function publishItem(item, settings, log) {
   if (!item.product) return { status: 'need_action', message: '尚未采集' };
-  const tab = await openWorkTab(CATEGORY_PAGE);
-  const result = await publishInTab(tab, item, settings, log);
+  const preset = presetCategory(item, settings);
+  let startUrl;
+  try {
+    // 已知类目时直接打开发布页，省掉一次类目页 -> 发布页的跳转
+    startUrl = preset ? buildPublishUrl(preset) : CATEGORY_PAGE;
+  } catch (e) {
+    return { status: 'failed', message: e.message };
+  }
+  const tab = await openWorkTab(startUrl);
+  const result = await publishInTab(tab, item, settings, log, preset);
   // 需要人工检查的情况保留标签页，其余关闭
   if (!result.tabId) await closeTab(tab.id);
   return result;
 }
 
-async function publishInTab(tab, item, settings, log) {
+async function publishInTab(tab, item, settings, log, preset) {
   try {
-    const target = await resolveCategory(tab.id, item, settings, log);
-    if (!target) return { status: 'need_action', message: `未找到匹配类目（源类目：${item.product.crumbs.join(' > ')}），请在编辑中指定` };
+    let target = preset;
+    if (!target) {
+      const auto = await autoCategory(tab.id, item.product, log);
+      if (auto.error) return { status: 'need_action', message: auto.error };
+      target = auto.target;
+    }
     log(`目标类目：${target.name} [${target.cateList.join(',')}]`);
+    if (!preset) await navigateTab(tab.id, buildPublishUrl(target));
 
-    await navigateTab(tab.id, buildPublishUrl(target));
+    const landed = await landedPageKind(tab.id);
+    if (landed === 'login') return { status: 'need_action', message: LOGIN_MSG, target };
+    if (landed !== 'publish') return { status: 'failed', message: '发布页没有打开（类目可能不是末级或无权限）', target };
     const st = await waitReady(tab.id);
-    if (st.loginRequired) return { status: 'need_action', message: '商家后台需要重新登录', target };
+    if (st.loginRequired) return { status: 'need_action', message: LOGIN_MSG, target };
     if (!st.ready) return { status: 'failed', message: '发布页未就绪（类目可能不是末级或无权限）', target };
     if (st.publishDisabled) log(`注意：${st.publishDisabledMsg}`);
 
