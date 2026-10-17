@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <title>京东搬运助手 · 任务面板</title>
+  <link rel="stylesheet" href="dashboard.css" />
+</head>
+<body>
+  <header class="topbar">
+    <h1>京东搬运助手</h1>
+    <div id="runState" class="run-state">空闲</div>
+  </header>
+
+  <section class="toolbar">
+    <button id="btnAdd" class="primary">添加链接</button>
+    <span class="sep"></span>
+    <button id="btnCollect">采集选中</button>
+    <button id="btnPublish">发布选中</button>
+    <button id="btnStop" disabled>停止</button>
+    <span class="sep"></span>
+    <button id="btnDelete">删除选中</button>
+    <button id="btnExport">导出采集数据</button>
+    <button id="btnImport">导入</button>
+    <input id="importFile" type="file" accept="application/json,.json" hidden />
+    <button id="btnSettings">设置</button>
+    <label class="filter">筛选
+      <select id="filter">
+        <option value="all">全部</option>
+        <option value="pending">待采集</option>
+        <option value="collected">已采集</option>
+        <option value="need_action">需处理</option>
+        <option value="failed">失败</option>
+        <option value="published">已发布</option>
+      </select>
+    </label>
+    <span id="summary" class="muted"></span>
+  </section>
+
+  <p id="pauseBanner" class="banner" hidden></p>
+
+  <main>
+    <table class="items">
+      <thead>
+        <tr>
+          <th class="col-check"><input type="checkbox" id="checkAll" aria-label="全选" /></th>
+          <th class="col-img">主图</th>
+          <th>商品</th>
+          <th class="col-price">价格</th>
+          <th class="col-cat">类目</th>
+          <th class="col-status">状态</th>
+          <th class="col-ops">操作</th>
+        </tr>
+      </thead>
+      <tbody id="rows"></tbody>
+    </table>
+    <p id="empty" class="empty" hidden>还没有任务。点击“添加链接”粘贴京东商品链接，或在商品页点击“搬运此商品”。</p>
+  </main>
+
+  <section class="log-panel">
+    <div class="log-head"><strong>运行日志</strong><button id="btnClearLog" class="link">清空</button></div>
+    <pre id="log"></pre>
+  </section>
+
+  <script type="module" src="dashboard.js"></script>
+</body>
+</html>

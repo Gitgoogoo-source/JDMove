@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <title>京东搬运助手</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <header>
+    <strong>京东搬运助手</strong>
+    <span id="stats" class="muted"></span>
+  </header>
+  <main>
+    <button id="collect" class="primary">采集当前商品页</button>
+    <button id="extract">提取当前页所有商品链接</button>
+    <button id="dashboard">打开任务面板</button>
+    <p id="result" class="result" hidden></p>
+    <p class="muted tip">批量采集/发布请在任务面板中进行，执行期间保持任务面板打开。</p>
+  </main>
+  <script type="module" src="popup.js"></script>
+</body>
+</html>

@@ -1,0 +1,33 @@
+#jdmove-fab {
+  position: fixed;
+  right: 24px;
+  bottom: 96px;
+  z-index: 2147483000;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  font: 14px/1.4 -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+#jdmove-fab .jdmove-btn {
+  border: 0;
+  border-radius: 22px;
+  padding: 10px 18px;
+  background: #e1251b;
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(225, 37, 27, 0.35);
+}
+#jdmove-fab .jdmove-btn:disabled { opacity: 0.7; cursor: progress; }
+#jdmove-fab .jdmove-toast {
+  max-width: 320px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: #fff;
+  color: #222;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  border-left: 4px solid #2e7d32;
+}
+#jdmove-fab .jdmove-toast[data-kind="warn"] { border-left-color: #ed8b00; }
+#jdmove-fab .jdmove-toast[data-kind="error"] { border-left-color: #c62828; }

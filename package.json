@@ -1,0 +1,12 @@
+{
+  "name": "jdmove",
+  "version": "0.1.0",
+  "private": true,
+  "description": "京东自营商品采集 + POP 店铺批量铺货 Chrome 插件",
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/*.test.js",
+    "coverage": "node --test --experimental-test-coverage tests/*.test.js",
+    "icons": "node scripts/make-icons.mjs"
+  }
+}

@@ -1,0 +1,31 @@
+body {
+  width: 300px;
+  margin: 0;
+  font: 13px/1.5 -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  color: #1f2329;
+  background: #fff;
+}
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 12px 14px;
+  border-bottom: 1px solid #eee;
+}
+main { padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
+button {
+  padding: 8px 10px;
+  border: 1px solid #d0d3d6;
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
+  font-size: 13px;
+}
+button:hover:not(:disabled) { border-color: #e1251b; color: #e1251b; }
+button.primary { background: #e1251b; border-color: #e1251b; color: #fff; }
+button.primary:hover:not(:disabled) { color: #fff; background: #c81f16; }
+button:disabled { opacity: 0.5; cursor: not-allowed; }
+.muted { color: #8a8f99; font-size: 12px; }
+.tip { margin: 4px 0 0; }
+.result { margin: 0; padding: 8px; border-radius: 6px; background: #f3f8f3; }
+.result.error { background: #fdf0ef; color: #b3261e; }
