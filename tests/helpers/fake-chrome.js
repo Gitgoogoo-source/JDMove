@@ -6,9 +6,10 @@ const tick = () => new Promise((r) => setTimeout(r, 1));
  *   resolveUrl?: (url: string) => string | null,  // 返回实际落地地址；返回 null 表示导航被拦截（不发生）
  *   backend?: (method: string, args: any[]) => any, // callBackend 的返回值
  *   currentWindowId?: number,
+ *   page?: (call: {tab: object, func: Function, args: any[]}) => any, // 其他页面脚本（runInPage）的返回值
  * }} [opts]
  */
-export function installFakeChrome({ resolveUrl = (u) => u, backend = () => undefined, currentWindowId = 7 } = {}) {
+export function installFakeChrome({ resolveUrl = (u) => u, backend = () => undefined, currentWindowId = 7, page = () => undefined } = {}) {
   const listeners = new Set();
   const tabs = new Map();
   const calls = [];
@@ -88,7 +89,8 @@ export function installFakeChrome({ resolveUrl = (u) => u, backend = () => undef
         }
         calls.push({ op: 'inject.func', tabId: target.tabId, name: func.name, func, args });
         const isBackendCall = typeof args[0] === 'string' && Array.isArray(args[1]);
-        return [{ result: isBackendCall ? backend(args[0], args[1]) : undefined }];
+        const result = isBackendCall ? backend(args[0], args[1]) : await page({ tab: { ...tabs.get(target.tabId) }, func, args });
+        return [{ result }];
       },
     },
   };

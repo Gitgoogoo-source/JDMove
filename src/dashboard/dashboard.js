@@ -4,6 +4,7 @@ import { renderRow } from './rows.js';
 import { editItem } from './editor.js';
 import { editSettings } from './settings-dialog.js';
 import { extractSkuIds } from '../shared/url-utils.js';
+import { parseShopInput } from '../shared/shop-url.js';
 import { itemRepo, settingsRepo } from '../lib/chrome-env.js';
 import { createQueueRunner } from '../lib/queue.js';
 
@@ -12,6 +13,13 @@ let items = [];
 let settings = null;
 let selected = new Set();
 let logLines = [];
+let lastShopUrl = '';
+
+const MODE_LABELS = { collect: '采集', publish: '发布', shop: '抓取店铺' };
+const RESUME_HINTS = {
+  collect: '处理完成后重新点击“采集选中/发布选中”即可继续。',
+  shop: '处理完成后重新点击“抓取店铺”即可（已加入的商品不会重复添加）。',
+};
 
 function appendLog(line) {
   logLines = [...logLines, `${new Date().toLocaleTimeString()} ${line}`].slice(-MAX_LOG);
@@ -30,13 +38,13 @@ function visibleItems() {
 function renderState() {
   const st = runner.getState();
   const el = $('#runState');
-  el.textContent = st.running ? `${st.mode === 'collect' ? '采集' : '发布'}中：${st.currentId ?? ''}${st.stopRequested ? '（正在停止）' : ''}` : '空闲';
+  el.textContent = st.running ? `${MODE_LABELS[st.mode] ?? ''}中：${st.currentId ?? ''}${st.stopRequested ? '（正在停止）' : ''}` : '空闲';
   el.classList.toggle('busy', st.running);
-  for (const id of ['btnCollect', 'btnPublish', 'btnDelete', 'btnAdd', 'btnSettings', 'btnImport']) $(`#${id}`).disabled = st.running;
+  for (const id of ['btnCollect', 'btnPublish', 'btnDelete', 'btnAdd', 'btnShop', 'btnSettings', 'btnImport']) $(`#${id}`).disabled = st.running;
   $('#btnStop').disabled = !st.running;
   const banner = $('#pauseBanner');
   banner.hidden = !st.pauseReason;
-  banner.textContent = st.pauseReason ? `任务已暂停：${st.pauseReason}。处理完成后重新点击“采集选中/发布选中”即可继续。` : '';
+  banner.textContent = st.pauseReason ? `任务已暂停：${st.pauseReason}。${RESUME_HINTS[st.pausedMode] ?? RESUME_HINTS.collect}` : '';
 }
 
 function render() {
@@ -104,6 +112,37 @@ async function handleAdd() {
   await reload();
 }
 
+async function handleShop() {
+  const input = h('input', {
+    type: 'text',
+    value: lastShopUrl,
+    placeholder: 'https://mall.jd.com/view_search-646206-0-99-1-24-1.html',
+    required: true,
+  });
+  const dialog = h(
+    'dialog',
+    {},
+    h(
+      'form',
+      { method: 'dialog' },
+      h('div', { class: 'dlg-head' }, '抓取店铺全部商品'),
+      h(
+        'div',
+        { class: 'dlg-body' },
+        h('label', { class: 'field' }, h('span', {}, '店铺链接'), input),
+        h('p', { class: 'muted' }, '填写店铺“全部商品”页或店铺首页的链接；“全部商品”页里选了分类时，只抓这个分类。抓到的商品会直接加入任务列表（已有的不会重复）。'),
+      ),
+      h('div', { class: 'dlg-foot' }, h('button', { value: 'cancel', formnovalidate: true }, '取消'), h('button', { value: 'ok', class: 'primary' }, '开始抓取')),
+    ),
+  );
+  if ((await openDialog(dialog)) !== 'ok') return;
+  const url = input.value.trim();
+  if (!parseShopInput(url)) return appendLog('不是京东店铺链接，请填写店铺首页或“全部商品”页的链接');
+  lastShopUrl = url;
+  appendLog(`开始抓取店铺：${url}`);
+  await runner.crawlShop(url);
+}
+
 async function handleEdit(id) {
   const item = items.find((i) => i.id === id);
   if (!item) return;
@@ -160,6 +199,7 @@ function bind() {
     if (file) handleImport(file);
   });
   $('#btnAdd').addEventListener('click', handleAdd);
+  $('#btnShop').addEventListener('click', handleShop);
   $('#btnSettings').addEventListener('click', handleSettings);
   $('#btnStop').addEventListener('click', () => runner.stop());
   $('#btnClearLog').addEventListener('click', () => {

@@ -4,7 +4,7 @@ import { classifyPageUrl } from '../shared/url-utils.js';
 import { ITEM_FILES, runInPage, openWorkTab, navigateTab, closeTab, sleep } from './chrome-env.js';
 
 const COLLECT_TAB_KEY = 'collectTabId';
-const MERCHANT_BLOCK_MSG =
+export const MERCHANT_BLOCK_MSG =
   '当前浏览器登录的是商家账号，京东不允许查看其他店铺商品。请开启“无痕窗口采集”并在无痕窗口登录消费者账号，或在另一个 Chrome 用户中采集后导出/导入';
 
 /**
@@ -38,17 +38,26 @@ async function collectTab() {
   }
 }
 
+/** 打开工作标签页失败时的状态：无痕权限未开启等环境问题需要整体暂停，而不是逐条失败 */
+export const openErrorStatus = (e) => (/无痕/.test(e?.message ?? '') ? 'setup' : 'error');
+
+/** 在复用的采集标签页（可选无痕窗口）中打开链接，返回加载完成的标签页 */
+export async function openInCollectTab(url, { useIncognito = false } = {}) {
+  let tab = await collectTab();
+  if (tab && tab.incognito !== Boolean(useIncognito)) tab = null;
+  tab = tab ? await navigateTab(tab.id, url) : await openWorkTab(url, { incognito: Boolean(useIncognito) });
+  await chrome.storage.session.set({ [COLLECT_TAB_KEY]: tab.id });
+  return tab;
+}
+
 /** 在采集窗口（可选无痕）的标签页中打开链接并采集 */
 export async function collectUrl(url, opts = {}) {
-  let tab = await collectTab();
-  if (tab && tab.incognito !== Boolean(opts.useIncognito)) tab = null;
+  let tab;
   try {
-    tab = tab ? await navigateTab(tab.id, url) : await openWorkTab(url, { incognito: Boolean(opts.useIncognito) });
+    tab = await openInCollectTab(url, opts);
   } catch (e) {
-    // 无痕权限未开启等环境问题：整体暂停，而不是逐条失败
-    return { status: /无痕/.test(e.message) ? 'setup' : 'error', message: e.message };
+    return { status: openErrorStatus(e), message: e.message };
   }
-  await chrome.storage.session.set({ [COLLECT_TAB_KEY]: tab.id });
   await sleep(1500);
   return collectFromTab(tab.id, opts);
 }
