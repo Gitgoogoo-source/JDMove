@@ -42,7 +42,47 @@ function skuRow(opts) {
   };
 }
 
-function loadPage(rows) {
+/**
+ * 京麦的销售属性维度：在末尾空输入框里录入后，值被挪到新渲染的输入框里成为“临时”值（末尾框保持为空），
+ * 只有持有该值的输入框获得焦点后再失焦，才会转为正式值；合成的回车事件不会提交
+ */
+function saleDim(name, { commitOnBlur = true } = {}) {
+  const modelValue = [];
+  const container = { type: { name: 'SaleDimensionContainer' }, props: { modelValue } };
+  const inputs = [];
+  const newInput = (value = '') => ({
+    placeholder: `请设置${name}`,
+    value,
+    focused: false,
+    __vueParentComponent: { type: { name: 'JdInput' }, parent: container },
+    click() {
+      this.focused = true;
+    },
+    focus() {
+      this.focused = true;
+    },
+    blur() {
+      if (!this.focused) return;
+      this.focused = false;
+      const hit = modelValue.find((m) => m.attrValueAlias === this.value);
+      if (hit && commitOnBlur) hit.specType = 'formal';
+    },
+    dispatchEvent: () => true,
+  });
+  const trailing = newInput();
+  Object.defineProperty(trailing, 'value', {
+    get: () => '',
+    set: (v) => {
+      if (!v) return;
+      modelValue.push({ attrValueAlias: v, specType: 'temporary' });
+      inputs.splice(inputs.length - 1, 0, newInput(v));
+    },
+  });
+  inputs.push(trailing);
+  return { inputs, modelValue };
+}
+
+function loadPage(rows, extraInputs = () => []) {
   const batchPrice = input('京东价(元)');
   const batchStock = input('库存');
   // 批量应用：把批量框里“已提交”的值写到每一行
@@ -57,7 +97,7 @@ function loadPage(rows) {
   };
   const util = {
     sleep: () => Promise.resolve(),
-    qsa: (sel, root) => (root ? Array.from(root.querySelectorAll(sel)) : sel === 'input' ? [batchPrice, batchStock] : sel === 'tr' ? rows : []),
+    qsa: (sel, root) => (root ? Array.from(root.querySelectorAll(sel)) : sel === 'input' ? [batchPrice, batchStock, ...extraInputs()] : sel === 'tr' ? rows : []),
     visible: () => true,
     textOf: (e) => String(e?.innerText ?? ''),
     waitFor: async (fn) => fn(),
@@ -87,6 +127,33 @@ test('setSkuRows: 写入后值没留住时报告缺失的行，而不是假装�
   const res = await B.setSkuRows([{ enabled: true, price: 45.9, stock: 100 }]);
   assert.equal(res.ok, false);
   assert.equal(JSON.stringify(res.missing), JSON.stringify([{ row: 0, price: '45.9', stock: '100' }]));
+});
+
+const specState = (dim) => JSON.stringify(dim.modelValue.map((m) => [m.attrValueAlias, m.specType]));
+
+test('setSaleValues: 让持有新值的输入框失焦，临时规格值转为正式值，SKU 表才会带上规格', async () => {
+  const dim = saleDim('规格');
+  const { B } = loadPage([skuRow()], () => dim.inputs);
+  const res = await B.setSaleValues([{ name: '规格', values: ['黑巧480g'] }], { stableMs: 0 });
+  assert.equal(specState(dim), JSON.stringify([['黑巧480g', 'formal']]));
+  assert.equal(res.ok, true);
+});
+
+test('setSaleValues: 已录入但仍是临时状态的值也会被提交，不重复录入', async () => {
+  const dim = saleDim('规格');
+  const { B } = loadPage([skuRow()], () => dim.inputs);
+  dim.inputs[0].value = '黑巧480g';
+  const res = await B.setSaleValues([{ name: '规格', values: ['黑巧480g'] }], { stableMs: 0 });
+  assert.equal(specState(dim), JSON.stringify([['黑巧480g', 'formal']]));
+  assert.equal(res.ok, true);
+});
+
+test('setSaleValues: 规格值没能转为正式值时报告出来，避免带着会被清空的价格/库存继续保存', async () => {
+  const dim = saleDim('规格', { commitOnBlur: false });
+  const { B } = loadPage([skuRow()], () => dim.inputs);
+  const res = await B.setSaleValues([{ name: '规格', values: ['黑巧480g'] }], { stableMs: 0 });
+  assert.equal(res.ok, false);
+  assert.equal(JSON.stringify(res.uncommitted), JSON.stringify(['规格:黑巧480g']));
 });
 
 test('drawerFields: 识别新版 SKU属性抽屉（.shop-dynamic-component），必填按 is-required-star 判断', () => {

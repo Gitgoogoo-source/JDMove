@@ -110,6 +110,8 @@ async function fillForm(tabId, item, settings, plan, log) {
   log(`主图 ${up.urls.length} 张`);
 
   const sale = await callBackend(tabId, 'setSaleValues', plan.sale.dims);
+  // 规格值没生效时京麦稍后会重建 SKU 表，京东价/库存被清空：直接停下，不带着空价格保存
+  if (sale?.uncommitted?.length) throw new Error(`销售属性值没有生效：${sale.uncommitted.join(',')}`);
   if (!sale?.ok) log(`销售属性写入失败：${sale?.failed?.join(',')}`);
   const rows = await callBackend(tabId, 'setSkuRows', plan.sale.rows);
   if (!rows?.ok) log(`SKU 表：${rows?.issues?.join('；')}`);

@@ -4,7 +4,7 @@
   const NS = window.__JDMOVE__;
   if (!NS || !NS.backend || NS.backend.__media) return;
   const B = NS.backend;
-  const { sleep, qsa, visible, textOf, norm, waitFor, setNativeValue, pressEnter, click, openSelect, buttonByText, visibleDialogs, messages } = B.util;
+  const { sleep, qsa, visible, textOf, norm, waitFor, setNativeValue, click, openSelect, buttonByText, visibleDialogs, messages } = B.util;
 
   function b64ToFile({ b64, name, mime }) {
     const bin = atob(b64);
@@ -81,37 +81,62 @@
   }
 
   // ---------- 销售属性 ----------
+  const saleInputs = (dimName) => qsa('input').filter((i) => i.placeholder === `请设置${dimName}`);
+
+  // 京麦销售属性组件的值：[{ attrValueAlias, specType: 'temporary' | 'formal' }]；拿不到组件时返回 null
+  function saleDimState(dimName) {
+    let c = (saleInputs(dimName)[0] || {}).__vueParentComponent;
+    for (let i = 0; i < 20 && c; i += 1) {
+      if ((c.type.name || c.type.__name) === 'SaleDimensionContainer') return Array.isArray(c.props.modelValue) ? c.props.modelValue : null;
+      c = c.parent;
+    }
+    return null;
+  }
+
+  function saleValueCommitted(dimName, value) {
+    const state = saleDimState(dimName);
+    if (!state) return saleInputs(dimName).some((i) => i.value === value);
+    return state.some((v) => v.attrValueAlias === value && v.specType !== 'temporary');
+  }
+
+  // 录入的值先是“临时”值，京麦把它挪到新渲染的输入框里（原输入框清空）；
+  // 只有持有该值的输入框失焦后才转为正式值并重建 SKU 表，合成的回车事件不会提交。
+  // 不提交的话，后面填的京东价/库存写在一张没有规格的占位表上，之后整表重建时被清空
+  async function commitSaleValue(dimName, value) {
+    const holder = saleInputs(dimName).find((i) => i.value === value);
+    if (!holder) return false;
+    holder.focus();
+    await sleep(100);
+    holder.blur();
+    return !!(await waitFor(() => saleValueCommitted(dimName, value), { timeout: 3000 }));
+  }
+
   async function addSaleValue(dimName, value) {
-    const placeholder = `请设置${dimName}`;
-    const empty = qsa('input').filter((i) => i.placeholder === placeholder && !i.value && visible(i)).pop();
+    const empty = saleInputs(dimName).filter((i) => !i.value && visible(i)).pop();
     if (!empty) return false;
     click(empty);
     await sleep(300);
     setNativeValue(empty, value);
-    // 回车只有在输入框真正获得焦点时才会提交（点击可能弹出预设值浮层抢走焦点）
-    empty.focus();
-    await sleep(100);
-    pressEnter(empty);
-    await sleep(400);
-    empty.blur();
     await sleep(300);
-    return empty.value === value;
+    return commitSaleValue(dimName, value);
   }
 
-  async function setSaleValues(dims) {
+  async function setSaleValues(dims, { stableMs = 1500 } = {}) {
     const failed = [];
+    const uncommitted = [];
     for (const dim of dims) {
       for (const value of dim.values) {
-        const existing = qsa('input').some((i) => i.placeholder === `请设置${dim.name}` && i.value === value);
-        if (existing) continue;
-        if (!(await addSaleValue(dim.name, value))) failed.push(`${dim.name}:${value}`);
+        if (saleDimState(dim.name) && saleValueCommitted(dim.name, value)) continue;
+        const typed = saleInputs(dim.name).some((i) => i.value === value);
+        const ok = typed ? await commitSaleValue(dim.name, value) : await addSaleValue(dim.name, value);
+        if (!ok) uncommitted.push(`${dim.name}:${value}`);
       }
     }
     const expected = dims.reduce((n, d) => n * Math.max(1, d.values.length), 1);
     const rows = await waitFor(() => (skuRows().length === expected ? expected : null), { timeout: 5000 });
     if (!rows) failed.push(`SKU 行数 ${skuRows().length}，预期 ${expected}`);
-    await waitSkuTableStable();
-    return { ok: failed.length === 0, failed, rows: skuRows().length };
+    await waitSkuTableStable({ quietMs: stableMs });
+    return { ok: failed.length === 0 && uncommitted.length === 0, failed: [...uncommitted, ...failed], uncommitted, rows: skuRows().length };
   }
 
   // ---------- SKU 表 ----------
@@ -351,7 +376,9 @@
     return null;
   }
 
-  async function runAction(action) {
+  // 只认点击之后新出现的提示：页面上可能还留着“批量设置成功”之类的提示，
+  // 之前把它当成保存结果，误报成功并立刻关掉标签页，保存请求根本没发出去
+  async function runAction(action, { timeoutMs = 20000 } = {}) {
     const label = ACTION_BUTTON[action];
     if (!label) return { ok: true, skipped: true };
     const btn = buttonByText(label);
@@ -361,13 +388,14 @@
       return { ok: false, error: `“${label}”不可用：${st.publishDisabledMsg || '请检查页面提示'}` };
     }
     const startUrl = location.href;
+    const preexisting = new Set(messages());
     const seen = new Set();
     click(btn);
-    const end = Date.now() + 20000;
+    const end = Date.now() + timeoutMs;
     let confirmText = '';
     let popupSuccess = false;
     while (Date.now() < end) {
-      messages().forEach((m) => seen.add(m));
+      messages().filter((m) => !preexisting.has(m)).forEach((m) => seen.add(m));
       const box = visibleDialogs().find(
         (d) => d.classList.contains('jd-message-box') || /提示|确认/.test(textOf(d).slice(0, 20)) || SUCCESS_POPUP_RE.test(textOf(d)),
       );
@@ -386,12 +414,13 @@
         } else break; // 提交前的确认框交给人工判断
       }
       if (location.href !== startUrl) break;
-      if ([...seen].some((m) => /成功|失败|错误|请/.test(m))) break;
+      if ([...seen].some((m) => SUCCESS_POPUP_RE.test(m) || /失败|错误|请/.test(m))) break;
       await sleep(300);
     }
     const msgs = [...seen];
     const errors = B.collectErrors();
-    const success = popupSuccess || msgs.some((m) => /成功/.test(m)) || (location.href !== startUrl && !/popPublish/.test(location.href));
+    const success = popupSuccess || msgs.some((m) => SUCCESS_POPUP_RE.test(m)) || (location.href !== startUrl && !/popPublish/.test(location.href));
+    if (!success && !msgs.length && !errors.length) msgs.push(`点击“${label}”后没有看到保存结果`);
     return { ok: popupSuccess || (success && errors.length === 0), messages: msgs, errors, confirmText: popupSuccess ? '' : confirmText, url: location.href };
   }
 

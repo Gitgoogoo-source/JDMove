@@ -75,12 +75,6 @@
     el.dispatchEvent(new Event('change', { bubbles: true }));
   }
 
-  function pressEnter(el) {
-    for (const type of ['keydown', 'keypress', 'keyup']) {
-      el.dispatchEvent(new KeyboardEvent(type, { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
-    }
-  }
-
   function click(el) {
     el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
     el.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
@@ -287,7 +281,7 @@
 
   NS.backend = Object.assign(NS.backend || {}, {
     __core: true,
-    util: { sleep, qsa, visible, textOf, norm, waitFor, setNativeValue, pressEnter, click, openSelect, formItemByLabel, buttonByText, visibleDialogs, messages, walkComponents },
+    util: { sleep, qsa, visible, textOf, norm, waitFor, setNativeValue, click, openSelect, formItemByLabel, buttonByText, visibleDialogs, messages, walkComponents },
     getFApi,
     status,
     searchCategory,
