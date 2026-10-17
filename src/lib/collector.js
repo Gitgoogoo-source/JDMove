@@ -1,7 +1,7 @@
 // 采集：在页面中运行抓取脚本并归一化
 import { normalizeProduct, validateProduct } from '../shared/product-normalize.js';
 import { classifyPageUrl } from '../shared/url-utils.js';
-import { ITEM_FILES, runInPage, openWorkTab, navigateTab, sleep } from './chrome-env.js';
+import { ITEM_FILES, runInPage, openWorkTab, navigateTab, closeTab, sleep } from './chrome-env.js';
 
 const COLLECT_TAB_KEY = 'collectTabId';
 const MERCHANT_BLOCK_MSG =
@@ -51,6 +51,18 @@ export async function collectUrl(url, opts = {}) {
   await chrome.storage.session.set({ [COLLECT_TAB_KEY]: tab.id });
   await sleep(1500);
   return collectFromTab(tab.id, opts);
+}
+
+/**
+ * 采集结束后关闭复用的采集标签页：它开在当前窗口里，切换到商家账号后
+ * 京东会把这个商品页拦成“商家账号只允许查看本店商品详情”。
+ * 无痕标签页保留：关掉最后一个无痕窗口后消费者账号需要重新登录。
+ */
+export async function closeCollectTab() {
+  const tab = await collectTab();
+  if (!tab || tab.incognito) return;
+  await chrome.storage.session.remove(COLLECT_TAB_KEY);
+  await closeTab(tab.id);
 }
 
 export async function extractListSkus(tabId) {

@@ -38,6 +38,9 @@ export function installFakeChrome({ resolveUrl = (u) => u, backend = () => undef
       session: {
         get: async (key) => (key in sessionStore ? { [key]: sessionStore[key] } : {}),
         set: async (obj) => Object.assign(sessionStore, obj),
+        remove: async (key) => {
+          delete sessionStore[key];
+        },
       },
       local: { get: async () => ({}), set: async () => {} },
     },
@@ -83,7 +86,7 @@ export function installFakeChrome({ resolveUrl = (u) => u, backend = () => undef
           calls.push({ op: 'inject.files', tabId: target.tabId });
           return [{ result: undefined }];
         }
-        calls.push({ op: 'inject.func', tabId: target.tabId, name: func.name, args });
+        calls.push({ op: 'inject.func', tabId: target.tabId, name: func.name, func, args });
         const isBackendCall = typeof args[0] === 'string' && Array.isArray(args[1]);
         return [{ result: isBackendCall ? backend(args[0], args[1]) : undefined }];
       },

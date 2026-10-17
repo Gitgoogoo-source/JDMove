@@ -29,7 +29,12 @@ async function handleExtractList(tabId) {
   return { ok: true, found: skus.length, added: added.length };
 }
 
+const MAX_SLEEP_MS = 20000;
+
 const handlers = {
+  // 任务面板在后台时借用这里计时（见 chrome-env.js 的 sleep）
+  sleep: (msg) =>
+    new Promise((resolve) => setTimeout(() => resolve({ ok: true }), Math.min(Math.max(Number(msg.ms) || 0, 0), MAX_SLEEP_MS))),
   'collect-tab': (msg, sender) => handleCollectTab(msg.tabId ?? sender.tab?.id),
   'extract-list': (msg, sender) => handleExtractList(msg.tabId ?? sender.tab?.id),
   'add-skus': async (msg) => ({ ok: true, added: (await itemRepo.addSkus(msg.skus ?? [])).length }),

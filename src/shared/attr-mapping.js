@@ -61,12 +61,18 @@ export function matchOption(options, value) {
   if (!list.length || !v) return null;
   const exact = list.find((o) => normalizeName(o.label) === v);
   if (exact) return exact;
+  // 值里包含选项（“产地：比利时”）取最长的选项；选项包含值（“新日期” -> “新日期：…”）优先以值开头的选项
+  const rank = (l) => (v.includes(l) ? 0 : l.startsWith(v) ? 1 : 2);
   const contained = list
     .filter((o) => {
       const l = normalizeName(o.label);
       return l && (v.includes(l) || (v.length >= 2 && l.includes(v)));
     })
-    .sort((a, b) => normalizeName(b.label).length - normalizeName(a.label).length);
+    .sort((a, b) => {
+      const la = normalizeName(a.label);
+      const lb = normalizeName(b.label);
+      return rank(la) - rank(lb) || (rank(la) === 0 ? lb.length - la.length : la.length - lb.length);
+    });
   if (contained.length) return contained[0];
   for (const piece of splitValues(value)) {
     const hit = list.find((o) => normalizeName(o.label) === normalizeName(piece));
@@ -135,11 +141,94 @@ function deriveValue(title, product) {
   return { value: domestic ? '国产' : '进口', from: `产地(${origin.value})` };
 }
 
-function convertForAttr(attr, raw) {
-  if (attr.kind === 'select') {
-    const hit = matchOption(attr.options, raw);
-    return hit ? hit.value : null;
+// 包装/销售单位：源值或标题里的容器字（桶装、6袋装…）按相近程度依次尝试目标选项
+const CONTAINER_PREFS = {
+  桶: ['桶', '罐', '瓶'],
+  罐: ['罐', '桶', '瓶'],
+  听: ['听', '罐', '瓶'],
+  碗: ['碗', '罐', '盒'],
+  瓶: ['瓶', '罐'],
+  盒: ['盒', '礼盒'],
+  袋: ['袋', '包'],
+  包: ['包', '袋'],
+  箱: ['箱', '件'],
+  条: ['条'],
+  块: ['块'],
+  板: ['板'],
+  支: ['支'],
+  组: ['组'],
+};
+const CONTAINER_CHARS = Object.keys(CONTAINER_PREFS).join('');
+const PACKED_RE = new RegExp(`([${CONTAINER_CHARS}])装`);
+const COUNTED_RE = new RegExp(`\\d+\\s*([${CONTAINER_CHARS}])`);
+const ANY_CONTAINER_RE = new RegExp(`([${CONTAINER_CHARS}])`);
+const CONTAINER_ATTRS = new Set(['包装', '包装形式', '包装方式', '包装类型', '销售单位'].map(normalizeName));
+const OTHER_LABELS = new Set(['其它', '其他']);
+const IMPORT_HINT_RE = /进口|原装/;
+
+/** 找出文本里的容器字；标题只认“X装 / 数字+X”，包装字段本身可以宽松匹配 */
+function containerIn(text, loose = false) {
+  const s = String(text ?? '');
+  const m = s.match(PACKED_RE) || s.match(COUNTED_RE) || (loose ? s.match(ANY_CONTAINER_RE) : null);
+  return m ? m[1] : null;
+}
+
+function containerOption(options, container) {
+  for (const c of CONTAINER_PREFS[container] ?? []) {
+    const hit = options.find((o) => [c, `${c}装`].includes(normalizeName(o.label)));
+    if (hit) return hit;
   }
+  return null;
+}
+
+const otherOption = (options) => options.find((o) => OTHER_LABELS.has(normalizeName(o.label))) ?? null;
+
+function guessSaleUnit(product) {
+  const pkg = findSourceValue('包装', product);
+  const texts = [
+    pkg && { text: pkg.value, loose: true, from: `${pkg.from}(${pkg.value})` },
+    { text: product?.title, loose: false, from: '标题' },
+    ...(product?.saleDims ?? []).flatMap((d) => d.values ?? []).map((v) => ({ text: v, loose: false, from: `规格(${v})` })),
+  ].filter(Boolean);
+  for (const { text, loose, from } of texts) {
+    const c = containerIn(text, loose);
+    if (c) return { value: c, from };
+  }
+  return null;
+}
+
+/** 源页面没有产地时：标题/参数里出现选项中的国家就用它；有“进口”字样但看不出国家则不填；否则按国产处理 */
+function guessOrigin(attr, product) {
+  if (!product?.title) return null;
+  const text = [product.title, product.brand?.name, ...(product.params ?? []).map((p) => p.value)].join(' ');
+  const country = (attr.options ?? []).find((o) => o.label.length >= 2 && !OTHER_LABELS.has(o.label) && text.includes(o.label));
+  if (country) return { value: country.label, from: `标题/参数(${country.label})` };
+  if (IMPORT_HINT_RE.test(text)) return null;
+  return { value: '中国大陆', from: '源页面无产地，按国产处理' };
+}
+
+// 兜底推断：只在源数据和用户默认值都没有时使用
+function guessValue(attr, product) {
+  const key = normalizeName(attr.title);
+  if (key === normalizeName('销售单位')) return guessSaleUnit(product);
+  if (groupOf(key)?.includes(normalizeName('产地'))) return guessOrigin(attr, product);
+  return null;
+}
+
+function convertSelect(attr, raw, lenient) {
+  const options = attr.options ?? [];
+  const hit =
+    matchOption(options, raw) ??
+    (CONTAINER_ATTRS.has(normalizeName(attr.title)) ? containerOption(options, containerIn(raw, true)) : null) ??
+    (lenient ? otherOption(options) : null);
+  return hit ? hit.value : null;
+}
+
+/**
+ * @param {{lenient?: boolean}} [opts] lenient：源数据里确有该属性但选项对不上时，退到“其它”
+ */
+function convertForAttr(attr, raw, { lenient = false } = {}) {
+  if (attr.kind === 'select') return convertSelect(attr, raw, lenient);
   if (attr.kind === 'multi') {
     const hits = splitValues(raw)
       .map((piece) => matchOption(attr.options, piece))
@@ -151,6 +240,30 @@ function convertForAttr(attr, raw) {
   const text = convertInputValue(raw, attr.suffix);
   if (!text) return null;
   return attr.maxLength > 0 ? text.slice(0, attr.maxLength) : text;
+}
+
+function optionLabel(attr, value) {
+  if (attr.kind !== 'select') return null;
+  return (attr.options ?? []).find((o) => o.value === value)?.label ?? null;
+}
+
+// 取值顺序：源参数 > 可靠推断（净含量、国产/进口）> 用户默认值 > 兜底推断（销售单位、产地）
+function planAttr(attr, product, fallback) {
+  const found = findSourceValue(attr.title, product);
+  const derived = found ? null : deriveValue(attr.title, product);
+  const guessed = found ? null : guessValue(attr, product);
+  const steps = [
+    found && { ...found, status: 'matched', lenient: true },
+    derived && { ...derived, status: 'derived' },
+    fallback != null && fallback !== '' && { value: fallback, from: '属性默认值', status: 'default' },
+    guessed && { ...guessed, status: 'guessed' },
+  ].filter(Boolean);
+  for (const step of steps) {
+    const value = convertForAttr(attr, step.value, step);
+    if (value != null) return { status: step.status, source: step.from, raw: step.value, value, label: optionLabel(attr, value) };
+  }
+  const source = found ?? derived;
+  return { status: source ? 'unmatched' : 'missing', source: source?.from ?? null, raw: source?.value ?? null, value: null };
 }
 
 /**
@@ -166,20 +279,9 @@ export function buildPropPlan(attrs, product, opts = {}) {
   const values = {};
   const report = [];
   for (const attr of attrs ?? []) {
-    const found = findSourceValue(attr.title, product);
-    const derived = found ? null : deriveValue(attr.title, product);
-    const source = found ?? derived;
-    let status = 'missing';
-    let converted = source ? convertForAttr(attr, source.value) : null;
-    if (converted != null) status = found ? 'matched' : 'derived';
-    else if (source) status = 'unmatched';
-    const fallback = defaults[normalizeName(attr.title)];
-    if (converted == null && fallback != null && fallback !== '') {
-      converted = convertForAttr(attr, fallback);
-      if (converted != null) status = 'default';
-    }
-    if (converted != null) values[attr.field] = converted;
-    report.push({ field: attr.field, title: attr.title, status, source: source?.from ?? null, raw: source?.value ?? null, value: converted });
+    const entry = planAttr(attr, product, defaults[normalizeName(attr.title)]);
+    if (entry.value != null) values[attr.field] = entry.value;
+    report.push({ field: attr.field, title: attr.title, ...entry });
   }
   const missingRequired = report
     .filter((r, i) => attrs[i].required && r.value == null)

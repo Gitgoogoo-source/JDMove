@@ -14,7 +14,25 @@ export const chromeStorage = {
 export const itemRepo = createItemRepository(chromeStorage);
 export const settingsRepo = createSettingsRepository(chromeStorage);
 
-export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const SW_SLEEP_MAX_MS = 20000;
+const timerSleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const pageHidden = () => typeof document !== 'undefined' && document.visibilityState === 'hidden';
+
+/**
+ * 任务面板切到后台超过 5 分钟后，Chrome 会把连续的定时器限流到约每分钟一次，批量任务看起来就像卡住了。
+ * 面板在后台时改由 Service Worker 计时：每次唤醒都是一条扩展消息，不受这种限流。
+ */
+export async function sleep(ms) {
+  if (!pageHidden()) return timerSleep(ms);
+  for (let left = ms; left > 0; left -= SW_SLEEP_MAX_MS) {
+    const chunk = Math.min(left, SW_SLEEP_MAX_MS);
+    try {
+      await chrome.runtime.sendMessage({ type: 'sleep', ms: chunk });
+    } catch {
+      await timerSleep(chunk);
+    }
+  }
+}
 export const randomBetween = (min, max) => min + Math.random() * Math.max(0, max - min);
 
 const INCOGNITO_WINDOW_KEY = 'collectIncognitoWindowId';
@@ -121,8 +139,12 @@ export async function disarmBeforeUnload(tabId) {
         window.onbeforeunload = null;
         if (window.__JDMOVE_UNLOAD_DISARMED__) return;
         window.__JDMOVE_UNLOAD_DISARMED__ = true;
-        // window 上的捕获监听在目标阶段先于页面的冒泡监听执行，截断后页面无法再要求确认
-        window.addEventListener('beforeunload', (e) => e.stopImmediatePropagation(), true);
+        // 京麦发布页（micro-app）的监听会先于我们追加的监听执行，抢顺序拦不住；
+        // 直接让页面里的 preventDefault / returnValue 对 beforeunload 失效，Chrome 就不会弹确认框
+        const proto = BeforeUnloadEvent.prototype;
+        Object.defineProperty(proto, 'returnValue', { configurable: true, get: () => '', set: () => {} });
+        Object.defineProperty(proto, 'preventDefault', { configurable: true, writable: true, value: () => {} });
+        Object.defineProperty(window, 'onbeforeunload', { configurable: true, get: () => null, set: () => {} });
       },
     });
   } catch {

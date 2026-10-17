@@ -64,7 +64,19 @@ test('buildPublishPlan lists blockers for missing price and required attrs', () 
     schema,
   });
   assert.ok(plan.blockers.some((b) => b.includes('价格')));
-  assert.ok(plan.blockers.some((b) => b.includes('产地')));
+  // 产地可以按国产兜底；保质期没有来源也无法推断，仍然阻塞
+  assert.ok(plan.blockers.some((b) => b.includes('保质期') && b.includes('属性默认值')));
+});
+
+test('buildPublishPlan warns about guessed attribute values so they can be checked', () => {
+  const plan = buildPublishPlan({
+    product: { ...product, params: [{ name: '保质期', value: '12个月' }] },
+    edits: {},
+    settings: mergeSettings({}),
+    schema,
+  });
+  assert.equal(plan.props.values['1'], 'cn');
+  assert.ok(plan.warnings.some((w) => w.includes('产地') && w.includes('中国大陆')));
 });
 
 test('descriptionHtml wraps images in order and escapes urls', () => {

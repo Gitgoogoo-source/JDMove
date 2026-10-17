@@ -110,6 +110,7 @@
     const expected = dims.reduce((n, d) => n * Math.max(1, d.values.length), 1);
     const rows = await waitFor(() => (skuRows().length === expected ? expected : null), { timeout: 5000 });
     if (!rows) failed.push(`SKU 行数 ${skuRows().length}，预期 ${expected}`);
+    await waitSkuTableStable();
     return { ok: failed.length === 0, failed, rows: skuRows().length };
   }
 
@@ -118,13 +119,36 @@
     return qsa('tr').filter((tr) => visible(tr) && tr.querySelectorAll('input[placeholder="请输入"]').length >= 2 && tr.querySelector('.jd-switch'));
   }
 
+  // 加完规格值后京麦会异步重建 SKU 表（整行换新，已填的京东价/库存被清空）：等行不再变化再填写
+  async function waitSkuTableStable({ quietMs = 1500, timeout = 8000, interval = 200 } = {}) {
+    const signature = () => skuRows().map((tr) => (tr.querySelector('input') || {}).id || '').join('|');
+    const end = Date.now() + timeout;
+    let last = signature();
+    let since = Date.now();
+    while (Date.now() < end) {
+      await sleep(interval);
+      const current = signature();
+      if (current !== last) {
+        last = current;
+        since = Date.now();
+      } else if (Date.now() - since >= quietMs) return true;
+    }
+    return false;
+  }
+
+  // 京麦的价格/库存输入框失焦后才把值提交到表单数据，只触发 input 不够
+  function commitInput(el, value) {
+    setNativeValue(el, value);
+    el.dispatchEvent(new Event('blur'));
+  }
+
   async function batchApply(price, stock) {
     const priceInput = qsa('input').find((i) => i.placeholder === '京东价(元)' && visible(i));
     const stockInput = qsa('input').find((i) => i.placeholder === '库存' && visible(i));
     const btn = buttonByText('批量应用');
     if (!priceInput || !stockInput || !btn) return false;
-    setNativeValue(priceInput, String(price));
-    setNativeValue(stockInput, String(stock));
+    commitInput(priceInput, String(price));
+    commitInput(stockInput, String(stock));
     click(btn);
     await sleep(800);
     return true;
@@ -141,16 +165,29 @@
       if (!tr) return;
       tr.scrollIntoView({ block: 'center' });
       const [priceInput, stockInput] = tr.querySelectorAll('input[placeholder="请输入"]');
-      if (row.enabled && String(row.price) !== priceInput.value) setNativeValue(priceInput, String(row.price));
-      if (String(row.stock) !== stockInput.value) setNativeValue(stockInput, String(row.stock));
-      priceInput.dispatchEvent(new Event('blur'));
-      stockInput.dispatchEvent(new Event('blur'));
+      if (row.enabled) commitInput(priceInput, String(row.price));
+      commitInput(stockInput, String(row.stock));
       const sw = tr.querySelector('.jd-switch');
       const on = sw.classList.contains('is-checked');
       if (on !== row.enabled) click(sw);
     });
     await sleep(500);
-    return { ok: issues.length === 0, issues, rows: domRows.length };
+    const missing = rowsNotWritten(rows);
+    if (missing.length) issues.push(`第 ${missing.map((m) => m.row + 1).join('、')} 行的京东价/库存没有写进去`);
+    return { ok: issues.length === 0, issues, missing, rows: domRows.length };
+  }
+
+  // 重新读取页面：京东价/库存与计划不一致（被页面清空或没写进去）的行
+  function rowsNotWritten(rows) {
+    const domRows = skuRows();
+    const same = (input, want) => input.value !== '' && Number(input.value) === Number(want);
+    return rows.flatMap((row, idx) => {
+      const tr = domRows[idx];
+      if (!tr) return [];
+      const [priceInput, stockInput] = tr.querySelectorAll('input[placeholder="请输入"]');
+      const ok = (!row.enabled || same(priceInput, row.price)) && same(stockInput, row.stock);
+      return ok ? [] : [{ row: idx, price: String(row.price), stock: String(row.stock) }];
+    });
   }
 
   function matchLabelValue(label, valueMap) {
@@ -174,6 +211,20 @@
     return !!hit;
   }
 
+  // SKU属性抽屉的字段：旧版 .jd-form-item；新版 .shop-dynamic-component（标题带 is-required-star 表示必填）
+  function drawerFields(drawer) {
+    const legacy = qsa('.jd-form-item', drawer).map((fi) => {
+      const lab = fi.querySelector('.jd-form-item__label');
+      return { root: fi, label: textOf(lab).replace(/[*＊]/g, ''), required: fi.classList.contains('is-required') || /\*/.test(textOf(lab)) };
+    });
+    const dynamic = qsa('.shop-dynamic-component-title', drawer).map((title) => ({
+      root: title.parentElement,
+      label: textOf(title).replace(/[*＊]/g, ''),
+      required: title.classList.contains('is-required-star'),
+    }));
+    return [...legacy, ...dynamic].filter((f) => f.root && f.label);
+  }
+
   async function fillSkuAttrDrawers(valueMap) {
     const results = [];
     const count = skuRows().length;
@@ -189,14 +240,12 @@
         continue;
       }
       const missing = [];
-      for (const fi of qsa('.jd-form-item', drawer)) {
-        const label = textOf(fi.querySelector('.jd-form-item__label')).replace(/[*＊]/g, '');
-        const required = fi.classList.contains('is-required') || /\*/.test(textOf(fi.querySelector('.jd-form-item__label')));
+      for (const { root: fi, label, required } of drawerFields(drawer)) {
         const value = matchLabelValue(label, valueMap);
         const input = fi.querySelector('input.jd-input__inner:not([readonly]), textarea');
         let done = false;
         if (value != null && input && !input.value) {
-          setNativeValue(input, String(value));
+          commitInput(input, String(value));
           done = true;
         } else if (value != null && fi.querySelector('.jd-select')) {
           done = await chooseSelectOption(fi, value);
@@ -221,9 +270,21 @@
     return qsa('.shop-editor_content-right, [class*="shop-editor"]').find(visible) || document;
   }
 
+  // 详情编辑模式按单选框的值识别：文字会带角标（如“图文编辑推荐”），值是稳定的
+  const DESC_MODE_VALUES = { 图文编辑: 'FLOOR', 代码编辑: 'CODE', 高级编辑: 'ZHUANG_BA' };
+
+  function descModeRadio(label) {
+    const radios = qsa('label.jd-radio', descriptionSection()).concat(qsa('label.jd-radio').filter(visible));
+    const valueOf = (l) => (l.querySelector('input.jd-radio__original') || {}).value;
+    return (
+      radios.find((l) => valueOf(l) === DESC_MODE_VALUES[label]) ||
+      radios.find((l) => textOf(l).startsWith(label)) ||
+      null
+    );
+  }
+
   async function switchDescMode(label) {
-    const radio = qsa('label.jd-radio', descriptionSection()).find((l) => textOf(l) === label) ||
-      qsa('label.jd-radio').find((l) => textOf(l) === label && visible(l));
+    const radio = descModeRadio(label);
     if (!radio) return false;
     if (radio.classList.contains('is-checked')) return true;
     click(radio);
@@ -278,6 +339,17 @@
 
   // ---------- 提交动作 ----------
   const ACTION_BUTTON = { draft: '保存草稿', submit_off: '提交暂不上架', submit_on: '提交并上架' };
+  // 保存/提交成功后京麦弹出“保存成功 … 我知道了”，需要点掉才算结束
+  const SUCCESS_POPUP_RE = /保存成功|提交成功|发布成功|操作成功/;
+  const ACK_LABELS = ['我知道了', '知道了', '确定', '关闭'];
+
+  function ackButton(box) {
+    for (const label of ACK_LABELS) {
+      const btn = buttonByText(label, box);
+      if (btn) return btn;
+    }
+    return null;
+  }
 
   async function runAction(action) {
     const label = ACTION_BUTTON[action];
@@ -293,9 +365,19 @@
     click(btn);
     const end = Date.now() + 20000;
     let confirmText = '';
+    let popupSuccess = false;
     while (Date.now() < end) {
       messages().forEach((m) => seen.add(m));
-      const box = visibleDialogs().find((d) => d.classList.contains('jd-message-box') || /提示|确认/.test(textOf(d).slice(0, 20)));
+      const box = visibleDialogs().find(
+        (d) => d.classList.contains('jd-message-box') || /提示|确认/.test(textOf(d).slice(0, 20)) || SUCCESS_POPUP_RE.test(textOf(d)),
+      );
+      if (box && SUCCESS_POPUP_RE.test(textOf(box))) {
+        seen.add(textOf(box).slice(0, 200));
+        const ack = ackButton(box);
+        if (ack) click(ack);
+        popupSuccess = true;
+        break;
+      }
       if (box && !confirmText) {
         confirmText = textOf(box).slice(0, 200);
         if (action === 'draft') {
@@ -309,8 +391,8 @@
     }
     const msgs = [...seen];
     const errors = B.collectErrors();
-    const success = msgs.some((m) => /成功/.test(m)) || (location.href !== startUrl && !/popPublish/.test(location.href));
-    return { ok: success && errors.length === 0, messages: msgs, errors, confirmText, url: location.href };
+    const success = popupSuccess || msgs.some((m) => /成功/.test(m)) || (location.href !== startUrl && !/popPublish/.test(location.href));
+    return { ok: popupSuccess || (success && errors.length === 0), messages: msgs, errors, confirmText: popupSuccess ? '' : confirmText, url: location.href };
   }
 
   Object.assign(B, {
@@ -319,6 +401,9 @@
     setSaleValues,
     setSkuRows,
     fillSkuAttrDrawers,
+    switchDescMode,
+    drawerFields,
+    waitSkuTableStable,
     uploadDetailImages,
     setDescriptionHtml,
     runAction,

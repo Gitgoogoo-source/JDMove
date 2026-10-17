@@ -57,7 +57,14 @@ export function buildPublishPlan({ product, edits = {}, settings, schema }) {
   const stock = Number.isFinite(Number(edits.stock)) && edits.stock !== '' && edits.stock != null ? Number(edits.stock) : settings.stock;
 
   const props = buildPropPlan(schema.attrs ?? [], source, { defaults });
-  if (props.missingRequired.length) blockers.push(`必填属性未匹配：${props.missingRequired.join('、')}`);
+  if (props.missingRequired.length) {
+    blockers.push(
+      `必填属性未匹配：${props.missingRequired.join('、')}（源商品页没有这些信息，请在「编辑 → 属性覆盖」或设置的「属性默认值」中填写）`,
+    );
+  }
+  const guessWarnings = props.report
+    .filter((r) => r.status === 'guessed')
+    .map((r) => `属性按推断填写，请核对：${r.title}=${r.label ?? r.raw}（依据：${r.source}）`);
 
   const variantPrices = Object.fromEntries(
     Object.entries(product.variantPrices ?? {}).map(([sku, p]) => [sku, computePrice(p, settings.price)]),
@@ -85,7 +92,7 @@ export function buildPublishPlan({ product, edits = {}, settings, schema }) {
     weightKg: weight ? convertInputValue(weight.value, 'kg') || null : null,
     packList: settings.packList || '',
     skuAttrValues: skuAttrValueMap(source, sourcePrice),
-    warnings: [...sale.warnings],
+    warnings: [...guessWarnings, ...sale.warnings],
     blockers,
   };
 }

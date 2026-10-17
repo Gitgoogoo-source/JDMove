@@ -173,6 +173,12 @@ async function publishInTab(tab, item, settings, log, preset) {
     const filled = await fillForm(tab.id, item, settings, plan, log);
     if (filled.needAction) return { status: 'need_action', message: filled.needAction, target };
 
+    // 京麦可能在填写过程中重建 SKU 表、清空京东价和库存：保存前重写一遍并核对，写不进去就不保存
+    const skuCheck = await callBackend(tab.id, 'setSkuRows', plan.sale.rows);
+    if (skuCheck?.missing?.length) {
+      return { status: 'failed', message: `SKU 表的京东价/库存没有写进去，已停止保存：${skuCheck.issues.join('；')}`, target, tabId: tab.id };
+    }
+
     const action = settings.publish.action;
     if (action === 'none') return { status: 'filled', message: '已填写完成，请在工作窗口中检查后手动提交', target, tabId: tab.id };
     const result = await callBackend(tab.id, 'runAction', action);

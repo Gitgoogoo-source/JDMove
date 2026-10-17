@@ -1,7 +1,7 @@
 // 批量任务执行器：在任务面板页面中运行（页面保持打开即可持续执行）
 import { validateSettings } from '../shared/settings.js';
 import { itemRepo, settingsRepo, sleep, randomBetween } from './chrome-env.js';
-import { collectUrl } from './collector.js';
+import { collectUrl, closeCollectTab } from './collector.js';
 import { publishItem } from './publisher.js';
 
 const MAX_LOG_LINES = 60;
@@ -67,6 +67,7 @@ export function createQueueRunner({ onChange, onLog }) {
     if (state.running) return;
     const { value: settings } = validateSettings(await settingsRepo.get());
     setState({ running: true, mode, stopRequested: false, pauseReason: '' });
+    let paused = false;
     try {
       for (const [idx, id] of ids.entries()) {
         if (state.stopRequested) break;
@@ -75,6 +76,7 @@ export function createQueueRunner({ onChange, onLog }) {
         setState({ currentId: id });
         const outcome = mode === 'collect' ? await collectOne(item, settings) : await publishOne(item, settings);
         if (outcome === 'pause') {
+          paused = true;
           onLog(`已暂停：${state.pauseReason || '需要人工处理'}`);
           break;
         }
@@ -89,6 +91,8 @@ export function createQueueRunner({ onChange, onLog }) {
     } catch (e) {
       onLog(`任务异常中止：${e.message}`);
     } finally {
+      // 暂停时保留采集页：频控/验证需要用户在该页面手动处理
+      if (mode === 'collect' && !paused) await closeCollectTab().catch((e) => onLog(`关闭采集标签页失败：${e.message}`));
       setState({ running: false, currentId: null, mode: null });
     }
   }
