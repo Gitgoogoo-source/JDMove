@@ -76,15 +76,14 @@
     const attrs = ((b.productAttributeVO && b.productAttributeVO.coreAttributes) || []).concat(
       (b.productAttributeVO && b.productAttributeVO.attributes) || [],
     );
-    const priceItem = ((b.warePriceGatherVO && b.warePriceGatherVO.priceItemList) || []).find((p) => p.priceType === 'jdPrice');
     const pageCfg = b.pageConfigVO || {};
     const read = b.wareInfoReadMap || {};
     return {
       title: (b.skuHeadVO && b.skuHeadVO.skuTitle) || '',
       crumbs: ((b.crumbInfoVO && b.crumbInfoVO.crumbs) || []).map((c) => c.text).filter(Boolean),
       params: attrs.map((a) => [a.labelName, a.labelValue]),
-      // 有京东价用京东价；只有补贴价/活动价时，用原价（op），避免按临时补贴价铺货
-      priceText: (priceItem && priceItem.price) || (b.price && (b.price.op || b.price.p)) || '',
+      // 与页面显示一致：取主价格（京东价/补贴价等），不取页面不显示的原价 op
+      priceText: NS.pickBusinessPrice(b),
       brandText: read.cn_brand || '',
       // 商品主数据里的结构化字段（参数列表没有时用作兜底，如保质期）
       wareInfo: { shelf_life: read.shelf_life || '' },

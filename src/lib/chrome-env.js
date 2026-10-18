@@ -197,7 +197,7 @@ export async function runInPage(tabId, files, func, args = []) {
 }
 
 export const BACKEND_FILES = ['src/inject/backend-core.js', 'src/inject/backend-media.js'];
-export const ITEM_FILES = ['src/inject/jd-item-extract.js'];
+export const ITEM_FILES = ['src/inject/jd-price.js', 'src/inject/jd-item-extract.js'];
 export const SHOP_FILES = ['src/inject/jd-shop-list.js'];
 
 /** 调用后台桥接 API：window.__JDMOVE__.backend[method](...args) */
