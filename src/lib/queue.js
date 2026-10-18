@@ -98,13 +98,13 @@ export function createQueueRunner({ onChange, onLog }) {
     }
   }
 
-  const pageLabel = (s) => `第 ${s.pageNo}${s.pageCount ? `/${s.pageCount}` : ''} 页`;
+  const pageLabel = (s) => `${s.label ? `${s.label} ` : ''}第 ${s.pageNo}${s.pageCount ? `/${s.pageCount}` : ''} 页`;
 
   async function addShopPage(s) {
     const fresh = await itemRepo.addSkus(s.added);
     setState({ currentId: pageLabel(s) });
-    const sofar = s.total != null ? `${s.skus.length}/${s.total}` : `${s.skus.length}`;
-    onLog(`店铺${pageLabel(s)}：找到 ${s.added.length} 个商品，新增任务 ${fresh.length} 个（累计 ${sofar}）`);
+    const listTotal = s.total != null ? `，本列表共 ${s.total} 件` : '';
+    onLog(`店铺${pageLabel(s)}：新找到 ${s.added.length} 个商品，新增任务 ${fresh.length} 个（累计 ${s.skus.length}${listTotal}）`);
   }
 
   // 抓取店铺全部商品链接：每抓完一页就加入任务列表，中途暂停/停止也不会丢失已抓到的商品
@@ -127,7 +127,7 @@ export function createQueueRunner({ onChange, onLog }) {
       } else if (res.status === 'error') {
         onLog(`抓取店铺失败：${res.message}${found ? `（已抓到的 ${found} 个商品已加入任务列表）` : ''}`);
       } else {
-        onLog(`抓取店铺${res.status === 'stopped' ? '已停止' : `完成（${res.message}）`}：共找到 ${found} 个商品`);
+        onLog(res.status === 'stopped' ? `抓取店铺已停止：共找到 ${found} 个商品` : `抓取店铺完成：${res.message}`);
       }
     } catch (e) {
       onLog(`抓取店铺异常中止：${e.message}`);

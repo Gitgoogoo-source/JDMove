@@ -1,18 +1,36 @@
 // 注入到京东店铺页（mall.jd.com / *.jd.com，MAIN world）执行。
-// 店铺“全部商品”主列表由页面脚本调用带签名的接口异步渲染，这里只等待渲染完成后读 DOM，
-// 不直接请求接口。总数解析、翻页判断在扩展侧完成。
+// 店铺“全部商品”主列表由页面脚本异步渲染，这里只等待渲染完成后读 DOM，不直接请求接口。
+//
+// 店铺装修模板差异（实测几十家自营店铺后归纳）：
+// - 列表模块可能是 jGoodsList-<模板ID>、JColorSearchList（J-goods-list）或店内搜索的 jSearchListArea；
+// - 同一页面可能有多个列表模块，各自有分页栏；
+// - “下一页”可能是普通链接（地址里的页码有效），也可能是 onclick="pageGoodsList(n, this)" 页内翻页；
+// - 每页条数 20 / 24 / 60 不等，总数写法有“共N条记录”“共N件商品”；
+// - 列表接口被限流时模块一直停在“努力加载中”（div.m_render_structure.loading）。
+// 所以这里以“带分页栏的模块”为单位工作，翻页跟着该模块里的“下一页”走。
 (() => {
   const NS = (window.__JDMOVE__ = window.__JDMOVE__ || {});
-  if (NS.extractShopPage) return;
+  // 以最新加入的方法判断，避免同一页面里残留旧版本脚本
+  if (NS.sortShopModule) return;
 
   const POLL_MS = 400;
   const STABLE_POLLS = 2;
+  const WAIT_MS = 15000;
+  const EMPTY_WAIT_MS = 6000;
   const SKU_HREF_RE = /item\.jd\.com\/(\d{6,})\.html/;
-  // 销售排行、推荐位等侧栏模块，不属于本页商品
-  const SIDE_MODULE_SEL = '[class*="SaleRank"], [class*="saleRank"], [class*="hot-link"]';
+  const TOTAL_RE = /共\s*\d+\s*[条件个][^\s]{0,4}/;
+  const ZERO_TOTAL_RE = /共\s*0\s*[条件个]/;
+  // 列表容器（含表头的排序、总数和分页栏）；找不到时退回到模块实例（.J_LayoutArea 的直接子元素）
+  const LIST_ROOT_SEL = '.JColorSearchList, .jSearchListArea, [class*="jGoodsList"]';
+  const MODULE_SEL = '.J_LayoutArea > *';
+  const LIST_SEL = '[class*="jGoodsList"], .J-goods-list, .jSearchListArea';
+  const LOADING_SEL = '.m_render_structure.loading';
+  // 销售排行、推荐位等侧栏模块，不属于商品列表
+  const SIDE_MODULE_SEL = '[class*="SaleRank"], [class*="saleRank"], [class*="hot-link"], [class*="GoodsRecommend"]';
 
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const qsa = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+  const text = (el) => (el ? (el.innerText || el.textContent || '').replace(/\s+/g, ' ') : '');
 
   function pageType() {
     const href = location.href;
@@ -22,13 +40,23 @@
     return 'shop';
   }
 
-  // 主列表模块：常见模板的 class 为 jGoodsList-<模板ID>；其他模板退回到分页栏所在的模块
-  function listRoots() {
-    const lists = qsa('[class*="jGoodsList"]');
-    if (lists.length) return lists;
-    const pager = document.querySelector('.jPage');
-    const mod = pager && pager.closest('.j-module, [module-id], [class*="module"]');
-    return mod ? [mod] : [];
+  // 取最近的列表容器，避免把同一装修模块里推荐位的商品也算进来
+  function moduleRootOf(el) {
+    return el.closest(LIST_ROOT_SEL) || el.closest(MODULE_SEL) || el.closest('.j-module') || el;
+  }
+
+  const loadingPending = () => Boolean(document.querySelector(LOADING_SEL));
+
+  // 列表模块：每个分页栏所在的模块；页面上没有分页栏时退回到已知的列表容器
+  function listModules() {
+    const roots = [];
+    const add = (el) => {
+      const root = moduleRootOf(el);
+      if (!roots.includes(root) && !root.closest(SIDE_MODULE_SEL)) roots.push(root);
+    };
+    qsa('.jPage').forEach(add);
+    if (!roots.length) qsa(LIST_SEL).forEach(add);
+    return roots;
   }
 
   function skusIn(root) {
@@ -42,40 +70,118 @@
       const v = el.getAttribute('jdprice');
       if (/^\d{6,}$/.test(v) && !el.closest(SIDE_MODULE_SEL)) ids.push(v);
     }
-    return ids;
+    return Array.from(new Set(ids));
   }
 
-  function snapshot() {
-    const skus = Array.from(new Set(listRoots().flatMap(skusIn)));
-    const pager = document.querySelector('.jPage');
-    return { skus, totalText: pager ? pager.textContent.replace(/\s+/g, ' ').trim() : '' };
+  // 可点的“下一页”；最后一页时它是不可点的 span（如 span.jPageDisable）
+  function nextLink(root) {
+    const pager = root && root.querySelector('.jPage');
+    if (!pager) return null;
+    return qsa('a', pager).find((a) => /下一页/.test(a.textContent) && !/disable/i.test(a.className)) || null;
+  }
+
+  function pagerMax(root) {
+    const pager = root && root.querySelector('.jPage');
+    const nums = pager ? qsa('a, span, em, b', pager).map((x) => x.textContent.trim()).filter((t) => /^\d+$/.test(t)).map(Number) : [];
+    return nums.length ? Math.max(...nums) : null;
+  }
+
+  function snapshot(index) {
+    const modules = listModules();
+    const root = modules[index];
+    return {
+      moduleCount: modules.length,
+      root,
+      skus: root ? skusIn(root) : [],
+      totalText: root ? (text(root).match(TOTAL_RE) || [''])[0] : '',
+    };
+  }
+
+  const isRealHref = (href) => Boolean(href) && href !== '#' && !/^javascript:/i.test(href);
+
+  async function clickAndWait(link, index, timeoutMs) {
+    const before = snapshot(index).skus.join(',');
+    link.click();
+    const end = Date.now() + timeoutMs;
+    while (Date.now() < end) {
+      await sleep(POLL_MS);
+      const cur = snapshot(index).skus;
+      if (cur.length && cur.join(',') !== before) return true;
+    }
+    return false;
   }
 
   /**
-   * 等待主列表渲染稳定后返回本页 SKU
-   * @param {{timeoutMs?: number}} [opts]
+   * 等第 module 个列表模块渲染稳定后返回它的商品
+   * @param {{module?: number, timeoutMs?: number}} [opts]
    */
-  NS.extractShopPage = async function extractShopPage({ timeoutMs = 15000 } = {}) {
+  NS.extractShopPage = async function extractShopPage({ module = 0, timeoutMs = WAIT_MS } = {}) {
     const type = pageType();
-    if (type !== 'shop') return { pageType: type, skus: [], totalText: '' };
-    const end = Date.now() + timeoutMs;
-    let last = snapshot();
+    if (type !== 'shop') return { pageType: type, moduleCount: 0, skus: [], totalText: '', hasNext: false, pagerMax: null };
+    const start = Date.now();
+    let lastKey = '';
     let stable = 0;
-    while (Date.now() < end) {
-      await sleep(POLL_MS);
-      const cur = snapshot();
-      const settled = cur.skus.length === last.skus.length && (cur.skus.length > 0 || /共\s*0\s*条/.test(cur.totalText));
-      stable = settled ? stable + 1 : 0;
-      last = cur;
+    let cur = snapshot(module);
+    while (Date.now() - start < timeoutMs) {
+      cur = snapshot(module);
+      // 页面上还有模块在“加载中”时继续等，不当作“没有列表”
+      const noList = cur.moduleCount === 0 && !loadingPending() && Date.now() - start >= EMPTY_WAIT_MS;
+      const ready = cur.skus.length > 0 || ZERO_TOTAL_RE.test(cur.totalText) || noList;
+      const key = `${cur.moduleCount}:${cur.skus.length}`;
+      stable = ready && key === lastKey ? stable + 1 : 0;
+      lastKey = key;
       if (stable >= STABLE_POLLS) break;
+      await sleep(POLL_MS);
     }
-    return { pageType: pageType(), skus: last.skus, totalText: last.totalText };
+    const stuck = cur.skus.length === 0 && !ZERO_TOTAL_RE.test(cur.totalText) && loadingPending();
+    return {
+      pageType: stuck ? 'loading_failed' : pageType(),
+      moduleCount: cur.moduleCount,
+      skus: cur.skus,
+      totalText: cur.totalText,
+      hasNext: Boolean(nextLink(cur.root)),
+      pagerMax: pagerMax(cur.root),
+    };
   };
 
-  // 店铺首页：列出页面上的“全部商品/分类”链接，扩展侧从中找出 appId
-  NS.listShopSearchLinks = function listShopSearchLinks() {
+  /**
+   * 第 module 个列表模块翻到下一页：普通链接交给扩展按地址打开（action=navigate, url）；
+   * 页内按钮直接点击并等待列表换成新商品
+   * @returns {Promise<{pageType: string, action: 'end'|'navigate'|'clicked', url?: string, changed?: boolean}>}
+   */
+  NS.nextShopPage = async function nextShopPage({ module = 0, timeoutMs = WAIT_MS } = {}) {
+    const type = pageType();
+    const link = type === 'shop' ? nextLink(snapshot(module).root) : null;
+    if (!link) return { pageType: type, action: 'end' };
+    const href = (link.getAttribute('href') || '').trim();
+    if (isRealHref(href)) return { pageType: type, action: 'navigate', url: link.href };
+    const changed = await clickAndWait(link, module, timeoutMs);
+    return { pageType: pageType(), action: 'clicked', changed };
+  };
+
+  /**
+   * 第 module 个列表模块切换排序（如“上架时间”），用于补抓排序漂移漏掉的商品
+   * @returns {Promise<{pageType: string, action: 'none'|'navigate'|'clicked', url?: string, changed?: boolean}>}
+   */
+  NS.sortShopModule = async function sortShopModule({ module = 0, label = '', timeoutMs = WAIT_MS } = {}) {
+    const type = pageType();
+    const root = type === 'shop' ? snapshot(module).root : null;
+    const link = root && label ? qsa('a', root).find((a) => a.textContent.trim().startsWith(label)) : null;
+    if (!link) return { pageType: type, action: 'none' };
+    const href = (link.getAttribute('href') || '').trim();
+    if (isRealHref(href)) return { pageType: type, action: 'navigate', url: link.href };
+    const changed = await clickAndWait(link, module, timeoutMs);
+    return { pageType: pageType(), action: 'clicked', changed };
+  };
+
+  // 店铺信息：appId 在隐藏字段里（有些店铺首页没有“全部商品”链接），链接作为备选
+  NS.readShopInfo = function readShopInfo() {
+    const val = (id) => {
+      const el = document.getElementById(id);
+      return el ? String(el.value || '').trim() : '';
+    };
     const links = qsa('a[href*="view_search-"]').map((a) => a.href);
-    const html = document.documentElement.innerHTML.match(/view_search-\d+-\d+-\d+-\d+-\d+-\d+\.html/g) || [];
-    return { pageType: pageType(), links: links.concat(html) };
+    const inHtml = document.documentElement.innerHTML.match(/view_search-\d+-\d+-\d+-\d+-\d+-\d+\.html/g) || [];
+    return { pageType: pageType(), appId: val('pageInstance_appId'), venderId: val('vender_id'), shopId: val('shop_id'), links: links.concat(inHtml) };
   };
 })();
