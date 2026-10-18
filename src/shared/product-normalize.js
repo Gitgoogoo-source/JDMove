@@ -44,6 +44,12 @@ function normalizeParams(pairs) {
   return out;
 }
 
+// 商品主数据（wareInfoReadMap）里的结构化字段：有些商品的参数列表里没有保质期，但主数据里有 shelf_life（天）
+function readMapParams(wareInfo) {
+  const days = Number(str(wareInfo?.shelf_life));
+  return days > 0 ? [['保质期', `${days}天`]] : [];
+}
+
 function fromColorSize(colorSize) {
   const list = Array.isArray(colorSize) ? colorSize.filter((x) => x && x.skuId != null) : [];
   if (list.length === 0) return null;
@@ -91,7 +97,8 @@ function onlyCurrent(dims, skuId) {
  */
 export function normalizeProduct(raw = {}, opts = {}) {
   const pc = raw.pageConfig ?? null;
-  const params = normalizeParams(raw.params);
+  // 页面参数在前：同名参数去重时保留页面上的写法
+  const params = normalizeParams([...(raw.params ?? []), ...readMapParams(raw.wareInfo)]);
   const brandParam = params.find((p) => normalizeName(p.name) === '品牌');
   const pcImages = Array.isArray(pc?.imageList) ? pc.imageList : [];
   const crumbs = (raw.crumbs ?? []).map(str).filter(Boolean);

@@ -138,3 +138,21 @@ test('validateProduct reports missing essentials', () => {
   assert.ok(errs.includes('缺少主图'));
   assert.ok(errs.includes('缺少价格'));
 });
+
+test('源页面参数里没有保质期时，取 wareInfoReadMap.shelf_life（天）', () => {
+  const p = normalizeProduct({ ...legacyRaw, wareInfo: { shelf_life: '364', IsYouShelfLife: '1' } });
+  assert.deepEqual(p.params.find((x) => x.name === '保质期'), { name: '保质期', value: '364天' });
+});
+
+test('参数里已有保质期时以参数为准；shelf_life 为 0 或缺失时不补', () => {
+  const withParam = normalizeProduct({
+    ...legacyRaw,
+    params: [...legacyRaw.params, ['保质期', '12个月']],
+    wareInfo: { shelf_life: '364' },
+  });
+  assert.equal(withParam.params.find((x) => x.name === '保质期').value, '12个月');
+  for (const wareInfo of [{ shelf_life: '0' }, { shelf_life: '' }, {}, undefined]) {
+    const p = normalizeProduct({ ...legacyRaw, wareInfo });
+    assert.equal(p.params.find((x) => x.name === '保质期'), undefined);
+  }
+});

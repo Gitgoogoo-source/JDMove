@@ -86,6 +86,8 @@
       // 有京东价用京东价；只有补贴价/活动价时，用原价（op），避免按临时补贴价铺货
       priceText: (priceItem && priceItem.price) || (b.price && (b.price.op || b.price.p)) || '',
       brandText: read.cn_brand || '',
+      // 商品主数据里的结构化字段（参数列表没有时用作兜底，如保质期）
+      wareInfo: { shelf_life: read.shelf_life || '' },
       shopName: (b.itemShopInfo && b.itemShopInfo.shopName) || '',
       pageConfig: {
         skuid: (b.price && b.price.id) || skuIdFromUrl(),
@@ -299,6 +301,7 @@
       crumbs: fromBiz && fromBiz.crumbs.length ? fromBiz.crumbs : crumbs(),
       brandText: (fromBiz && fromBiz.brandText) || brandText(),
       params: (fromBiz ? fromBiz.params : []).concat(params()),
+      wareInfo: fromBiz ? fromBiz.wareInfo : null,
       mainImages: mainImages(),
       priceText: price || priceText(),
       saleDims: saleDims(),
