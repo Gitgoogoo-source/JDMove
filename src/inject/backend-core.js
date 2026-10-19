@@ -120,22 +120,43 @@
     };
   }
 
-  async function searchCategory(keyword) {
+  // 类目搜索下拉框：结果条目，以及下拉层里的“暂无数据”（不看整个页面，页面别处也可能有这四个字）
+  const CATEGORY_POPUP_SEL = '.jd-dropdown-menu, .jd-popper, .jd-select-dropdown, [class*="dropdown"], [class*="popper"]';
+  function categoryDropdown() {
+    const items = qsa('li.jd-dropdown-menu__item').filter(visible).map(textOf).filter((t) => /\[\d+\]/.test(t));
+    const empty = !items.length && qsa(CATEGORY_POPUP_SEL).some((el) => visible(el) && /暂无数据/.test(textOf(el)));
+    return { items, key: items.length ? items.join('\n') : empty ? '<empty>' : '' };
+  }
+
+  /**
+   * 输入关键词后，下拉框在接口返回前仍显示上一次的内容：
+   * 与上一次相同的内容、“暂无数据”都要在输入后至少 settleMs 且连续两次读取一致才认定
+   */
+  async function searchCategory(keyword, opts = {}) {
+    const { timeout = 8000, settleMs = 1500, interval = 200 } = opts;
     const input = await waitFor(() => qsa('input').find((i) => /类目名称/.test(i.placeholder || '')));
     if (!input) return { ok: false, error: '找不到类目搜索框', results: [] };
+    const stale = categoryDropdown().key;
     setNativeValue(input, '');
-    await sleep(300);
+    await sleep(Math.min(settleMs, 300));
+    await waitFor(() => !categoryDropdown().key, { timeout: Math.min(settleMs, 1000), interval });
     input.focus();
     setNativeValue(input, keyword);
-    const results = await waitFor(
+    const typedAt = Date.now();
+    let prev = null;
+    const view = await waitFor(
       () => {
-        const items = qsa('li.jd-dropdown-menu__item').filter(visible).map(textOf).filter((t) => /\[\d+\]/.test(t));
-        if (items.length) return items;
-        return /暂无数据/.test(document.body.innerText) ? [] : null;
+        const v = categoryDropdown();
+        const stable = v.key !== '' && v.key === prev;
+        prev = v.key;
+        if (!stable) return null;
+        const settled = Date.now() - typedAt >= settleMs;
+        const fresh = v.items.length > 0 && v.key !== stale;
+        return fresh || settled ? v : null;
       },
-      { timeout: 6000 },
+      { timeout, interval },
     );
-    return { ok: true, results: results || [] };
+    return { ok: true, results: view ? view.items : [] };
   }
 
   // ---------- 表单结构 ----------

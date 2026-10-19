@@ -44,8 +44,8 @@ const legacyRaw = {
 test('normalizeProduct prefers pageConfig images and dedupes', () => {
   const p = normalizeProduct(legacyRaw);
   assert.deepEqual(p.mainImages, [
-    'https://img14.360buyimg.com/n0/jfs/t1/1/a.jpg',
-    'https://img14.360buyimg.com/n0/jfs/t1/1/b.jpg',
+    'https://img14.360buyimg.com/sku/jfs/t1/1/a.jpg',
+    'https://img14.360buyimg.com/sku/jfs/t1/1/b.jpg',
   ]);
 });
 
@@ -114,7 +114,7 @@ test('normalizeProduct falls back to DOM data when pageConfig missing', () => {
   }, { allVariants: true });
   assert.equal(p.title, '奥利奥饼干 原味 349g');
   assert.deepEqual(p.brand, { id: null, name: '奥利奥（Oreo）' });
-  assert.deepEqual(p.mainImages, ['https://img14.360buyimg.com/n0/jfs/t1/9/x.jpg']);
+  assert.deepEqual(p.mainImages, ['https://img14.360buyimg.com/sku/jfs/t1/9/x.jpg']);
   assert.equal(p.price, null);
   assert.deepEqual(p.saleDims, [{ name: '口味', values: ['原味', '巧克力味'] }]);
   assert.deepEqual(p.variants, [

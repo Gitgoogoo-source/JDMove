@@ -20,10 +20,12 @@
     <button id="btnStop" disabled>停止</button>
     <span class="sep"></span>
     <button id="btnDelete">删除选中</button>
+    <button id="btnSaveLocal" title="把已采集商品的图片和信息保存到存储位置：品牌/SKU/">保存到本地</button>
     <button id="btnExport">导出采集数据</button>
     <button id="btnImport">导入</button>
     <input id="importFile" type="file" accept="application/json,.json" hidden />
     <button id="btnSettings">设置</button>
+    <button id="btnStorage">存储位置：未设置</button>
     <span class="sep"></span>
     <button id="btnArchive" aria-pressed="false">已发布</button>
     <label class="filter">筛选
@@ -33,7 +35,6 @@
         <option value="collected">已采集</option>
         <option value="need_action">需处理</option>
         <option value="failed">失败</option>
-        <option value="published">已发布</option>
       </select>
     </label>
     <span id="summary" class="muted"></span>

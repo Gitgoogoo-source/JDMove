@@ -29,6 +29,13 @@ function categoryCell(item) {
   return h('td', {}, h('div', { class: 'sub' }, source), h('div', {}, target));
 }
 
+function localCell(local) {
+  if (local?.error) return h('div', { class: 'sub local-error' }, `本地保存失败：${local.error}`);
+  if (!local?.dir) return null;
+  const miss = local.failed ? `（${local.failed} 张图片未下载）` : '';
+  return h('div', { class: 'sub local', title: '相对存储位置的文件夹' }, `本地：${local.dir}${miss}`);
+}
+
 /**
  * @param {object} item
  * @param {{settings: object, checked: boolean, busy: boolean, onCheck: Function, onEdit: Function, onRemove: Function, onRetry: Function}} ctx
@@ -46,6 +53,7 @@ export function renderRow(item, ctx) {
       {},
       h('div', { class: 'title' }, item.edits?.title || p?.title || '（未采集）'),
       h('a', { class: 'sub', href: item.url, target: '_blank', rel: 'noreferrer' }, `SKU ${item.skuId}`),
+      localCell(item.local),
     ),
     priceCell(item, ctx.settings),
     categoryCell(item),

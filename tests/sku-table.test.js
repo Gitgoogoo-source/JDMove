@@ -46,28 +46,43 @@ function skuRow(opts) {
  * 京麦的销售属性维度：在末尾空输入框里录入后，值被挪到新渲染的输入框里成为“临时”值（末尾框保持为空），
  * 只有持有该值的输入框获得焦点后再失焦，才会转为正式值；合成的回车事件不会提交
  */
-function saleDim(name, { commitOnBlur = true } = {}) {
+function saleDim(name, { commitOnBlur = true, windowFocused = true, commitAfterBlurs = 1 } = {}) {
   const modelValue = [];
   const container = { type: { name: 'SaleDimensionContainer' }, props: { modelValue } };
   const inputs = [];
+  let blurs = 0;
   const newInput = (value = '') => ({
     placeholder: `请设置${name}`,
     value,
     focused: false,
+    listeners: [],
     __vueParentComponent: { type: { name: 'JdInput' }, parent: container },
+    addEventListener(type, fn) {
+      this.listeners.push([type, fn]);
+    },
+    removeEventListener(type, fn) {
+      this.listeners = this.listeners.filter(([t, f]) => t !== type || f !== fn);
+    },
     click() {
       this.focused = true;
     },
+    // 窗口没有系统焦点时，原生 focus()/blur() 不派发事件
     focus() {
-      this.focused = true;
+      if (windowFocused) this.focused = true;
     },
     blur() {
       if (!this.focused) return;
       this.focused = false;
-      const hit = modelValue.find((m) => m.attrValueAlias === this.value);
-      if (hit && commitOnBlur) hit.specType = 'formal';
+      this.dispatchEvent(new Event('blur'));
     },
-    dispatchEvent: () => true,
+    dispatchEvent(e) {
+      this.listeners.filter(([t]) => t === e.type).forEach(([, fn]) => fn(e));
+      if (e.type !== 'blur') return true;
+      blurs += 1;
+      const hit = modelValue.find((m) => m.attrValueAlias === this.value);
+      if (hit && commitOnBlur && blurs >= commitAfterBlurs) hit.specType = 'formal';
+      return true;
+    },
   });
   const trailing = newInput();
   Object.defineProperty(trailing, 'value', {
@@ -143,6 +158,22 @@ test('setSaleValues: 已录入但仍是临时状态的值也会被提交，不�
   const dim = saleDim('规格');
   const { B } = loadPage([skuRow()], () => dim.inputs);
   dim.inputs[0].value = '黑巧480g';
+  const res = await B.setSaleValues([{ name: '规格', values: ['黑巧480g'] }], { stableMs: 0 });
+  assert.equal(specState(dim), JSON.stringify([['黑巧480g', 'formal']]));
+  assert.equal(res.ok, true);
+});
+
+test('setSaleValues: 窗口没有焦点、原生 blur 不触发时，补发合成 blur 提交规格值', async () => {
+  const dim = saleDim('规格', { windowFocused: false });
+  const { B } = loadPage([skuRow()], () => dim.inputs);
+  const res = await B.setSaleValues([{ name: '规格', values: ['黑巧480g'] }], { stableMs: 0 });
+  assert.equal(specState(dim), JSON.stringify([['黑巧480g', 'formal']]));
+  assert.equal(res.ok, true);
+});
+
+test('setSaleValues: 页面忙、第一次失焦没生效时重试，不直接判失败', async () => {
+  const dim = saleDim('规格', { commitAfterBlurs: 2 });
+  const { B } = loadPage([skuRow()], () => dim.inputs);
   const res = await B.setSaleValues([{ name: '规格', values: ['黑巧480g'] }], { stableMs: 0 });
   assert.equal(specState(dim), JSON.stringify([['黑巧480g', 'formal']]));
   assert.equal(res.ok, true);

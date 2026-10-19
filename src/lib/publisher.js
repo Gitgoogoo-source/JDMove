@@ -1,6 +1,6 @@
 // 发布：类目定位 -> 打开发布页 -> 按计划逐项填写 -> 执行保存/提交
 import { buildPublishPlan, descriptionHtml } from '../shared/publish-plan.js';
-import { pickCategory, parseCategoryText, matchCategoryMap } from '../shared/category-pick.js';
+import { searchBestCategory, matchCategoryMap } from '../shared/category-pick.js';
 import { buildPublishUrl, imgzoneUrl } from '../shared/url-utils.js';
 import { callBackend, openWorkTab, navigateTab, closeTab, sleep } from './chrome-env.js';
 import { CATEGORY_PAGE, CATEGORY_REDIRECT_MSG, landedPageKind } from './category-search.js';
@@ -22,17 +22,9 @@ async function waitReady(tabId, timeoutMs = 40000) {
   return last ?? { ready: false };
 }
 
-/** 在类目选择页搜索并自动挑选 */
-async function searchCategory(tabId, product, log) {
-  const keywords = [product.leafCategory, ...product.crumbs.slice(-3, -1).reverse()].filter(Boolean);
-  for (const kw of [...new Set(keywords)]) {
-    const res = await callBackend(tabId, 'searchCategory', kw);
-    const paths = (res?.results ?? []).map(parseCategoryText).filter((p) => p.length);
-    log(`类目搜索“${kw}”：${paths.length} 个结果`);
-    const { best } = pickCategory(paths, { leafName: product.leafCategory, crumbs: product.crumbs });
-    if (best) return { cateList: best.map((n) => n.id), name: best.map((n) => n.name).join(' > '), from: 'auto' };
-  }
-  return null;
+/** 在类目选择页按多个关键词搜索，汇总结果后自动挑选 */
+function searchCategory(tabId, product, log) {
+  return searchBestCategory((kw) => callBackend(tabId, 'searchCategory', kw), product, log);
 }
 
 /** 手动指定或类目映射得到的目标类目；都没有时返回 null，需要到类目选择页自动搜索 */
@@ -86,6 +78,7 @@ async function fillDescription(tabId, plan, settings, sku, log) {
   }
   const desc = await callBackend(tabId, 'setDescriptionHtml', descriptionHtml(urls));
   if (!desc?.ok) throw new Error(desc?.error || '商品详情写入失败');
+  if (desc.direct) log('详情编辑器没有同步内容，已直接写入表单，请在页面上核对商品详情');
 }
 
 async function fillForm(tabId, item, settings, plan, log) {

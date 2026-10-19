@@ -80,7 +80,7 @@ export async function editSettings(settings) {
           f.reupload.node, f.skuAttrs.node),
         field('属性默认值', f.attrDefaults, '源页面没有对应参数时使用，每行“属性名=值”'),
         field('包装清单（可选）', f.packList),
-        field('类目映射', f.categoryMap, '每行：源类目路径（末尾几级，用 > 分隔）=> 目标类目ID路径 | 名称'),
+        field('类目映射', f.categoryMap, '每行：源类目路径（任意连续几级，用 > 分隔，写上级可覆盖所有子类，多条命中时用最具体的）=> 目标类目ID路径 | 名称'),
       ),
       h('div', { class: 'dlg-foot' }, h('button', { value: 'cancel' }, '取消'), h('button', { value: 'save', class: 'primary' }, '保存')),
     ),

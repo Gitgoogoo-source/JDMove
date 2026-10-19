@@ -1,28 +1,52 @@
 // 京东链接 / 图片地址相关工具（纯函数）
 
-const SKU_PATTERNS = [
-  /item\.jd\.com\/(\d{6,})\.html/g,
-  /item\.m\.jd\.com\/product\/(\d{6,})\.html/g,
-  /item\.m\.jd\.com\/(?:ware\/view\.action\?wareId=)(\d{6,})/g,
-  /(?:^|[^\d])(\d{8,15})(?=$|[^\d])/gm,
-];
+// 文本里的京东链接（可以没有协议头）；遇到空白、引号或中文标点就结束
+const JD_LINK_RE = /(?:https?:)?(?:\/\/)?(?:[\w-]+\.)*(?:jd\.com|jd\.hk)(?:[/?#][^\s<>"'，。；！？、（）【】]*)?/gi;
+// 商品页路径：/100197331139.html、/product/100197331139.html
+const ITEM_PATH_RE = /^\/(?:product\/)?(\d{6,})\.html$/;
+// 链接参数里直接带 SKU 的写法：ware/view.action?wareId=…、…?skuId=…
+const SKU_PARAMS = ['wareId', 'skuId', 'sku'];
+// 不在链接里的纯数字编码
+const BARE_SKU_RE = /(?:^|[^\d])(\d{8,15})(?=$|[^\d])/g;
 
 const IMG_HOST = 'https://img14.360buyimg.com';
+// 京东自营商品的 /n0/、/n1/… 图会叠加“JD.COM 京东”水印；/sku/ 返回同一张图未加水印的原图
+const ORIGINAL_PREFIX = `${IMG_HOST}/sku/`;
 const IMGZONE_PREFIX = 'https://img10.360buyimg.com/imgzone/';
 const PUBLISH_BASE = 'https://wares-jdm.jd.com/popPublish/';
 
 /**
- * 从任意文本中提取京东商品 SKU（保持出现顺序、去重）
+ * 京东链接对应的商品 SKU：只看商品页路径和 wareId/skuId 参数，后缀里的其他参数（spmTag、pvid、时间戳等）一律忽略
+ * @param {string} link
+ * @returns {string|null} 不是商品链接时返回 null
+ */
+export function skuFromLink(link) {
+  let u;
+  try {
+    u = new URL(/^https?:/i.test(link) ? link : `https://${link.replace(/^\/\//, '')}`);
+  } catch {
+    return null;
+  }
+  const inPath = u.pathname.match(ITEM_PATH_RE)?.[1];
+  if (inPath) return inPath;
+  const inParam = SKU_PARAMS.map((k) => u.searchParams.get(k)).find((v) => /^\d{6,}$/.test(v ?? ''));
+  return inParam ?? null;
+}
+
+/**
+ * 从任意文本中提取京东商品 SKU（保持出现顺序、去重）。
+ * 同一个 SKU 不管链接后面加了什么后缀都识别为同一个商品；链接里除 SKU 以外的数字不会被当成商品
  * @param {string} text
  * @returns {string[]}
  */
 export function extractSkuIds(text) {
   const src = String(text ?? '');
-  const hits = [];
-  for (const re of SKU_PATTERNS) {
-    for (const m of src.matchAll(re)) hits.push({ id: m[1], at: m.index });
-  }
-  hits.sort((a, b) => a.at - b.at);
+  const links = [...src.matchAll(JD_LINK_RE)];
+  const fromLinks = links.map((m) => ({ id: skuFromLink(m[0]), at: m.index })).filter((x) => x.id);
+  // 链接部分换成空格后再找纯数字编码，避免把链接参数里的数字当成 SKU
+  const rest = links.reduce((acc, m) => acc.slice(0, m.index) + ' '.repeat(m[0].length) + acc.slice(m.index + m[0].length), src);
+  const bare = [...rest.matchAll(BARE_SKU_RE)].map((m) => ({ id: m[1], at: m.index }));
+  const hits = [...fromLinks, ...bare].sort((a, b) => a.at - b.at);
   return [...new Set(hits.map((h) => h.id))];
 }
 
@@ -37,25 +61,25 @@ function withProtocol(url) {
 }
 
 /**
- * 把京东缩略图地址转换为原图地址
+ * 把京东缩略图 / 带水印图地址转换为无水印原图地址
  * @param {string} url
  * @returns {string}
  */
 export function toOriginalImageUrl(url) {
   const raw = String(url ?? '').trim();
   if (!raw) return '';
-  if (raw.startsWith('jfs/')) return `${IMG_HOST}/n0/${raw}`;
+  if (raw.startsWith('jfs/')) return `${ORIGINAL_PREFIX}${raw}`;
   let out = withProtocol(raw);
   if (!/360buyimg\.com/.test(out)) return out;
   // 去掉 !q70.dpg.webp / .avif / _.webp 等派生后缀
   out = out.replace(/!q\d+.*$/i, '').replace(/(\.(?:jpe?g|png|gif|bmp))(?:\.(?:avif|webp|dpg))+$/i, '$1');
   out = out.replace(/_\.webp$/i, '');
-  // /n5/s54x54_jfs/... -> /n0/jfs/...
-  out = out.replace(/\/n\d+\/(?:s\d+x\d+_)?(jfs\/)/, '/n0/$1');
+  // /n0/jfs/...、/n5/s54x54_jfs/... -> /sku/jfs/...
+  out = out.replace(/\/n\d+\/(?:s\d+x\d+_)?(jfs\/)/, '/sku/$1');
   out = out.replace(/\/(sku|imgzone|cms)\/s\d+x\d+_(jfs\/)/, '/$1/$2');
   // 其他带尺寸前缀的缩略图（如 /pcpubliccms/s228x228_jfs/）统一换成商品原图地址
   const sized = out.match(/\/[\w-]+\/s\d+x\d+_(jfs\/.+)$/);
-  if (sized) out = `${IMG_HOST}/n0/${sized[1]}`;
+  if (sized) out = `${ORIGINAL_PREFIX}${sized[1]}`;
   return out;
 }
 

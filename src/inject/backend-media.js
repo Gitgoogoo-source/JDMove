@@ -99,16 +99,32 @@
     return state.some((v) => v.attrValueAlias === value && v.specType !== 'temporary');
   }
 
-  // 录入的值先是“临时”值，京麦把它挪到新渲染的输入框里（原输入框清空）；
-  // 只有持有该值的输入框失焦后才转为正式值并重建 SKU 表，合成的回车事件不会提交。
-  // 不提交的话，后面填的京东价/库存写在一张没有规格的占位表上，之后整表重建时被清空
-  async function commitSaleValue(dimName, value) {
-    const holder = saleInputs(dimName).find((i) => i.value === value);
-    if (!holder) return false;
-    holder.focus();
+  // 窗口没有系统焦点（切到别的应用、窗口被遮挡）时 focus()/blur() 不触发事件，京麦收不到失焦；
+  // 原生 blur 没触发时补发一个合成的 blur（Vue 的监听对合成事件同样生效）
+  async function blurInput(el) {
+    let fired = false;
+    const mark = () => {
+      fired = true;
+    };
+    el.addEventListener('blur', mark);
+    el.focus();
     await sleep(100);
-    holder.blur();
-    return !!(await waitFor(() => saleValueCommitted(dimName, value), { timeout: 3000 }));
+    el.blur();
+    el.removeEventListener('blur', mark);
+    if (!fired) el.dispatchEvent(new FocusEvent('blur'));
+  }
+
+  // 录入的值先是“临时”值，只有持有该值的输入框失焦后才转为正式值并重建 SKU 表，合成的回车事件不会提交。
+  // 不提交的话，后面填的京东价/库存写在一张没有规格的占位表上，之后整表重建时被清空。
+  // 页面忙（刚传完主图）时输入框可能正在重渲染，每次重试都重新找持有该值的输入框
+  async function commitSaleValue(dimName, value, { attempts = 3, timeout = 3000 } = {}) {
+    for (let i = 0; i < attempts; i += 1) {
+      const holder = saleInputs(dimName).find((x) => x.value === value);
+      if (!holder) return saleValueCommitted(dimName, value);
+      await blurInput(holder);
+      if (await waitFor(() => saleValueCommitted(dimName, value), { timeout })) return true;
+    }
+    return false;
   }
 
   async function addSaleValue(dimName, value) {
@@ -308,17 +324,24 @@
     );
   }
 
-  async function switchDescMode(label) {
+  // 图文编辑里有内容时会弹“是否切换…模式？”确认框；页面忙时它会晚几秒才出来，
+  // 所以确认框和选中状态放在同一个等待里看，确认框还开着就不算切换完成
+  async function switchDescMode(label, { timeout = 8000 } = {}) {
     const radio = descModeRadio(label);
     if (!radio) return false;
     if (radio.classList.contains('is-checked')) return true;
     click(radio);
-    const confirm = await waitFor(() => {
+    let confirmed = false;
+    return !!(await waitFor(() => {
       const box = visibleDialogs().find((d) => /切换/.test(textOf(d)));
-      return box ? buttonByText('确定', box) : null;
-    }, { timeout: 2000 });
-    if (confirm) click(confirm);
-    return !!(await waitFor(() => radio.classList.contains('is-checked'), { timeout: 3000 }));
+      if (!box) return radio.classList.contains('is-checked');
+      const ok = !confirmed && buttonByText('确定', box);
+      if (ok) {
+        click(ok);
+        confirmed = true;
+      }
+      return false;
+    }, { timeout }));
   }
 
   async function uploadDetailImages(images) {
@@ -346,20 +369,43 @@
     return { ok: urls.length > 0 || images.length === 0, urls, errors };
   }
 
-  async function setDescriptionHtml(html) {
-    if (!(await switchDescMode('代码编辑'))) return { ok: false, error: '无法切换到代码编辑模式' };
-    const editor = await waitFor(() => qsa('.w-e-text').find(visible), { timeout: 5000 });
-    if (!editor) return { ok: false, error: '找不到详情编辑器' };
+  function writeEditor(editor, html) {
     editor.focus();
     editor.innerHTML = html;
     for (const t of ['input', 'keyup', 'change']) editor.dispatchEvent(new Event(t, { bubbles: true }));
     editor.dispatchEvent(new FocusEvent('blur'));
-    const firstSrc = (html.match(/src="([^"]+)"/) || [])[1] || '';
-    const notes = await waitFor(() => {
-      const d = B.getFApi().getValue('productDesc');
-      return d && d.notes && (!firstSrc || d.notes.includes(firstSrc.replace(/&amp;/g, '&'))) ? d.notes : null;
-    }, { timeout: 4000 });
-    return { ok: !!notes, length: notes ? notes.length : 0 };
+  }
+
+  // 条件要连续保持 ms 毫秒才算数：切换模式后京麦会异步重建编辑器、用旧内容覆盖表单值
+  async function holdsFor(check, ms, interval = 200) {
+    const end = Date.now() + ms;
+    while (Date.now() < end) {
+      if (!check()) return false;
+      await sleep(interval);
+    }
+    return !!check();
+  }
+
+  // 代码编辑器的内容由页面同步到表单值 productDesc.notes，保存时提交的是表单值。
+  // 切换模式后页面可能还在重建编辑器，刚写进去的内容会被覆盖：每次重试都重新找编辑器，
+  // 写进去后还要保持一段时间不被改掉；编辑器始终同步不过去时直接写表单值
+  async function setDescriptionHtml(html, { attempts = 3, syncMs = 4000, settleMs = 1500 } = {}) {
+    if (!(await switchDescMode('代码编辑'))) return { ok: false, error: '无法切换到代码编辑模式' };
+    const api = B.getFApi();
+    const firstSrc = ((html.match(/src="([^"]+)"/) || [])[1] || '').replace(/&amp;/g, '&');
+    const notes = () => (api.getValue('productDesc') || {}).notes || '';
+    const written = () => notes() !== '' && (!firstSrc || notes().includes(firstSrc));
+    let editorLength = 0;
+    for (let i = 0; i < attempts; i += 1) {
+      const editor = await waitFor(() => qsa('.w-e-text').find(visible), { timeout: 5000 });
+      if (!editor) return { ok: false, error: '找不到详情编辑器' };
+      writeEditor(editor, html);
+      editorLength = editor.innerHTML.length;
+      if ((await waitFor(written, { timeout: syncMs })) && (await holdsFor(written, settleMs))) return { ok: true, length: notes().length };
+    }
+    api.setValue('productDesc', Object.assign({}, api.getValue('productDesc'), { notes: html }));
+    if (await holdsFor(written, settleMs)) return { ok: true, length: notes().length, direct: true };
+    return { ok: false, error: `商品详情没有写进表单（编辑器 ${editorLength} 字符，表单 ${notes().length} 字符）` };
   }
 
   // ---------- 提交动作 ----------

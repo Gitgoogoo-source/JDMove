@@ -32,7 +32,7 @@ test('real item normalizes into a publishable product', () => {
   assert.equal(p.leafCategory, '牛奶巧克力');
   assert.equal(p.price, 45.9);
   assert.equal(p.mainImages.length, 6);
-  assert.ok(p.mainImages.every((u) => u.startsWith('https://img14.360buyimg.com/n0/jfs/')));
+  assert.ok(p.mainImages.every((u) => u.startsWith('https://img14.360buyimg.com/sku/jfs/')));
   assert.equal(p.detailImages.length, 13);
   assert.ok(p.detailImages.every((u) => /^https:\/\/img30\.360buyimg\.com\/sku\/jfs\/.+\.(jpg|png)$/.test(u)));
   assert.deepEqual(p.saleDims, [{ name: '规格', values: ['黑巧480g'] }]);

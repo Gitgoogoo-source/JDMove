@@ -4,6 +4,7 @@ import { computePrice } from './pricing.js';
 import { buildPropPlan, convertInputValue, findSourceValue } from './attr-mapping.js';
 import { buildSalePlan } from './sale-plan.js';
 import { parseAttrDefaults } from './settings.js';
+import { toOriginalImageUrl } from './url-utils.js';
 
 const escapeAttr = (s) =>
   String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -79,7 +80,10 @@ export function buildPublishPlan({ product, edits = {}, settings, schema }) {
   if (!brand.name && !brand.id) blockers.push('缺少品牌');
 
   const weight = findSourceValue('毛重', source);
-  const mainImageUrls = (edits.mainImages ?? product.mainImages ?? []).slice(0, settings.publish.maxMainImages);
+  // 早先采集的数据里存的是带水印的 /n0/ 地址，发布前统一换成无水印原图
+  const mainImageUrls = (edits.mainImages ?? product.mainImages ?? [])
+    .slice(0, settings.publish.maxMainImages)
+    .map(toOriginalImageUrl);
   if (!mainImageUrls.length) blockers.push('缺少主图');
 
   return {

@@ -182,3 +182,6 @@ button[aria-pressed="true"] { background: #e7f6ec; border-color: #1e7b34; color:
 .folder-count { grid-area: count; color: var(--muted); font-size: 12px; }
 .folder-previews { grid-area: pre; display: flex; gap: 4px; margin-top: 8px; min-height: 36px; }
 .folder-previews img { width: 36px; height: 36px; object-fit: contain; border: 1px solid var(--line); border-radius: 4px; background: #fff; }
+.local { color: #1e7b34; }
+.local-error { color: #b3261e; }
+#btnStorage { max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

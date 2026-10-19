@@ -1,6 +1,6 @@
 // 单个商品的编辑弹窗：标题/价格/库存/品牌/类目/属性覆盖
 import { h, openDialog, safeImgSrc } from './dom.js';
-import { parseCateListInput } from '../shared/category-pick.js';
+import { parseCateListInput, mappingSourceFor } from '../shared/category-pick.js';
 import { parseAttrDefaults } from '../shared/settings.js';
 import { searchShopCategories } from '../lib/category-search.js';
 
@@ -121,10 +121,8 @@ export async function editItem(item, { onLog }) {
     cateList: c.cateList.length ? c.cateList : undefined,
     cateName: c.cateList.length ? c.cateName : undefined,
   };
-  const crumbs = (item.product?.crumbs ?? []).filter((x) => x !== item.product?.brand?.name);
+  const source = mappingSourceFor(item.product);
   const mapping =
-    c.saveMap && c.cateList.length && crumbs.length
-      ? { source: crumbs.slice(-2).join('>'), cateList: c.cateList, name: c.cateName || c.cateList.join(',') }
-      : null;
+    c.saveMap && c.cateList.length && source ? { source, cateList: c.cateList, name: c.cateName || c.cateList.join(',') } : null;
   return { edits, mapping };
 }

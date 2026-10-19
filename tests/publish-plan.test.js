@@ -56,6 +56,12 @@ test('buildPublishPlan applies user edits', () => {
   assert.deepEqual(plan.brand, { id: null, name: '其他品牌' });
 });
 
+test('buildPublishPlan swaps watermarked n0 main images for sku originals', () => {
+  const legacy = { ...product, mainImages: ['https://img14.360buyimg.com/n0/jfs/t1/1/2/3/a.jpg'] };
+  const plan = buildPublishPlan({ product: legacy, schema, settings: mergeSettings({}), edits: {} });
+  assert.deepEqual(plan.mainImageUrls, ['https://img14.360buyimg.com/sku/jfs/t1/1/2/3/a.jpg']);
+});
+
 test('buildPublishPlan lists blockers for missing price and required attrs', () => {
   const plan = buildPublishPlan({
     product: { ...product, price: null, params: [] },

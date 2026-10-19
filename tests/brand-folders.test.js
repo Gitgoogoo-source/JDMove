@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { itemBrand, groupPublishedByBrand, filterFolders, UNKNOWN_BRAND } from '../src/shared/brand-folders.js';
+import { itemBrand, groupPublishedByBrand, filterFolders, isArchived, taskItems, UNKNOWN_BRAND } from '../src/shared/brand-folders.js';
 
 const item = (id, status, brand, extra = {}) => ({
   id,
@@ -55,4 +55,31 @@ test('filterFolders matches brand names case-insensitively', () => {
   const folders = groupPublishedByBrand([item('1', 'published', '华为（HUAWEI）'), item('2', 'published', '小米')]);
   assert.deepEqual(filterFolders(folders, 'huawei').map((f) => f.brand), ['华为（HUAWEI）']);
   assert.equal(filterFolders(folders, '  ').length, 2);
+});
+
+test('isArchived: published once means the item lives on the 已发布 page', () => {
+  assert.equal(isArchived(item('1', 'published', 'A')), true);
+  // 归档后再“重新发布”时，发布中/失败也继续留在已发布页
+  assert.equal(isArchived(item('2', 'publishing', 'A', { publishedAt: 5 })), true);
+  assert.equal(isArchived(item('3', 'failed', 'A', { publishedAt: 5 })), true);
+  for (const status of ['pending', 'collecting', 'collected', 'publishing', 'failed', 'need_action']) {
+    assert.equal(isArchived(item('4', status, 'A')), false, status);
+  }
+  assert.equal(isArchived(null), false);
+});
+
+test('taskItems hides published items from the task list without mutating input', () => {
+  const items = [
+    item('1', 'published', 'A'),
+    item('2', 'collected', 'A'),
+    item('3', 'failed', 'A', { publishedAt: 9 }),
+    item('4', 'need_action', 'A'),
+  ];
+  assert.deepEqual(taskItems(items).map((i) => i.id), ['2', '4']);
+  assert.equal(items.length, 4);
+});
+
+test('groupPublishedByBrand keeps a republished item in its folder while it is republishing', () => {
+  const folders = groupPublishedByBrand([item('1', 'publishing', 'A牌', { publishedAt: 3 }), item('2', 'collected', 'A牌')]);
+  assert.deepEqual(folders.map((f) => [f.brand, f.items.map((i) => i.id)]), [['A牌', ['1']]]);
 });

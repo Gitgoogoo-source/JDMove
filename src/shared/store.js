@@ -1,14 +1,18 @@
 // 数据仓储：任务条目 + 设置。存储后端通过 adapter 注入，方便测试。
 import { buildItemUrl } from './url-utils.js';
 import { mergeSettings } from './settings.js';
+import { isArchived } from './brand-folders.js';
 
 const ITEMS_KEY = 'items';
 const SETTINGS_KEY = 'settings';
+// 发布成功过的 SKU（skuId → 发布时间）：任务删除后仍保留，重新添加链接/抓取店铺时据此去重
+const PUBLISHED_KEY = 'publishedSkus';
 
 /**
  * @typedef {'pending'|'collecting'|'collected'|'publishing'|'published'|'failed'|'need_action'} ItemStatus
  * @typedef {{id: string, skuId: string, url: string, status: ItemStatus, product: object|null,
- *   edits: object, target: object|null, message: string, log: string[], createdAt: number, updatedAt: number}} Item
+ *   edits: object, target: object|null, message: string, log: string[], createdAt: number, updatedAt: number,
+ *   publishedAt?: number}} Item  publishedAt：最近一次发布成功的时间，有值的条目显示在“已发布”页
  */
 
 /** @returns {Item} */
@@ -54,6 +58,52 @@ export function applyEdits(item, edits, now = Date.now()) {
 }
 
 /**
+ * 发布结果写回条目的字段：发布成功时记下 publishedAt，条目随之移到“已发布”页
+ * @param {Item} item
+ * @param {{status: string, message: string, target?: object}} res publishItem 的结果
+ */
+export function publishResultPatch(item, res, now = Date.now()) {
+  const status = res.status === 'filled' ? 'need_action' : res.status;
+  const patch = { status, message: res.message, target: res.target ?? item.target };
+  return status === 'published' ? { ...patch, publishedAt: now } : patch;
+}
+
+/** 已发布条目对应的全部 SKU：条目本身 + 一起发布的规格 SKU（同一商品换个颜色的链接也算已发布） */
+function archivedSkuIds(item) {
+  if (!isArchived(item)) return [];
+  const variants = (item.product?.variants ?? []).map((v) => String(v?.skuId ?? ''));
+  return [...new Set([item.id, String(item.product?.skuId ?? ''), ...variants])].filter(Boolean);
+}
+
+/**
+ * 已发布过的 SKU：记录表 + 当前列表里的已发布条目（兼容加记录表之前发布的商品）
+ * @param {object[]} items
+ * @param {Record<string, number>} [registry]
+ * @returns {Set<string>}
+ */
+export function publishedSkuSet(items, registry = {}) {
+  return new Set([...Object.keys(registry ?? {}), ...items.flatMap(archivedSkuIds)]);
+}
+
+/**
+ * 新链接分组：新增 / 已发布过（跳过）/ 已在列表里
+ * @param {string[]} skuIds
+ * @param {object[]} items
+ * @param {Set<string>} published
+ * @param {{includePublished?: boolean}} [opts] includePublished=true 时已发布过的也重新加入任务
+ */
+export function planNewSkus(skuIds, items, published, { includePublished = false } = {}) {
+  const known = new Set(items.map((i) => i.id));
+  const unique = [...new Set(skuIds.map(String))];
+  const isPublished = (id) => !includePublished && published.has(id);
+  return {
+    fresh: unique.filter((id) => !known.has(id) && !isPublished(id)),
+    published: unique.filter((id) => isPublished(id)),
+    existing: unique.filter((id) => known.has(id) && !isPublished(id)),
+  };
+}
+
+/**
  * @param {{get(key: string): Promise<any>, set(key: string, value: any): Promise<void>}} storage
  */
 export function createItemRepository(storage) {
@@ -66,19 +116,27 @@ export function createItemRepository(storage) {
   };
   const load = async () => (await storage.get(ITEMS_KEY)) ?? [];
   const persist = (items) => storage.set(ITEMS_KEY, items);
+  const loadPublished = async () => (await storage.get(PUBLISHED_KEY)) ?? {};
+
+  /**
+   * 批量加入任务：已在列表里的不重复添加，已发布过的商品默认跳过
+   * @returns {Promise<{added: Item[], published: string[], existing: string[]}>}
+   */
+  const addTasks = (skuIds, opts = {}) =>
+    serial(async () => {
+      const [items, registry] = await Promise.all([load(), loadPublished()]);
+      const plan = planNewSkus(skuIds, items, publishedSkuSet(items, registry), opts);
+      const added = plan.fresh.map((id) => newItem(id));
+      if (added.length) await persist([...items, ...added]);
+      return { added, published: plan.published, existing: plan.existing };
+    });
 
   return {
     findAll: () => load(),
     findById: async (id) => (await load()).find((i) => i.id === String(id)) ?? null,
 
-    addSkus: (skuIds) =>
-      serial(async () => {
-        const items = await load();
-        const known = new Set(items.map((i) => i.id));
-        const fresh = [...new Set(skuIds.map(String))].filter((id) => !known.has(id)).map((id) => newItem(id));
-        await persist([...items, ...fresh]);
-        return fresh;
-      }),
+    addTasks,
+    addSkus: async (skuIds) => (await addTasks(skuIds)).added,
 
     update: (id, patch) =>
       serial(async () => {
@@ -101,10 +159,11 @@ export function createItemRepository(storage) {
         return next;
       }),
 
-    saveCollected: (product) =>
+    // taskId：任务自己的 SKU（链接里的编码）；页面报告的 SKU 不同时也写回原任务，不会多出一条
+    saveCollected: (product, taskId = product.skuId) =>
       serial(async () => {
         const items = await load();
-        const id = String(product.skuId);
+        const id = String(taskId);
         const existing = items.find((i) => i.id === id);
         const next = { ...(existing ?? newItem(id)), product, status: 'collected', message: '', updatedAt: Date.now() };
         await persist(existing ? items.map((i) => (i.id === id ? next : i)) : [...items, next]);
@@ -127,10 +186,19 @@ export function createItemRepository(storage) {
         return { imported: valid.length, skipped: (Array.isArray(list) ? list.length : 0) - valid.length };
       }),
 
+    // 删除已发布的条目时把它的 SKU 记进已发布记录，之后重新添加同一商品仍会被跳过
     remove: (ids) =>
       serial(async () => {
         const drop = new Set(ids.map(String));
-        await persist((await load()).filter((i) => !drop.has(i.id)));
+        const items = await load();
+        const gone = items.filter((i) => drop.has(i.id)).flatMap(archivedSkuIds);
+        if (gone.length) {
+          const registry = await loadPublished();
+          const now = Date.now();
+          const fresh = Object.fromEntries(gone.filter((id) => !(id in registry)).map((id) => [id, now]));
+          await storage.set(PUBLISHED_KEY, { ...registry, ...fresh });
+        }
+        await persist(items.filter((i) => !drop.has(i.id)));
       }),
   };
 }
