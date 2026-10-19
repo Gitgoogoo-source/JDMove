@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildPublishPlan, descriptionHtml, skuAttrValueMap } from '../src/shared/publish-plan.js';
+import { buildPublishPlan, descriptionHtml, publishImagePlan, skuAttrValueMap } from '../src/shared/publish-plan.js';
 import { DEFAULT_SETTINGS, mergeSettings } from '../src/shared/settings.js';
 
 const product = {
@@ -60,6 +60,28 @@ test('buildPublishPlan swaps watermarked n0 main images for sku originals', () =
   const legacy = { ...product, mainImages: ['https://img14.360buyimg.com/n0/jfs/t1/1/2/3/a.jpg'] };
   const plan = buildPublishPlan({ product: legacy, schema, settings: mergeSettings({}), edits: {} });
   assert.deepEqual(plan.mainImageUrls, ['https://img14.360buyimg.com/sku/jfs/t1/1/2/3/a.jpg']);
+});
+
+test('publishImagePlan: 不需要表单结构就能算出主图/详情图地址（用于提前处理图片）', () => {
+  const settings = mergeSettings({ publish: { maxMainImages: 3, maxDetailImages: 1 } });
+  const legacy = { ...product, mainImages: ['https://img14.360buyimg.com/n0/jfs/t1/1/2/3/a.jpg', 'https://img/1.jpg', 'https://img/2.jpg', 'https://img/3.jpg'] };
+  assert.deepEqual(publishImagePlan({ product: legacy, settings }), {
+    mainImageUrls: ['https://img14.360buyimg.com/sku/jfs/t1/1/2/3/a.jpg', 'https://img/1.jpg', 'https://img/2.jpg'],
+    detailImageUrls: ['https://d/1.jpg'],
+  });
+});
+
+test('publishImagePlan: 编辑里指定的主图优先；没有图片时返回空列表', () => {
+  const settings = mergeSettings({});
+  assert.deepEqual(publishImagePlan({ product, edits: { mainImages: ['https://img/x.jpg'] }, settings }).mainImageUrls, ['https://img/x.jpg']);
+  assert.deepEqual(publishImagePlan({ product: { title: 't' }, settings }), { mainImageUrls: [], detailImageUrls: [] });
+});
+
+test('buildPublishPlan 的图片地址与 publishImagePlan 一致', () => {
+  const settings = mergeSettings({});
+  const plan = buildPublishPlan({ product, edits: {}, settings, schema });
+  const images = publishImagePlan({ product, edits: {}, settings });
+  assert.deepEqual({ mainImageUrls: plan.mainImageUrls, detailImageUrls: plan.detailImageUrls }, images);
 });
 
 test('buildPublishPlan lists blockers for missing price and required attrs', () => {

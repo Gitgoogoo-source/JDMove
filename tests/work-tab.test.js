@@ -224,3 +224,116 @@ test('publishItem: 保存前发现价格/库存被清空时停止保存，并保
   assert.ok(!calls.includes('runAction'));
   assert.ok(res.tabId, '保留标签页供检查');
 });
+
+// ---------- 图片提前处理 / 并发 / 耗时统计 ----------
+const delay = (ms) => new Promise((r) => setTimeout(r, ms));
+const withImages = (mainImages, detailImages = []) => ({ ...fullItem, product: { ...fullItem.product, mainImages, detailImages } });
+const argsOf = (fake, method) => fake.calls.find((c) => c.op === 'inject.func' && c.args[0] === method)?.args[1] ?? null;
+
+test('publishItem: 打开发布页之前就开始处理主图', async () => {
+  const { backend } = publishBackend([skuOk, skuOk]);
+  const fake = installFakeChrome({ backend });
+  const tabOpenedAtFirstMake = [];
+  const imageMakers = {
+    main: async (url, name) => {
+      tabOpenedAtFirstMake.push(fake.ops().includes('tabs.create'));
+      return { name, mime: 'image/jpeg', b64: url };
+    },
+  };
+  const res = await publishItem(withImages(['https://img/a.jpg']), mergeSettings({}), () => {}, { imageMakers });
+  assert.equal(res.status, 'published');
+  assert.deepEqual(tabOpenedAtFirstMake, [false]);
+});
+
+test('publishItem: 主图并发处理，上传时仍按原顺序排列', async () => {
+  const { backend } = publishBackend([skuOk, skuOk]);
+  const fake = installFakeChrome({ backend });
+  let inflight = 0;
+  let peak = 0;
+  const imageMakers = {
+    main: async (url, name) => {
+      inflight += 1;
+      peak = Math.max(peak, inflight);
+      await delay(url === 'https://img/a.jpg' ? 20 : 2); // 第一张最慢
+      inflight -= 1;
+      return { name, mime: 'image/jpeg', b64: url };
+    },
+  };
+  await publishItem(withImages(['https://img/a.jpg', 'https://img/b.jpg', 'https://img/c.jpg']), mergeSettings({}), () => {}, { imageMakers });
+  const [mains] = argsOf(fake, 'uploadMainImages');
+  assert.deepEqual(mains.map((m) => m.name), ['jdmove_9_m0.jpg', 'jdmove_9_m1.jpg', 'jdmove_9_m2.jpg']);
+  assert.ok(peak > 1, '应同时处理多张');
+});
+
+test('publishItem: 单张主图处理失败只记日志，其余照常上传', async () => {
+  const { backend } = publishBackend([skuOk, skuOk]);
+  const fake = installFakeChrome({ backend });
+  const logs = [];
+  const imageMakers = {
+    main: async (url, name) => {
+      if (url.endsWith('bad.jpg')) throw new Error('图片下载失败 404');
+      return { name, mime: 'image/jpeg', b64: url };
+    },
+  };
+  await publishItem(withImages(['https://img/bad.jpg', 'https://img/ok.jpg']), mergeSettings({}), (m) => logs.push(m), { imageMakers });
+  const [mains] = argsOf(fake, 'uploadMainImages');
+  assert.deepEqual(mains.map((m) => m.name), ['jdmove_9_m1.jpg']);
+  assert.ok(logs.some((l) => l.includes('图片处理失败：图片下载失败 404')));
+});
+
+test('publishItem: 详情图也提前处理，切片按原顺序转存', async () => {
+  const { backend } = publishBackend([skuOk, skuOk]);
+  const fake = installFakeChrome({
+    backend: (method, args) => {
+      if (method === 'uploadDetailImages') return { ok: true, urls: args[0].map((s) => `jfs/${s.name}`) };
+      return backend(method, args);
+    },
+  });
+  const imageMakers = {
+    main: async (url, name) => ({ name, mime: 'image/jpeg', b64: url }),
+    detail: async (url, base) => {
+      await delay(url.endsWith('1.jpg') ? 15 : 1);
+      return [`${base}_1.jpg`, `${base}_2.jpg`].map((name) => ({ name, mime: 'image/jpeg', b64: url }));
+    },
+  };
+  const res = await publishItem(withImages(['https://img/a.jpg'], ['https://d/1.jpg', 'https://d/2.jpg']), mergeSettings({}), () => {}, { imageMakers });
+  assert.equal(res.status, 'published');
+  const [slices] = argsOf(fake, 'uploadDetailImages');
+  assert.deepEqual(
+    slices.map((s) => s.name.replace(/_\d+_(\d)\.jpg$/, '_$1.jpg')),
+    ['jdmove_9_d0_1.jpg', 'jdmove_9_d0_2.jpg', 'jdmove_9_d1_1.jpg', 'jdmove_9_d1_2.jpg'],
+  );
+});
+
+test('publishItem: 结束时日志里写出各步骤耗时', async () => {
+  const { backend } = publishBackend([skuOk, skuOk]);
+  installFakeChrome({ backend });
+  const logs = [];
+  const imageMakers = { main: async (url, name) => ({ name, mime: 'image/jpeg', b64: url }) };
+  await publishItem(withImages(['https://img/a.jpg']), mergeSettings({}), (m) => logs.push(m), { imageMakers });
+  const line = logs.find((l) => l.startsWith('耗时：'));
+  assert.ok(line, '应有耗时日志');
+  for (const step of ['打开页面', '页面就绪', '品牌', '后台主图处理 1 张', '等待主图处理', '主图上传', '保存', '合计']) {
+    assert.ok(line.includes(step), `缺少 ${step}：${line}`);
+  }
+});
+
+test('publishItem: 提前结束（需处理）时停止启动剩余图片的处理，并照样写耗时', async () => {
+  installFakeChrome({ backend: (method) => (method === 'status' ? { ready: false, loginRequired: true } : undefined) });
+  const started = [];
+  const release = [];
+  const imageMakers = {
+    main: (url, name) => {
+      started.push(url);
+      return new Promise((r) => release.push(() => r({ name, mime: 'image/jpeg', b64: url })));
+    },
+  };
+  const urls = Array.from({ length: 8 }, (_, i) => `https://img/${i}.jpg`);
+  const logs = [];
+  const res = await publishItem(withImages(urls), mergeSettings({}), (m) => logs.push(m), { imageMakers });
+  assert.equal(res.status, 'need_action');
+  assert.ok(logs.some((l) => l.startsWith('耗时：')));
+  release.forEach((r) => r());
+  await delay(5);
+  assert.equal(started.length, 4, '只处理已经开始的那一批');
+});

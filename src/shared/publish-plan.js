@@ -40,6 +40,19 @@ export function skuAttrValueMap(product, sourcePrice) {
 }
 
 /**
+ * 要上传的主图 / 详情图地址。不依赖发布页表单结构，打开发布页之前就能算出来，用于提前处理图片
+ * @param {{product: object, edits?: object, settings: object}} input
+ * @returns {{mainImageUrls: string[], detailImageUrls: string[]}}
+ */
+export function publishImagePlan({ product, edits = {}, settings }) {
+  // 早先采集的数据里存的是带水印的 /n0/ 地址，发布前统一换成无水印原图
+  const mainImageUrls = (edits.mainImages ?? product.mainImages ?? [])
+    .slice(0, settings.publish.maxMainImages)
+    .map(toOriginalImageUrl);
+  return { mainImageUrls, detailImageUrls: (product.detailImages ?? []).slice(0, settings.publish.maxDetailImages) };
+}
+
+/**
  * @param {{product: object, edits?: object, settings: object, schema: {attrs: object[], saleDimNames: string[]}}} input
  */
 export function buildPublishPlan({ product, edits = {}, settings, schema }) {
@@ -80,10 +93,7 @@ export function buildPublishPlan({ product, edits = {}, settings, schema }) {
   if (!brand.name && !brand.id) blockers.push('缺少品牌');
 
   const weight = findSourceValue('毛重', source);
-  // 早先采集的数据里存的是带水印的 /n0/ 地址，发布前统一换成无水印原图
-  const mainImageUrls = (edits.mainImages ?? product.mainImages ?? [])
-    .slice(0, settings.publish.maxMainImages)
-    .map(toOriginalImageUrl);
+  const { mainImageUrls, detailImageUrls } = publishImagePlan({ product, edits, settings });
   if (!mainImageUrls.length) blockers.push('缺少主图');
 
   return {
@@ -92,7 +102,7 @@ export function buildPublishPlan({ product, edits = {}, settings, schema }) {
     props,
     sale,
     mainImageUrls,
-    detailImageUrls: (product.detailImages ?? []).slice(0, settings.publish.maxDetailImages),
+    detailImageUrls,
     weightKg: weight ? convertInputValue(weight.value, 'kg') || null : null,
     packList: settings.packList || '',
     skuAttrValues: skuAttrValueMap(source, sourcePrice),
