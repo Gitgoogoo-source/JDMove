@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { DEFAULT_SETTINGS, mergeSettings, validateSettings, parseAttrDefaults } from '../src/shared/settings.js';
-import { createItemRepository, createSettingsRepository, newItem } from '../src/shared/store.js';
+import { createItemRepository, createSettingsRepository, newItem, EDITED_NOTE } from '../src/shared/store.js';
 
 function memoryStorage(initial = {}) {
   let data = structuredClone(initial);
@@ -122,4 +122,47 @@ test('settings repository merges with defaults', async () => {
   const saved = await repo.save({ ...s, stock: 9 });
   assert.equal(saved.stock, 9);
   assert.equal(storage.dump().settings.stock, 9);
+});
+
+test('saveEdits keeps need_action status so the item stays in the 需处理 list', async () => {
+  const repo = createItemRepository(memoryStorage());
+  await repo.saveCollected({ skuId: '100001', title: 'a' });
+  await repo.update('100001', { status: 'need_action', message: '必填属性未匹配：产地' });
+  const saved = await repo.saveEdits('100001', { attrOverrides: { 产地: '中国大陆' } });
+  assert.equal(saved.status, 'need_action');
+  assert.deepEqual(saved.edits, { attrOverrides: { 产地: '中国大陆' } });
+  assert.equal(saved.message, `${EDITED_NOTE}｜上次结果：必填属性未匹配：产地`);
+});
+
+test('saveEdits uses the stored status, not a stale snapshot', async () => {
+  const repo = createItemRepository(memoryStorage());
+  await repo.saveCollected({ skuId: '100001', title: 'a' });
+  await repo.update('100001', { status: 'published', message: '完成' });
+  await repo.update('100001', { status: 'failed', message: '提交未成功' });
+  const saved = await repo.saveEdits('100001', { title: 'x' });
+  assert.equal(saved.status, 'failed');
+  assert.match(saved.message, /^已修改，尚未重新发布/);
+});
+
+test('saveEdits never flips status and does not stack the edited note', async () => {
+  const repo = createItemRepository(memoryStorage());
+  await repo.saveCollected({ skuId: '100001', title: 'a' });
+  await repo.update('100001', { status: 'published', message: '完成' });
+  await repo.saveEdits('100001', { title: 'x' });
+  const again = await repo.saveEdits('100001', { title: 'y' });
+  assert.equal(again.status, 'published');
+  assert.equal(again.message, `${EDITED_NOTE}｜上次结果：完成`);
+
+  await repo.saveCollected({ skuId: '100002', title: 'b' });
+  const fresh = await repo.saveEdits('100002', { price: 9 });
+  assert.equal(fresh.status, 'collected');
+  assert.equal(fresh.message, '');
+
+  await repo.addSkus(['100003']);
+  await repo.update('100003', { status: 'failed', message: '采集失败' });
+  const uncollected = await repo.saveEdits('100003', { price: 9 });
+  assert.equal(uncollected.status, 'failed');
+  assert.equal(uncollected.message, '采集失败');
+
+  assert.equal(await repo.saveEdits('nope', {}), null);
 });

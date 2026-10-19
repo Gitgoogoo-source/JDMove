@@ -8,6 +8,7 @@
   --card: #fff;
 }
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 body {
   margin: 0;
   font: 13px/1.5 -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
@@ -139,3 +140,45 @@ dialog form { display: flex; flex-direction: column; max-height: 88vh; }
 fieldset { border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; display: grid; gap: 10px; }
 legend { padding: 0 4px; font-weight: 600; }
 .check { display: flex; gap: 6px; align-items: center; }
+
+button[aria-pressed="true"] { background: #e7f6ec; border-color: #1e7b34; color: #1e7b34; }
+.archive-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 20px 10px; }
+.crumb { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.crumb strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#folderSearch { width: 220px; padding: 5px 8px; border: 1px solid #d0d3d6; border-radius: 6px; }
+.folders { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
+.folder {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-areas: "icon name" "icon count" "pre pre";
+  gap: 2px 10px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--card);
+  text-align: left;
+}
+.folder-icon {
+  grid-area: icon;
+  position: relative;
+  width: 34px;
+  height: 26px;
+  margin-top: 4px;
+  border-radius: 2px 4px 4px 4px;
+  background: #f5b83d;
+}
+.folder-icon::before {
+  content: "";
+  position: absolute;
+  top: -5px;
+  left: 0;
+  width: 14px;
+  height: 6px;
+  border-radius: 3px 3px 0 0;
+  background: #e9a520;
+}
+.folder-name { grid-area: name; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.folder-count { grid-area: count; color: var(--muted); font-size: 12px; }
+.folder-previews { grid-area: pre; display: flex; gap: 4px; margin-top: 8px; min-height: 36px; }
+.folder-previews img { width: 36px; height: 36px; object-fit: contain; border: 1px solid var(--line); border-radius: 4px; background: #fff; }

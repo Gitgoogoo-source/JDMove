@@ -24,6 +24,8 @@
     <button id="btnImport">导入</button>
     <input id="importFile" type="file" accept="application/json,.json" hidden />
     <button id="btnSettings">设置</button>
+    <span class="sep"></span>
+    <button id="btnArchive" aria-pressed="false">已发布</button>
     <label class="filter">筛选
       <select id="filter">
         <option value="all">全部</option>
@@ -39,8 +41,14 @@
 
   <p id="pauseBanner" class="banner" hidden></p>
 
+  <nav id="archiveBar" class="archive-bar" hidden>
+    <div id="archiveCrumb" class="crumb"></div>
+    <input id="folderSearch" type="search" placeholder="搜索品牌" aria-label="搜索品牌" />
+  </nav>
+
   <main>
-    <table class="items">
+    <div id="folders" class="folders" hidden></div>
+    <table id="itemsTable" class="items">
       <thead>
         <tr>
           <th class="col-check"><input type="checkbox" id="checkAll" aria-label="全选" /></th>

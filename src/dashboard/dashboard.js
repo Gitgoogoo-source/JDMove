@@ -1,11 +1,14 @@
 // 任务面板入口：列表展示、批量采集/发布、设置与编辑
 import { h, $, openDialog } from './dom.js';
 import { renderRow } from './rows.js';
+import { renderFolders, renderCrumb } from './archive-view.js';
 import { editItem } from './editor.js';
 import { editSettings } from './settings-dialog.js';
 import { extractSkuIds } from '../shared/url-utils.js';
 import { parseShopInput } from '../shared/shop-url.js';
 import { itemRepo, settingsRepo } from '../lib/chrome-env.js';
+import { EDITED_NOTE } from '../shared/store.js';
+import { groupPublishedByBrand, filterFolders } from '../shared/brand-folders.js';
 import { createQueueRunner } from '../lib/queue.js';
 
 const MAX_LOG = 400;
@@ -14,6 +17,8 @@ let settings = null;
 let selected = new Set();
 let logLines = [];
 let lastShopUrl = '';
+// 'tasks'：任务列表；'archive'：已发布按品牌归档，folderKey 为空时显示文件夹列表
+let view = { mode: 'tasks', folderKey: null };
 
 const MODE_LABELS = { collect: '采集', publish: '发布', shop: '抓取店铺' };
 const RESUME_HINTS = {
@@ -30,7 +35,23 @@ function appendLog(line) {
 
 const runner = createQueueRunner({ onChange: renderState, onLog: appendLog });
 
+const TASKS_EMPTY_TEXT = $('#empty').textContent;
+
+function currentFolder() {
+  if (view.mode !== 'archive' || !view.folderKey) return null;
+  return groupPublishedByBrand(items).find((f) => f.key === view.folderKey) ?? null;
+}
+
+function setView(next) {
+  view = next;
+  selected = new Set();
+  $('#folderSearch').value = '';
+  render();
+  window.scrollTo(0, 0);
+}
+
 function visibleItems() {
+  if (view.mode === 'archive') return currentFolder()?.items ?? [];
   const filter = $('#filter').value;
   return filter === 'all' ? items : items.filter((i) => i.status === filter);
 }
@@ -45,6 +66,34 @@ function renderState() {
   const banner = $('#pauseBanner');
   banner.hidden = !st.pauseReason;
   banner.textContent = st.pauseReason ? `任务已暂停：${st.pauseReason}。${RESUME_HINTS[st.pausedMode] ?? RESUME_HINTS.collect}` : '';
+}
+
+function renderArchive() {
+  const archive = view.mode === 'archive';
+  const folder = currentFolder();
+  const folders = archive ? groupPublishedByBrand(items) : [];
+  const showFolders = archive && !folder;
+  const shown = showFolders ? filterFolders(folders, $('#folderSearch').value) : [];
+  $('#btnArchive').setAttribute('aria-pressed', String(archive));
+  $('#filter').disabled = archive;
+  $('#archiveBar').hidden = !archive;
+  $('#folderSearch').hidden = !showFolders;
+  $('#archiveCrumb').replaceChildren(
+    ...(archive
+      ? renderCrumb({
+          folders,
+          folder,
+          onHome: () => setView({ mode: 'archive', folderKey: null }),
+          onExit: () => setView({ mode: 'tasks', folderKey: null }),
+        })
+      : []),
+  );
+  $('#folders').hidden = !showFolders;
+  $('#folders').replaceChildren(...renderFolders(shown, { onOpen: (key) => setView({ mode: 'archive', folderKey: key }) }));
+  $('#itemsTable').hidden = showFolders;
+  const emptyText = !archive ? TASKS_EMPTY_TEXT : folders.length ? '没有匹配的品牌' : '还没有发布成功的商品。发布成功后会自动按品牌归到这里。';
+  $('#empty').textContent = emptyText;
+  return archive ? (showFolders ? shown.length > 0 : true) : items.length > 0;
 }
 
 function render() {
@@ -73,7 +122,7 @@ function render() {
       }),
     ),
   );
-  $('#empty').hidden = items.length > 0;
+  $('#empty').hidden = renderArchive();
   const count = (s) => items.filter((i) => i.status === s).length;
   $('#summary').textContent = `共 ${items.length} · 待采集 ${count('pending')} · 已采集 ${count('collected')} · 需处理 ${count('need_action')} · 失败 ${count('failed')} · 已发布 ${count('published')}`;
   $('#checkAll').checked = list.length > 0 && list.every((i) => selected.has(i.id));
@@ -148,8 +197,9 @@ async function handleEdit(id) {
   if (!item) return;
   const res = await editItem(item, { onLog: appendLog });
   if (!res) return;
-  const nextStatus = item.status === 'need_action' || item.status === 'failed' ? (item.product ? 'collected' : 'pending') : item.status;
-  await itemRepo.update(id, { edits: res.edits, status: nextStatus });
+  const saved = await itemRepo.saveEdits(id, res.edits);
+  if (!saved) return appendLog(`[${id}] 条目已不存在，修改未保存`);
+  if (saved.message.startsWith(EDITED_NOTE)) appendLog(`[${id}] 修改已保存，需点“重新发布”或“发布选中”才会提交到店铺`);
   if (res.mapping) {
     const others = settings.categoryMap.filter((m) => m.source !== res.mapping.source);
     await settingsRepo.save({ ...settings, categoryMap: [...others, res.mapping] });
@@ -207,6 +257,8 @@ function bind() {
     $('#log').textContent = '';
   });
   $('#filter').addEventListener('change', render);
+  $('#btnArchive').addEventListener('click', () => setView({ mode: view.mode === 'archive' ? 'tasks' : 'archive', folderKey: null }));
+  $('#folderSearch').addEventListener('input', render);
   $('#checkAll').addEventListener('change', (e) => {
     selected = e.target.checked ? new Set(visibleItems().map((i) => i.id)) : new Set();
     render();

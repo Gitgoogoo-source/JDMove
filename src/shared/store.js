@@ -28,6 +28,31 @@ export function newItem(skuId, now = Date.now()) {
   };
 }
 
+export const EDITED_NOTE = '已修改，尚未重新发布';
+const LAST_RESULT_SEP = '｜上次结果：';
+// 这些状态说明发布流程已经跑过：编辑后必须重新发布才会作用到店铺
+const PUBLISH_TRIED = new Set(['need_action', 'failed', 'published']);
+
+function lastResult(message) {
+  if (!message?.startsWith(EDITED_NOTE)) return message ?? '';
+  const at = message.indexOf(LAST_RESULT_SEP);
+  return at < 0 ? '' : message.slice(at + LAST_RESULT_SEP.length);
+}
+
+/**
+ * 编辑只改本地数据，不会动店铺后台：状态保持不变（需处理/失败的条目留在原列表里），
+ * 发布过的条目在消息里提示“尚未重新发布”，同时保留上次结果
+ * @param {Item} item
+ * @param {object} edits
+ * @returns {Item}
+ */
+export function applyEdits(item, edits, now = Date.now()) {
+  const pending = Boolean(item.product) && PUBLISH_TRIED.has(item.status);
+  const prev = lastResult(item.message);
+  const message = pending ? (prev ? `${EDITED_NOTE}${LAST_RESULT_SEP}${prev}` : EDITED_NOTE) : item.message;
+  return { ...item, edits, message, updatedAt: Math.max(now, item.updatedAt) };
+}
+
 /**
  * @param {{get(key: string): Promise<any>, set(key: string, value: any): Promise<void>}} storage
  */
@@ -62,6 +87,17 @@ export function createItemRepository(storage) {
         if (idx < 0) return null;
         const next = { ...items[idx], ...patch, updatedAt: Math.max(Date.now(), items[idx].updatedAt) };
         await persist(items.map((it, i) => (i === idx ? next : it)));
+        return next;
+      }),
+
+    // 以存储中的最新条目为准，避免面板里的旧快照把状态写回去
+    saveEdits: (id, edits) =>
+      serial(async () => {
+        const items = await load();
+        const current = items.find((i) => i.id === String(id));
+        if (!current) return null;
+        const next = applyEdits(current, edits);
+        await persist(items.map((i) => (i === current ? next : i)));
         return next;
       }),
 
