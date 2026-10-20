@@ -37,15 +37,15 @@ export function productUpc(product) {
 const fill = (labels, value) => Object.fromEntries(labels.map((l) => [l, value]));
 
 /**
- * 按标签名给出 SKU属性抽屉的填写值。优先级：属性默认值 < 采集参数 < 源价格 < 属性覆盖 < 编辑里的 UPC
+ * 按标签名给出 SKU属性抽屉的填写值。优先级：属性默认值 < 采集参数 < 建议零售价 < 属性覆盖 < 编辑里的 UPC
  * UPC 依次取：upc（编辑里的 / 采集到的）> 属性覆盖里的 UPC > fallbackUpc（设置里的默认 UPC）
  * @param {{params?: {name: string, value: string}[], defaults?: Record<string, string>, overrides?: Record<string, string>,
- *   sourcePrice?: number, upc?: string, fallbackUpc?: string}} input
+ *   retailPrice?: number|null, upc?: string, fallbackUpc?: string}} input
  * @returns {Record<string, string>}
  */
-export function skuAttrValueMap({ params = [], defaults = {}, overrides = {}, sourcePrice, upc, fallbackUpc } = {}) {
+export function skuAttrValueMap({ params = [], defaults = {}, overrides = {}, retailPrice, upc, fallbackUpc } = {}) {
   const fromParams = Object.fromEntries(params.map((p) => [p.name, p.value]));
-  const price = sourcePrice > 0 ? fill(PRICE_LABELS, String(sourcePrice)) : {};
+  const price = retailPrice > 0 ? fill(PRICE_LABELS, String(retailPrice)) : {};
   const overrideUpc = UPC_LABELS.map((l) => normalizeUpc(overrides[l])).find(Boolean);
   const code = normalizeUpc(upc) || overrideUpc || normalizeUpc(fallbackUpc);
   return { ...defaults, ...fromParams, ...price, ...overrides, ...(code ? fill(UPC_LABELS, code) : {}) };

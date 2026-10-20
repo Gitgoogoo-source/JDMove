@@ -56,6 +56,33 @@ test('buildPublishPlan applies user edits', () => {
   assert.deepEqual(plan.brand, { id: null, name: '其他品牌' });
 });
 
+test('buildPublishPlan fills 建议零售价 from the marked-up sale price × 1.1, ending in .9', () => {
+  const settings = mergeSettings({ price: { multiplier: 1.05, add: 0, rounding: 'nine' } });
+  const plan = buildPublishPlan({ product, edits: {}, settings, schema });
+  assert.equal(plan.sale.rows[0].price, 52.9);
+  assert.equal(plan.skuAttrValues['建议零售价'], '58.9');
+  assert.equal(plan.skuAttrValues['市场价'], '58.9');
+});
+
+test('buildPublishPlan bases 建议零售价 on the edited price', () => {
+  const plan = buildPublishPlan({ product, edits: { price: 88 }, settings: DEFAULT_SETTINGS, schema });
+  assert.equal(plan.skuAttrValues['建议零售价'], '96.9');
+});
+
+test('buildPublishPlan bases 建议零售价 on the highest enabled variant price', () => {
+  const multi = {
+    ...product,
+    saleDims: [{ name: '规格', values: ['a', 'b'] }],
+    variants: [
+      { skuId: '1', values: { 规格: 'a' } },
+      { skuId: '2', values: { 规格: 'b' } },
+    ],
+    variantPrices: { 1: 50, 2: 80 },
+  };
+  const plan = buildPublishPlan({ product: multi, edits: {}, settings: DEFAULT_SETTINGS, schema });
+  assert.equal(plan.skuAttrValues['建议零售价'], '88.9');
+});
+
 test('buildPublishPlan swaps watermarked n0 main images for sku originals', () => {
   const legacy = { ...product, mainImages: ['https://img14.360buyimg.com/n0/jfs/t1/1/2/3/a.jpg'] };
   const plan = buildPublishPlan({ product: legacy, schema, settings: mergeSettings({}), edits: {} });

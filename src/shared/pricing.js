@@ -45,3 +45,14 @@ export function computePrice(source, rule = {}) {
   const value = applyRounding(source * multiplier + add, rule.rounding);
   return Math.max(value, minPrice);
 }
+
+const RETAIL_MARKUP = 1.1;
+
+/**
+ * 建议零售价 = 售价 × 1.1，尾数取 .9；始终高于售价，避免京麦提示售价高于建议零售价
+ * @param {number|null} salePrice
+ * @returns {number|null}
+ */
+export function retailPrice(salePrice) {
+  return computePrice(salePrice, { multiplier: RETAIL_MARKUP, rounding: 'nine' });
+}

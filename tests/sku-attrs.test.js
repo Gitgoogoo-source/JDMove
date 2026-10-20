@@ -18,7 +18,7 @@ test('normalizeUpc rejects empty, too short/long and non-digit values', () => {
 test('skuAttrValueMap: params, price and UPC by label', () => {
   const map = skuAttrValueMap({
     params: [{ name: '原产地', value: '中国大陆' }],
-    sourcePrice: 59.9,
+    retailPrice: 59.9,
     upc: '6901234567890',
   });
   assert.equal(map['建议零售价'], '59.9');
@@ -32,7 +32,7 @@ test('skuAttrValueMap: precedence is defaults < params < price < overrides < upc
   const map = skuAttrValueMap({
     defaults: { 生产日期: '2026-01-01', 原产地: '默认产地', 建议零售价: '1' },
     params: [{ name: '原产地', value: '中国大陆' }],
-    sourcePrice: 50,
+    retailPrice: 50,
     overrides: { 建议零售价: '66', 最小可售单位UPC: '11111111' },
     upc: '6901234567890',
   });
@@ -49,7 +49,7 @@ test('skuAttrValueMap: UPC from overrides is used when the UPC field is empty', 
 });
 
 test('skuAttrValueMap: no price or UPC keys when unknown', () => {
-  const map = skuAttrValueMap({ params: [], sourcePrice: 0 });
+  const map = skuAttrValueMap({ params: [], retailPrice: 0 });
   assert.equal(map['建议零售价'], undefined);
   assert.equal(map['最小可售单位UPC'], undefined);
 });

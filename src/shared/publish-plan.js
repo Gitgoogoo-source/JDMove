@@ -1,6 +1,6 @@
 // 组装一次发布所需的完整填写计划（纯函数）
 import { cleanTitle } from './title.js';
-import { computePrice } from './pricing.js';
+import { computePrice, retailPrice } from './pricing.js';
 import { buildPropPlan, convertInputValue, findSourceValue } from './attr-mapping.js';
 import { buildSalePlan } from './sale-plan.js';
 import { parseAttrDefaults } from './settings.js';
@@ -83,11 +83,13 @@ export function buildPublishPlan({ product, edits = {}, settings, schema }) {
     stock,
   });
 
+  // 建议零售价按售价（含倍率）算；多规格共用一个值，取最高的启用规格价，保证每个规格的售价都不高于它
+  const topSalePrice = Math.max(price ?? 0, ...sale.rows.filter((r) => r.enabled).map((r) => r.price ?? 0));
   const skuAttrValues = skuAttrValueMap({
     params: product.params ?? [],
     defaults: attrDefaults,
     overrides: edits.attrOverrides ?? {},
-    sourcePrice,
+    retailPrice: retailPrice(topSalePrice),
     // productUpc：修复前采集的商品可能把 SKU 编号存成了 upc，这里同样排除
     upc: edits.upc || productUpc(product),
     fallbackUpc: settings.publish.defaultUpc,

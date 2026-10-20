@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parsePrice, computePrice } from '../src/shared/pricing.js';
+import { parsePrice, computePrice, retailPrice } from '../src/shared/pricing.js';
 import { weightedLength, truncateWeighted, cleanTitle } from '../src/shared/title.js';
 
 test('parsePrice reads numbers from price text', () => {
@@ -26,6 +26,14 @@ test('computePrice enforces minimum price and rejects invalid source', () => {
   assert.equal(computePrice(0.001, { minPrice: 0.5 }), 0.5);
   assert.equal(computePrice(null, {}), null);
   assert.equal(computePrice(-3, {}), null);
+});
+
+test('retailPrice is the sale price × 1.1 ending in .9, always above the sale price', () => {
+  assert.equal(retailPrice(1.05), 1.9);
+  assert.equal(retailPrice(52.9), 58.9);
+  assert.equal(retailPrice(72.9), 80.9);
+  assert.equal(retailPrice(null), null);
+  assert.equal(retailPrice(0), null);
 });
 
 test('weightedLength counts CJK as 2', () => {
