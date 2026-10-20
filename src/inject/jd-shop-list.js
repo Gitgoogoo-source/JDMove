@@ -8,10 +8,12 @@
 // - 每页条数 20 / 24 / 60 不等，总数写法有“共N条记录”“共N件商品”；
 // - 列表接口被限流时模块一直停在“努力加载中”（div.m_render_structure.loading）。
 // 所以这里以“带分页栏的模块”为单位工作，翻页跟着该模块里的“下一页”走。
+// 每张商品卡片是一个 SPU，卡片下方的规格缩略图（li[sid]）是同一 SPU 的其他 SKU，一并返回（见 src/shared/shop-spu.js）。
 (() => {
   const NS = (window.__JDMOVE__ = window.__JDMOVE__ || {});
-  // 以最新加入的方法判断，避免同一页面里残留旧版本脚本
-  if (NS.sortShopModule) return;
+  // 以最新加入的标记判断，避免同一页面里残留旧版本脚本
+  if (NS.shopListSpus) return;
+  NS.shopListSpus = true;
 
   const POLL_MS = 400;
   const STABLE_POLLS = 2;
@@ -27,6 +29,9 @@
   const LOADING_SEL = '.m_render_structure.loading';
   // 销售排行、推荐位等侧栏模块，不属于商品列表
   const SIDE_MODULE_SEL = '[class*="SaleRank"], [class*="saleRank"], [class*="hot-link"], [class*="GoodsRecommend"]';
+  // 商品卡片下方的规格缩略图：li[sid] 的 sid 是同一 SPU 其他规格的 SKU
+  const THUMB_SEL = '[sid]';
+  const CARD_SEL = '.jSubObject, .gl-item, .jItem';
 
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const qsa = (sel, root = document) => Array.from(root.querySelectorAll(sel));
@@ -73,6 +78,27 @@
     return Array.from(new Set(ids));
   }
 
+  const thumbSkus = (root) => qsa(THUMB_SEL, root).map((el) => el.getAttribute('sid')).filter((v) => /^\d{6,}$/.test(v));
+
+  // 主 SKU 所在的商品卡片：主图/标题链接或价格元素最近的卡片容器（不能是缩略图本身）
+  function cardOf(root, sku) {
+    const links = qsa(`a[href*="item.jd.com/${sku}.html"], [jdprice="${sku}"]`, root).filter((el) => !el.closest(THUMB_SEL));
+    for (const el of links) {
+      const card = el.closest(CARD_SEL) || el.closest('li');
+      if (card && root.contains(card)) return card;
+    }
+    return null;
+  }
+
+  // 每张卡片是一个 SPU：主 SKU + 规格缩略图（最多显示 5 个）；模板不显示缩略图时 sids 为 null
+  function spusIn(root, skus) {
+    const hasThumbs = thumbSkus(root).length > 0;
+    return skus.map((sku) => {
+      const card = hasThumbs ? cardOf(root, sku) : null;
+      return { sku, sids: card ? Array.from(new Set(thumbSkus(card))) : null };
+    });
+  }
+
   // 可点的“下一页”；最后一页时它是不可点的 span（如 span.jPageDisable）
   function nextLink(root) {
     const pager = root && root.querySelector('.jPage');
@@ -112,12 +138,12 @@
   }
 
   /**
-   * 等第 module 个列表模块渲染稳定后返回它的商品
+   * 等第 module 个列表模块渲染稳定后返回它的商品：skus 为各卡片的主 SKU，spus 另带每张卡片的规格缩略图
    * @param {{module?: number, timeoutMs?: number}} [opts]
    */
   NS.extractShopPage = async function extractShopPage({ module = 0, timeoutMs = WAIT_MS } = {}) {
     const type = pageType();
-    if (type !== 'shop') return { pageType: type, moduleCount: 0, skus: [], totalText: '', hasNext: false, pagerMax: null };
+    if (type !== 'shop') return { pageType: type, moduleCount: 0, skus: [], spus: [], totalText: '', hasNext: false, pagerMax: null };
     const start = Date.now();
     let lastKey = '';
     let stable = 0;
@@ -138,6 +164,7 @@
       pageType: stuck ? 'loading_failed' : pageType(),
       moduleCount: cur.moduleCount,
       skus: cur.skus,
+      spus: cur.root ? spusIn(cur.root, cur.skus) : [],
       totalText: cur.totalText,
       hasNext: Boolean(nextLink(cur.root)),
       pagerMax: pagerMax(cur.root),

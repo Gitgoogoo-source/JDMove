@@ -3,7 +3,9 @@
 // 1. appId 优先从页面隐藏字段读取（有些首页没有“全部商品”链接）；
 // 2. 页面上每个带分页栏的列表模块分别抓取，跟着模块里的“下一页”翻页，最后合并去重；
 // 3. 抓到的数量少于模块显示的总数时（默认排序翻页会漂移），换“上架时间”“销量”排序补抓；
-// 4. “全部商品”页一个列表都没有时，改用店内搜索兜底（可能不完整，会明确提示）。
+// 4. “全部商品”页一个列表都没有时，改用店内搜索兜底（可能不完整，会明确提示）；
+// 5. 每张卡片是一个 SPU：主 SKU 和卡片上的规格缩略图直接加入；缩略图正好 5 个（可能被截断）
+//    或模板不显示缩略图时，打开主 SKU 的商品页读取全部规格的 SKU 编码（见 src/shared/shop-spu.js）。
 import {
   parseShopInput,
   buildShopSearchUrl,
@@ -14,8 +16,9 @@ import {
   SORT_FALLBACKS,
 } from '../shared/shop-url.js';
 import { createCrawlState, applyPage, finishCrawl, DEFAULT_MAX_PAGES } from '../shared/shop-crawl.js';
-import { classifyPageUrl } from '../shared/url-utils.js';
-import { SHOP_FILES, runInPage, sleep, randomBetween } from './chrome-env.js';
+import { normalizeSpus, spuListSkus, needsItemPage, normalizeItemSkus } from '../shared/shop-spu.js';
+import { classifyPageUrl, buildItemUrl } from '../shared/url-utils.js';
+import { SHOP_FILES, ITEM_FILES, runInPage, sleep, randomBetween } from './chrome-env.js';
 import { openInCollectTab, openErrorStatus, MERCHANT_BLOCK_MSG } from './collector.js';
 
 /** 翻页间隔（秒）：每页只打开一次列表，比逐个采集商品的间隔短 */
@@ -59,6 +62,9 @@ function sortShopModuleInTab(o) {
 function readShopInfoInTab() {
   return window.__JDMOVE__.readShopInfo();
 }
+function extractSkuIdsInTab(o) {
+  return window.__JDMOVE__.extractSkuIds(o);
+}
 
 /** 复用的采集标签页：打开地址、在页面里执行脚本（被频控/登录/商家账号拦截时抛出 CrawlHalt） */
 function createTab(tabOpts) {
@@ -67,10 +73,10 @@ function createTab(tabOpts) {
     async open(url) {
       tabId = (await openInCollectTab(url, tabOpts)).id;
     },
-    async run(func, arg = {}) {
+    async run(func, arg = {}, files = SHOP_FILES) {
       const tab = await chrome.tabs.get(tabId);
       assertNotBlocked(classifyPageUrl(tab.url));
-      const res = await runInPage(tabId, SHOP_FILES, func, [arg]);
+      const res = await runInPage(tabId, files, func, [arg]);
       if (!res) throw new CrawlHalt({ status: 'error', message: '页面脚本未返回数据' });
       assertNotBlocked(res.pageType);
       return res;
@@ -78,17 +84,31 @@ function createTab(tabOpts) {
   };
 }
 
-/** 全局进度：跨模块、跨补抓轮次合并去重，并负责翻页间隔与停止 */
+/** 全局进度：跨模块、跨补抓轮次合并去重（SKU 与 SPU），并负责翻页间隔与停止 */
 function createControl({ maxPages = DEFAULT_MAX_PAGES, delaySec = SHOP_PAGE_DELAY_SEC, shouldStop = () => false, onPage = () => {} }) {
   const seen = new Set();
+  const spus = new Map();
+  const addNew = (ids) => {
+    const added = [...new Set(ids)].filter((id) => !seen.has(id));
+    added.forEach((id) => seen.add(id));
+    return added;
+  };
   return {
     maxPages,
     count: () => seen.size,
+    spus: () => [...spus.values()],
     result: () => ({ skus: [...seen] }),
-    async report(state, label) {
-      const added = state.added.filter((id) => !seen.has(id));
-      added.forEach((id) => seen.add(id));
-      await onPage({ label, pageNo: state.pageNo, pageCount: state.pageCount, total: state.total, added, skus: [...seen] });
+    /** 列表的一页：主 SKU + 卡片上的规格缩略图 */
+    async report(state, label, pageSpus = []) {
+      pageSpus.forEach((spu) => spus.has(spu.sku) || spus.set(spu.sku, spu));
+      // 同一 SPU 的 SKU 排在一起
+      const added = addNew([...spuListSkus(pageSpus), ...state.added]);
+      await onPage({ kind: 'list', label, pageNo: state.pageNo, pageCount: state.pageCount, total: state.total, added, skus: [...seen] });
+    },
+    /** 打开一个 SPU 的商品页后读到的全部规格 */
+    async reportSpu({ sku, found, index, planned }) {
+      const added = addNew(found);
+      await onPage({ kind: 'spu', label: '展开规格', pageNo: index, pageCount: planned, total: null, spu: sku, found: found.length, added, skus: [...seen] });
     },
     async pause() {
       const end = Date.now() + randomBetween(delaySec.min, delaySec.max) * 1000;
@@ -110,7 +130,7 @@ async function crawlPass(tab, ctl, { module, params, label }) {
   let res = await tab.run(extractShopPageInTab, { module });
   for (;;) {
     state = applyPage(state, toPage(res), { maxPages: ctl.maxPages });
-    await ctl.report(state, label);
+    await ctl.report(state, label, normalizeSpus(res.spus));
     if (state.done) break;
     await ctl.pause();
     const nav = await tab.run(nextShopPageInTab, { module });
@@ -176,6 +196,42 @@ async function crawlFallback(tab, ctl, shop, info) {
   return `店铺“全部商品”页没有商品列表，已改用店内搜索抓取${totalNote}，店内搜索结果可能不完整，请核对数量`;
 }
 
+/** 打开主 SKU 的商品页读取全部规格的 SKU；读不到（下架、页面异常）时返回空数组，频控/登录/停止照常抛出 */
+async function readSpuSkus(tab, sku) {
+  try {
+    await tab.open(buildItemUrl(sku));
+    return normalizeItemSkus(await tab.run(extractSkuIdsInTab, {}, ITEM_FILES), sku);
+  } catch (e) {
+    if (e instanceof CrawlStopped || (e instanceof CrawlHalt && e.status !== 'error')) throw e;
+    if (!(e instanceof CrawlHalt) && openErrorStatus(e) !== 'error') throw e;
+    return [];
+  }
+}
+
+/** 列表抓完后展开 SPU：只打开缩略图可能被截断的，同一 SPU 的 SKU 已读到过的不再打开 */
+async function expandSpus(tab, ctl) {
+  const fromItemPages = new Set();
+  const planned = ctl.spus().filter((spu) => needsItemPage(spu, fromItemPages)).length;
+  let opened = 0;
+  let failed = 0;
+  for (const spu of ctl.spus()) {
+    if (!needsItemPage(spu, fromItemPages)) continue;
+    await ctl.pause();
+    opened += 1;
+    const found = await readSpuSkus(tab, spu.sku);
+    found.forEach((id) => fromItemPages.add(id));
+    if (!found.length) failed += 1;
+    await ctl.reportSpu({ sku: spu.sku, found, index: opened, planned });
+  }
+  return { opened, failed };
+}
+
+function expansionNote({ opened, failed }, count) {
+  if (!opened) return `共 ${count} 个商品链接`;
+  const fail = failed ? `，其中 ${failed} 个没读到规格，已用列表上显示的规格代替` : '';
+  return `展开规格后共 ${count} 个商品链接（打开商品页 ${opened} 个${fail}）`;
+}
+
 async function resolveShop(input, tab) {
   const parsed = parseShopInput(input);
   if (!parsed) throw new CrawlHalt({ status: 'error', message: '不是京东店铺链接，请填写店铺首页或“全部商品”页的链接' });
@@ -189,17 +245,19 @@ async function resolveShop(input, tab) {
   return { shop: { appId: info.appId, categoryId: '0', orderBy: '0', direction: '1' }, info };
 }
 
-function summarize(results, count) {
+function summarize(results, spuCount) {
   const short = results.filter((r) => r.total != null && r.found < r.total);
   const notes = short.map((r) => `${r.label}显示共 ${r.total} 件，实际抓到 ${r.found} 件`);
-  return [`共找到 ${count} 个商品`, ...notes].join('；');
+  return [`列表共 ${spuCount} 个商品`, ...notes].join('；');
 }
 
 /**
  * @param {string} input 店铺首页、“全部商品”页或店内搜索页链接
  * @param {{useIncognito?: boolean, maxPages?: number, delaySec?: {min: number, max: number},
  *   shouldStop?: () => boolean,
- *   onPage?: (p: {label: string, pageNo: number, pageCount: number|null, total: number|null, added: string[], skus: string[]}) => any}} [opts]
+ *   onPage?: (p: {kind: 'list'|'spu', label: string, pageNo: number, pageCount: number|null, total: number|null,
+ *     added: string[], skus: string[], spu?: string, found?: number}) => any}} [opts]
+ *   kind 'list'：列表的一页；kind 'spu'：展开第 pageNo/pageCount 个 SPU（主 SKU 为 spu，读到 found 个规格）
  * @returns {Promise<{status: 'ok'|'stopped'|'throttle'|'login'|'setup'|'error', state: {skus: string[]}, message: string, partial?: boolean}>}
  */
 export async function crawlShop(input, opts = {}) {
@@ -211,11 +269,10 @@ export async function crawlShop(input, opts = {}) {
     const { moduleCount } = await tab.run(extractShopPageInTab, { module: 0 });
     const results = [];
     for (let m = 0; m < moduleCount; m += 1) results.push(await crawlModule(tab, ctl, shop, m, moduleCount));
-    if (ctl.count() === 0) {
-      const message = await crawlFallback(tab, ctl, shop, info);
-      return { status: 'ok', state: ctl.result(), message, partial: true };
-    }
-    return { status: 'ok', state: ctl.result(), message: summarize(results, ctl.count()) };
+    const partial = ctl.count() === 0;
+    const listNote = partial ? await crawlFallback(tab, ctl, shop, info) : summarize(results, ctl.spus().length || ctl.count());
+    const message = `${listNote}；${expansionNote(await expandSpus(tab, ctl), ctl.count())}`;
+    return partial ? { status: 'ok', state: ctl.result(), message, partial } : { status: 'ok', state: ctl.result(), message };
   } catch (e) {
     if (e instanceof CrawlStopped) return { status: 'stopped', state: ctl.result(), message: e.message };
     const status = e instanceof CrawlHalt ? e.status : openErrorStatus(e);

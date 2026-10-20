@@ -2,7 +2,7 @@
 // 页面结构经常改版，因此每项数据都有多套兜底策略；归一化在扩展侧完成。
 (() => {
   const NS = (window.__JDMOVE__ = window.__JDMOVE__ || {});
-  if (NS.extractItem && NS.extractPrice) return;
+  if (NS.extractItem && NS.extractPrice && NS.extractSkuIds) return;
 
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const text = (el) => (el ? (el.innerText || el.textContent || '').replace(/\s+/g, ' ').trim() : '');
@@ -357,6 +357,41 @@
       priceText: info.price,
       label: info.label,
     };
+  };
+
+  const SKU_IDS_WAIT_MS = 10000;
+  const SKU_IDS_POLL_MS = 400;
+
+  // 当前 SPU 全部规格的 SKU 编码；页面数据还没渲染出来时返回 null
+  function readSkuIds() {
+    const b = reactBusiness();
+    if (b) {
+      const ids = [(b.price && b.price.id) || skuIdFromUrl()];
+      for (const dim of (b.colorSizeVO && b.colorSizeVO.colorSizeList) || []) {
+        for (const btn of dim.buttons || []) ids.push(...(btn.skuList || [btn.skuId]));
+      }
+      return ids;
+    }
+    const pc = window.pageConfig && window.pageConfig.product;
+    if (pc && pc.skuid) return [pc.skuid, ...(pc.colorSize || []).map((x) => x && x.skuId)];
+    return null;
+  }
+
+  /**
+   * 只读取当前 SPU 下全部规格的 SKU 编码（抓取店铺用，不取图片、价格）
+   * @returns {Promise<{pageType: string, skuId: string, skuIds: string[]}>}
+   */
+  NS.extractSkuIds = async function extractSkuIds({ timeoutMs = SKU_IDS_WAIT_MS } = {}) {
+    const end = Date.now() + timeoutMs;
+    for (;;) {
+      const type = pageType();
+      const ids = type === 'item' ? readSkuIds() : null;
+      if (ids || type !== 'item' || Date.now() >= end) {
+        const skuIds = Array.from(new Set((ids || []).map((v) => String(v || '')).filter((v) => /^\d+$/.test(v))));
+        return { pageType: type, skuId: skuIdFromUrl(), skuIds };
+      }
+      await sleep(SKU_IDS_POLL_MS);
+    }
   };
 
   // 从当前列表页（店铺页/搜索页）提取商品 SKU

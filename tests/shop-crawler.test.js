@@ -307,3 +307,117 @@ test('crawlShop: 请求停止后不再翻页', async () => {
   assert.equal(res.status, 'stopped');
   assert.equal(res.state.skus.length, 24);
 });
+
+// ---- 展开 SPU：每张卡片是一个 SPU，缩略图（最多显示 5 个）之外的规格要打开商品页读取 ----
+
+const thumbs = (main, n) => [main, ...ids(Number(main) + 1, n - 1)];
+
+/**
+ * 单页店铺：cards 为 [{sku, sids}]；itemPages 为 {主 SKU: 商品页读到的全部 SKU}，
+ * 值为 'throttle' 时商品页跳到频控页
+ */
+function fakeSpuShop({ cards, itemPages = {} }) {
+  return (call) => {
+    if (isDisarm(call)) return undefined;
+    const name = call.func.name;
+    if (name === 'extractShopPageInTab') {
+      return {
+        pageType: 'shop',
+        moduleCount: 1,
+        skus: cards.map((c) => c.sku),
+        spus: cards,
+        totalText: `共${cards.length}件商品`,
+        hasNext: false,
+        pagerMax: 1,
+      };
+    }
+    if (name === 'nextShopPageInTab') return { pageType: 'shop', action: 'end' };
+    if (name === 'extractSkuIdsInTab') {
+      const sku = call.tab.url.match(/item\.jd\.com\/(\d+)\.html/)?.[1];
+      const found = itemPages[sku];
+      if (found === 'throttle') return { pageType: 'throttle', skuId: sku, skuIds: [] };
+      return { pageType: found ? 'item' : 'unknown', skuId: sku, skuIds: found ?? [] };
+    }
+    return undefined;
+  };
+}
+
+const itemUrls = (fake) => openedUrls(fake).filter((u) => u.startsWith('https://item.jd.com/'));
+
+test('crawlShop: 缩略图少于 5 个时直接用列表上的规格，不打开商品页', async () => {
+  const cards = [
+    { sku: '1000001', sids: thumbs('1000001', 4) },
+    { sku: '2000001', sids: [] },
+  ];
+  const fake = installFakeChrome({ page: fakeSpuShop({ cards }) });
+  const res = await crawlShop(SEARCH_URL, { delaySec: NO_DELAY });
+  assert.equal(res.status, 'ok');
+  assert.deepEqual(res.state.skus, ['1000001', '1000002', '1000003', '1000004', '2000001']);
+  assert.deepEqual(itemUrls(fake), []);
+  assert.match(res.message, /列表共 2 个商品/);
+  assert.match(res.message, /共 5 个商品链接/);
+});
+
+test('crawlShop: 缩略图正好 5 个时打开主 SKU 的商品页读取全部规格，链接换成各自的 SKU', async () => {
+  const all = thumbs('7481134', 14);
+  const cards = [{ sku: '7481134', sids: thumbs('7481134', 5) }];
+  const fake = installFakeChrome({ page: fakeSpuShop({ cards, itemPages: { 7481134: all } }) });
+  const progress = [];
+  const res = await crawlShop(SEARCH_URL, { delaySec: NO_DELAY, onPage: (p) => progress.push(p) });
+  assert.equal(res.status, 'ok');
+  assert.deepEqual(res.state.skus, all);
+  assert.deepEqual(itemUrls(fake), ['https://item.jd.com/7481134.html']);
+  const injected = fake.calls.find((c) => c.op === 'inject.func' && c.name === 'extractSkuIdsInTab');
+  assert.ok(injected, '应在商品页里读取 SKU 编码');
+  const spu = progress.find((p) => p.kind === 'spu');
+  assert.deepEqual([spu.pageNo, spu.pageCount, spu.spu, spu.found, spu.added.length], [1, 1, '7481134', 14, 9]);
+  assert.match(res.message, /展开规格后共 14 个商品链接（打开商品页 1 个）/);
+});
+
+test('crawlShop: 模板不显示缩略图时逐个打开 SPU；同一 SPU 的 SKU 已读到过的不再打开', async () => {
+  const cards = [
+    { sku: '1000001', sids: null },
+    { sku: '1000002', sids: null },
+    { sku: '3000001', sids: null },
+  ];
+  const itemPages = { 1000001: ['1000001', '1000002', '1000003'], 3000001: ['3000001'] };
+  const fake = installFakeChrome({ page: fakeSpuShop({ cards, itemPages }) });
+  const res = await crawlShop(SEARCH_URL, { delaySec: NO_DELAY });
+  assert.deepEqual(itemUrls(fake), ['https://item.jd.com/1000001.html', 'https://item.jd.com/3000001.html']);
+  assert.deepEqual(res.state.skus, ['1000001', '1000002', '3000001', '1000003']);
+});
+
+test('crawlShop: 商品页读不到规格时保留列表上的规格，并在结果里说明', async () => {
+  const cards = [{ sku: '1000001', sids: thumbs('1000001', 5) }];
+  installFakeChrome({ page: fakeSpuShop({ cards }) });
+  const res = await crawlShop(SEARCH_URL, { delaySec: NO_DELAY });
+  assert.equal(res.status, 'ok');
+  assert.equal(res.state.skus.length, 5);
+  assert.match(res.message, /1 个没读到规格/);
+});
+
+test('crawlShop: 展开规格时遇到频控暂停，列表上已抓到的商品保留', async () => {
+  const cards = [{ sku: '1000001', sids: thumbs('1000001', 5) }];
+  installFakeChrome({ page: fakeSpuShop({ cards, itemPages: { 1000001: 'throttle' } }) });
+  const res = await crawlShop(SEARCH_URL, { delaySec: NO_DELAY });
+  assert.equal(res.status, 'throttle');
+  assert.equal(res.state.skus.length, 5);
+});
+
+test('crawlShop: 展开规格途中请求停止后不再打开商品页', async () => {
+  const cards = [
+    { sku: '1000001', sids: null },
+    { sku: '2000001', sids: null },
+  ];
+  const fake = installFakeChrome({ page: fakeSpuShop({ cards, itemPages: { 1000001: ['1000001'], 2000001: ['2000001'] } }) });
+  let stop = false;
+  const res = await crawlShop(SEARCH_URL, {
+    delaySec: NO_DELAY,
+    shouldStop: () => stop,
+    onPage: (p) => {
+      if (p.kind === 'spu') stop = true;
+    },
+  });
+  assert.equal(res.status, 'stopped');
+  assert.deepEqual(itemUrls(fake), ['https://item.jd.com/1000001.html']);
+});

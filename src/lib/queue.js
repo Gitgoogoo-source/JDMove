@@ -184,15 +184,20 @@ export function createQueueRunner({ onChange, onLog, saveLocal = async () => nul
     }
   }
 
-  const pageLabel = (s) => `${s.label ? `${s.label} ` : ''}第 ${s.pageNo}${s.pageCount ? `/${s.pageCount}` : ''} 页`;
+  const pageLabel = (s) =>
+    s.kind === 'spu' ? `展开规格 ${s.pageNo}/${s.pageCount}` : `${s.label ? `${s.label} ` : ''}第 ${s.pageNo}${s.pageCount ? `/${s.pageCount}` : ''} 页`;
+  const foundNote = (s) =>
+    s.kind === 'spu'
+      ? `SKU ${s.spu} ${s.found ? `共 ${s.found} 个规格` : '没读到规格（已用列表上显示的规格）'}，新找到 ${s.added.length} 个商品`
+      : `新找到 ${s.added.length} 个商品`;
 
-  /** 每抓完一页就加入任务列表；已发布过的商品默认跳过，返回本页跳过的数量 */
+  /** 每抓完一页/展开一个 SPU 就加入任务列表；已发布过的商品默认跳过，返回本次跳过的数量 */
   async function addShopPage(s, includePublished) {
     const { added, published } = await itemRepo.addTasks(s.added, { includePublished });
     setState({ currentId: pageLabel(s) });
     const listTotal = s.total != null ? `，本列表共 ${s.total} 件` : '';
     const skip = published.length ? `，跳过已发布 ${published.length} 个` : '';
-    onLog(`店铺${pageLabel(s)}：新找到 ${s.added.length} 个商品，新增任务 ${added.length} 个${skip}（累计 ${s.skus.length}${listTotal}）`);
+    onLog(`店铺${pageLabel(s)}：${foundNote(s)}，新增任务 ${added.length} 个${skip}（累计 ${s.skus.length}${listTotal}）`);
     return published.length;
   }
 
