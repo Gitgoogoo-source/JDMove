@@ -5,6 +5,7 @@ import { buildPropPlan, convertInputValue, findSourceValue } from './attr-mappin
 import { buildSalePlan } from './sale-plan.js';
 import { parseAttrDefaults } from './settings.js';
 import { toOriginalImageUrl } from './url-utils.js';
+import { UPC_LABEL, hasUpc, productUpc, skuAttrValueMap } from './sku-attrs.js';
 
 const escapeAttr = (s) =>
   String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -22,24 +23,6 @@ export function descriptionHtml(urls) {
 }
 
 /**
- * SKU属性抽屉里常见字段（按标签名匹配）
- */
-export function skuAttrValueMap(product, sourcePrice) {
-  const map = {};
-  for (const p of product?.params ?? []) map[p.name] = p.value;
-  if (sourcePrice > 0) {
-    map['建议零售价'] = String(sourcePrice);
-    map['市场价'] = String(sourcePrice);
-  }
-  if (product?.upc) {
-    map['最小可售单位UPC'] = product.upc;
-    map['商品条形码'] = product.upc;
-    map['UPC'] = product.upc;
-  }
-  return map;
-}
-
-/**
  * 要上传的主图 / 详情图地址。不依赖发布页表单结构，打开发布页之前就能算出来，用于提前处理图片
  * @param {{product: object, edits?: object, settings: object}} input
  * @returns {{mainImageUrls: string[], detailImageUrls: string[]}}
@@ -52,12 +35,21 @@ export function publishImagePlan({ product, edits = {}, settings }) {
   return { mainImageUrls, detailImageUrls: (product.detailImages ?? []).slice(0, settings.publish.maxDetailImages) };
 }
 
+// 京麦部分类目的 SKU属性抽屉要求必填 UPC；缺了抽屉点不了“确定”，建议零售价也跟着保存不上
+function upcWarnings(present, enabledRows) {
+  if (!present) {
+    return [`未填写${UPC_LABEL}（商品条形码）：部分类目必填，缺少时 SKU属性面板无法保存、建议零售价也写不进去；源商品页没有条形码时请在「编辑 → UPC」中填写；之前采集的商品请重新采集`];
+  }
+  return enabledRows > 1 ? [`${enabledRows} 个规格将共用同一个 UPC，京东可能要求每个规格使用不同的条形码，请核对`] : [];
+}
+
 /**
  * @param {{product: object, edits?: object, settings: object, schema: {attrs: object[], saleDimNames: string[]}}} input
  */
 export function buildPublishPlan({ product, edits = {}, settings, schema }) {
   const blockers = [];
-  const defaults = { ...parseAttrDefaults(settings.attrDefaultsText), ...(edits.attrOverrides ?? {}) };
+  const attrDefaults = parseAttrDefaults(settings.attrDefaultsText);
+  const defaults = { ...attrDefaults, ...(edits.attrOverrides ?? {}) };
   // 用户覆盖的属性值优先于源数据：把它们放到参数列表最前面
   const overrideParams = Object.entries(edits.attrOverrides ?? {}).map(([name, value]) => ({ name, value }));
   const source = { ...product, params: [...overrideParams, ...(product.params ?? [])] };
@@ -89,15 +81,28 @@ export function buildPublishPlan({ product, edits = {}, settings, schema }) {
     stock,
   });
 
+  const skuAttrValues = skuAttrValueMap({
+    params: product.params ?? [],
+    defaults: attrDefaults,
+    overrides: edits.attrOverrides ?? {},
+    sourcePrice,
+    // productUpc：修复前采集的商品可能把 SKU 编号存成了 upc，这里同样排除
+    upc: edits.upc || productUpc(product),
+  });
+  const skuAttrWarnings = upcWarnings(hasUpc(skuAttrValues), sale.rows.filter((r) => r.enabled).length);
+
   const brand = edits.brandName ? { id: null, name: edits.brandName } : { id: product.brand?.id ?? null, name: product.brand?.name ?? '' };
   if (!brand.name && !brand.id) blockers.push('缺少品牌');
 
   const weight = findSourceValue('毛重', source);
   const { mainImageUrls, detailImageUrls } = publishImagePlan({ product, edits, settings });
   if (!mainImageUrls.length) blockers.push('缺少主图');
+  // 按源商品判断，不按截取后的列表：详情图数量设为 0 是有意不传详情
+  if (!product.detailImages?.length) blockers.push('缺少详情图（采集时没有拿到详情图，请重新采集后再发布）');
 
   return {
     title,
+    price,
     brand,
     props,
     sale,
@@ -105,8 +110,8 @@ export function buildPublishPlan({ product, edits = {}, settings, schema }) {
     detailImageUrls,
     weightKg: weight ? convertInputValue(weight.value, 'kg') || null : null,
     packList: settings.packList || '',
-    skuAttrValues: skuAttrValueMap(source, sourcePrice),
-    warnings: [...guessWarnings, ...sale.warnings],
+    skuAttrValues,
+    warnings: [...guessWarnings, ...sale.warnings, ...skuAttrWarnings],
     blockers,
   };
 }

@@ -1,10 +1,26 @@
 // 插件设置：默认值、合并与校验（纯函数）
+import { deriveEditUrlTemplate } from './price-watch.js';
 
 export const PUBLISH_ACTIONS = {
-  none: '只填写，不保存（停在页面供人工检查）',
-  draft: '保存草稿',
+  submit_on: '提交并上架（推荐：审核通过后直接售卖，能拿到店铺编号）',
   submit_off: '提交暂不上架',
+  draft: '保存草稿（草稿没有店铺编号）',
+  none: '只填写，不保存（停在页面供人工检查）',
+};
+const DEFAULT_PUBLISH_ACTION = 'submit_on';
+// 第 2 版起默认“提交并上架”：之前保存的“保存草稿”多半是旧默认值，读取时迁移一次
+const PUBLISH_ACTION_VERSION = 2;
+
+export const EDIT_URL_RULE =
+  '需要京东商家后台的 https 链接，且只含一个商品编号；地址里同时有多个编号（如 wareId 和 skuId）时，请把商品编号写成 {wareId}，并删掉其他编号参数';
+
+// 改价时在商品编辑页填好新价格后点哪个按钮
+export const REPRICE_ACTIONS = {
+  auto: '自动点“提交”或“保存”按钮（不会点“上架/下架”类按钮）',
   submit_on: '提交并上架',
+  submit_off: '提交暂不上架',
+  draft: '保存草稿',
+  none: '只填写新价格，不保存（停在页面供人工检查）',
 };
 
 export const DEFAULT_SETTINGS = Object.freeze({
@@ -13,13 +29,16 @@ export const DEFAULT_SETTINGS = Object.freeze({
   stock: 100,
   title: { prefix: '', suffix: '', removeWords: ['京东自营', '自营', '京东超市'], maxLength: 60 },
   publish: {
-    action: 'draft',
+    action: DEFAULT_PUBLISH_ACTION,
+    actionVersion: PUBLISH_ACTION_VERSION,
     delaySec: 5,
     maxMainImages: 10,
     maxDetailImages: 30,
     reuploadDetailImages: true,
     fillSkuAttrs: true,
   },
+  // 已发布商品的京东今日价检查与批量改价；editUrlTemplate 为店铺商品编辑页地址，商品编号写成 {wareId}
+  priceWatch: { minDelaySec: 3, maxDelaySec: 6, alertMargin: 0, editUrlTemplate: '', repriceAction: 'auto' },
   attrDefaultsText: '本品与最小可售单位数量关系=1\n销售期限=新日期',
   packList: '',
   categoryMap: [],
@@ -40,8 +59,16 @@ function deepMerge(base, patch) {
   return out;
 }
 
+/** 旧版本保存的“保存草稿”改为“提交并上架”：草稿箱里的商品不会售卖，也没有店铺编号 */
+function migratePublishAction(saved) {
+  const publish = isPlainObject(saved) ? saved.publish : null;
+  if (!isPlainObject(publish) || publish.actionVersion >= PUBLISH_ACTION_VERSION) return saved;
+  const action = publish.action === 'draft' ? DEFAULT_PUBLISH_ACTION : publish.action;
+  return { ...saved, publish: { ...publish, action, actionVersion: PUBLISH_ACTION_VERSION } };
+}
+
 export function mergeSettings(saved) {
-  return deepMerge(DEFAULT_SETTINGS, saved ?? {});
+  return deepMerge(DEFAULT_SETTINGS, migratePublishAction(saved ?? {}));
 }
 
 /**
@@ -65,9 +92,10 @@ export function validateSettings(input) {
     errors.push('最大间隔不能小于最小间隔');
     maxDelay = minDelay;
   }
-  const action = v.publish.action in PUBLISH_ACTIONS ? v.publish.action : 'draft';
-  if (action !== v.publish.action) errors.push('发布动作无效，已改为保存草稿');
+  const action = v.publish.action in PUBLISH_ACTIONS ? v.publish.action : DEFAULT_PUBLISH_ACTION;
+  if (action !== v.publish.action) errors.push('发布动作无效，已改为提交并上架');
   const rounding = ['cent', 'jiao', 'yuan', 'nine'].includes(v.price.rounding) ? v.price.rounding : 'cent';
+  const priceWatch = validatePriceWatch(v.priceWatch, num, errors);
 
   const value = {
     ...v,
@@ -102,9 +130,32 @@ export function validateSettings(input) {
       reuploadDetailImages: Boolean(v.publish.reuploadDetailImages),
       fillSkuAttrs: Boolean(v.publish.fillSkuAttrs),
     },
+    priceWatch,
     categoryMap: Array.isArray(v.categoryMap) ? v.categoryMap : [],
   };
   return { ok: errors.length === 0, errors, value };
+}
+
+function validatePriceWatch(pw, num, errors) {
+  const d = DEFAULT_SETTINGS.priceWatch;
+  const minDelay = num(pw.minDelaySec, d.minDelaySec, { min: 2, max: 600 }, '价格检查最小间隔');
+  let maxDelay = num(pw.maxDelaySec, d.maxDelaySec, { min: 2, max: 1200 }, '价格检查最大间隔');
+  if (maxDelay < minDelay) {
+    errors.push('价格检查的最大间隔不能小于最小间隔');
+    maxDelay = minDelay;
+  }
+  const rawUrl = String(pw.editUrlTemplate ?? '').trim();
+  const derived = deriveEditUrlTemplate(rawUrl);
+  if (rawUrl && !derived) errors.push(`商品编辑页地址无效，已清空：${EDIT_URL_RULE}`);
+  const repriceAction = pw.repriceAction in REPRICE_ACTIONS ? pw.repriceAction : d.repriceAction;
+  if (repriceAction !== pw.repriceAction) errors.push('改价后的动作无效，已改为自动');
+  return {
+    minDelaySec: minDelay,
+    maxDelaySec: maxDelay,
+    alertMargin: num(pw.alertMargin, d.alertMargin, { min: 0, max: 100000 }, '价格预警线'),
+    editUrlTemplate: derived?.template ?? '',
+    repriceAction,
+  };
 }
 
 /**

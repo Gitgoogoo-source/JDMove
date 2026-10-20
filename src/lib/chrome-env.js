@@ -176,6 +176,25 @@ export async function navigateTab(tabId, url, opts) {
   return navigated;
 }
 
+/**
+ * 等标签页落到符合 pattern 的地址（页面自己跳转，如提交后跳到成功页）
+ * @returns {Promise<string>} 落地地址；超时或标签页已关闭时返回 ''
+ */
+export async function waitForTabUrl(tabId, pattern, timeoutMs = 5000) {
+  const end = Date.now() + timeoutMs;
+  for (;;) {
+    let tab;
+    try {
+      tab = await chrome.tabs.get(tabId);
+    } catch {
+      return '';
+    }
+    if (tab.url && pattern.test(tab.url)) return tab.url;
+    if (Date.now() >= end) return '';
+    await timerSleep(200);
+  }
+}
+
 export async function closeTab(tabId) {
   await disarmBeforeUnload(tabId);
   try {

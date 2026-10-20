@@ -139,6 +139,12 @@ test('validateProduct reports missing essentials', () => {
   assert.ok(errs.includes('缺少价格'));
 });
 
+test('validateProduct: 没有采到详情图时提示（发布时会被拦下）', () => {
+  assert.ok(!validateProduct(normalizeProduct(legacyRaw)).some((e) => e.includes('详情图')));
+  const errs = validateProduct(normalizeProduct({ ...legacyRaw, detailImages: [] }));
+  assert.ok(errs.some((e) => e.includes('缺少详情图')));
+});
+
 test('源页面参数里没有保质期时，取 wareInfoReadMap.shelf_life（天）', () => {
   const p = normalizeProduct({ ...legacyRaw, wareInfo: { shelf_life: '364', IsYouShelfLife: '1' } });
   assert.deepEqual(p.params.find((x) => x.name === '保质期'), { name: '保质期', value: '364天' });
@@ -155,4 +161,24 @@ test('参数里已有保质期时以参数为准；shelf_life 为 0 或缺失时
     const p = normalizeProduct({ ...legacyRaw, wareInfo });
     assert.equal(p.params.find((x) => x.name === '保质期'), undefined);
   }
+});
+
+test('取 wareInfoReadMap.upc_code 作为商品条形码', () => {
+  const p = normalizeProduct({ ...legacyRaw, wareInfo: { shelf_life: '364', upc_code: '6914973609563' } });
+  assert.equal(p.upc, '6914973609563');
+});
+
+test('upc_code 缺失或不是 8~14 位数字时 upc 为空', () => {
+  for (const wareInfo of [{ upc_code: '' }, { upc_code: '无' }, { upc_code: '123' }, {}, undefined]) {
+    assert.equal(normalizeProduct({ ...legacyRaw, wareInfo }).upc, '', JSON.stringify(wareInfo));
+  }
+});
+
+test('京东没有条形码时 upc_code 填的是 SKU 编号本身：不当作条形码', () => {
+  // 实例：item.jd.com/100229520979 的 wareInfoReadMap.upc_code === '100229520979'
+  const raw = { ...legacyRaw, skuId: '100229520979', pageConfig: { ...legacyRaw.pageConfig, skuid: 100229520979, colorSize: [] } };
+  assert.equal(normalizeProduct({ ...raw, wareInfo: { upc_code: '100229520979' } }).upc, '');
+  // 同款其它规格的 SKU 编号也不是条形码
+  assert.equal(normalizeProduct({ ...legacyRaw, wareInfo: { upc_code: '100002' } }, { allVariants: true }).upc, '');
+  assert.equal(normalizeProduct({ ...legacyRaw, wareInfo: { upc_code: '10000200' } }).upc, '10000200');
 });

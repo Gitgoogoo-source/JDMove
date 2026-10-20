@@ -2,6 +2,7 @@
 import { normalizeName } from './text.js';
 import { parsePrice } from './pricing.js';
 import { toOriginalImageUrl, jfsPathOf } from './url-utils.js';
+import { productUpc } from './sku-attrs.js';
 
 const NOISE_PARAMS = new Set(['商品编号', '店铺', '店铺名称'].map(normalizeName));
 const BAD_IMAGE_RE = /blank\.gif|loading|misc\.360buyimg\.com|^data:|\/\/static\.360buyimg\.com/i;
@@ -123,6 +124,9 @@ export function normalizeProduct(raw = {}, opts = {}) {
     saleDims: dims.saleDims,
     variants: dims.variants,
     isSelf: raw.isSelf ?? null,
+    // 当前 SKU 的条形码（wareInfoReadMap.upc_code），发布时填到 SKU属性的“最小可售单位UPC”；
+    // 没有条形码的商品 upc_code 是 SKU 编号本身，不能当条形码用
+    upc: productUpc({ upc: raw.wareInfo?.upc_code, skuId, variants: allDims.variants }),
   };
 }
 
@@ -134,5 +138,7 @@ export function validateProduct(p) {
   if (!p?.title) errs.push('缺少标题');
   if (!p?.mainImages?.length) errs.push('缺少主图');
   if (!(p?.price > 0)) errs.push('缺少价格');
+  // 详情区没加载出来、详情接口请求失败时会采到 0 张：发布时会被拦下，采集时就提示重新采集
+  if (!p?.detailImages?.length) errs.push('缺少详情图（请重新采集）');
   return errs;
 }

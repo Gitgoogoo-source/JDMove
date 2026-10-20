@@ -304,6 +304,7 @@
     __core: true,
     util: { sleep, qsa, visible, textOf, norm, waitFor, setNativeValue, click, openSelect, formItemByLabel, buttonByText, visibleDialogs, messages, walkComponents },
     getFApi,
+    pinia,
     status,
     searchCategory,
     getFormSchema,

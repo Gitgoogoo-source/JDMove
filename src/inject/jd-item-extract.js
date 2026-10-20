@@ -2,7 +2,7 @@
 // 页面结构经常改版，因此每项数据都有多套兜底策略；归一化在扩展侧完成。
 (() => {
   const NS = (window.__JDMOVE__ = window.__JDMOVE__ || {});
-  if (NS.extractItem) return;
+  if (NS.extractItem && NS.extractPrice) return;
 
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const text = (el) => (el ? (el.innerText || el.textContent || '').replace(/\s+/g, ' ').trim() : '');
@@ -85,8 +85,8 @@
       // 与页面显示一致：取主价格（京东价/补贴价等），不取页面不显示的原价 op
       priceText: NS.pickBusinessPrice(b),
       brandText: read.cn_brand || '',
-      // 商品主数据里的结构化字段（参数列表没有时用作兜底，如保质期）
-      wareInfo: { shelf_life: read.shelf_life || '' },
+      // 商品主数据里的结构化字段：保质期（参数列表没有时兜底）、商品条形码（页面上不显示）
+      wareInfo: { shelf_life: read.shelf_life || '', upc_code: read.upc_code || '' },
       shopName: (b.itemShopInfo && b.itemShopInfo.shopName) || '',
       pageConfig: {
         skuid: (b.price && b.price.id) || skuIdFromUrl(),
@@ -306,6 +306,20 @@
       saleDims: saleDims(),
       detailImages,
       isSelf: self || /自营/.test(shopName) ? true : null,
+    };
+  };
+
+  // 只读价格（检查已发布商品的京东今日价）：不滚动页面、不取图片，比完整采集快得多
+  NS.extractPrice = async function extractPrice() {
+    const type = pageType();
+    if (type !== 'item') return { pageType: type, url: location.href };
+    const biz = await waitForBusiness();
+    const info = biz ? NS.pickBusinessPriceInfo(biz) : { price: await waitForPrice(), label: '' };
+    return {
+      pageType: 'item',
+      skuId: (biz && biz.price && String(biz.price.id || '')) || skuIdFromUrl(),
+      priceText: info.price,
+      label: info.label,
     };
   };
 

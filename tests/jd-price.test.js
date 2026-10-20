@@ -41,3 +41,13 @@ test('returns empty string when no price is available', () => {
   assert.equal(pickBusinessPrice({}), '');
   assert.equal(pickBusinessPrice(null), '');
 });
+
+test('price info carries the label shown next to the price', () => {
+  const { pickBusinessPriceInfo } = globalThis.__JDMOVE__;
+  const subsidy = biz([{ hitLine: false, price: '60.5', priceType: 'bybtPrice', priceLabelList: [{ labelTxt: '百亿补贴' }] }], {});
+  assert.deepEqual(pickBusinessPriceInfo(subsidy), { price: '60.5', label: '百亿补贴' });
+  assert.deepEqual(pickBusinessPriceInfo(biz([{ hitLine: false, price: '45.9', priceType: 'jdPrice' }], {})), { price: '45.9', label: '京东价' });
+  assert.deepEqual(pickBusinessPriceInfo(biz([{ hitLine: false, price: '9.9', priceType: 'other' }], {})), { price: '9.9', label: '' });
+  assert.deepEqual(pickBusinessPriceInfo({ price: { p: '60.50' } }), { price: '60.50', label: '' });
+  assert.deepEqual(pickBusinessPriceInfo(null), { price: '', label: '' });
+});

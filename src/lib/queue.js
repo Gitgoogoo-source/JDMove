@@ -1,12 +1,32 @@
 // 批量任务执行器：在任务面板页面中运行（页面保持打开即可持续执行）
 import { validateSettings } from '../shared/settings.js';
-import { publishResultPatch } from '../shared/store.js';
+import { collectFailurePatch, publishResultPatch } from '../shared/store.js';
+import { priceCheckPatch, priceStatus, repricePatch } from '../shared/price-watch.js';
 import { itemRepo, settingsRepo, sleep, randomBetween } from './chrome-env.js';
-import { collectUrl, closeCollectTab } from './collector.js';
+import { collectUrl, checkPriceUrl, closeCollectTab } from './collector.js';
 import { publishItem } from './publisher.js';
+import { repriceItem } from './repricer.js';
 import { crawlShop } from './shop-crawler.js';
 
 const MAX_LOG_LINES = 60;
+const PAUSE_STATUSES = ['throttle', 'login', 'setup'];
+// 这些模式在采集窗口里打开京东商品页：结束时关闭采集标签页
+const COLLECT_TAB_MODES = new Set(['collect', 'pricecheck']);
+
+/** 价格检查结果的日志：今日价、售价和是否倒挂 */
+function priceCheckLine(check, st) {
+  const today = `京东今日价 ¥${check.price}${check.label ? `（${check.label}）` : ''}，售价 ¥${st.sale ?? '—'}`;
+  if (st.inverted) return `${today}：价格倒挂，卖出一单亏 ¥${-st.profit}`;
+  if (st.alert) return `${today}：利润仅 ¥${st.profit}，低于预警线`;
+  return st.profit == null ? today : `${today}：正常（差价 ¥${st.profit}）`;
+}
+
+const SUMMARIES = {
+  pricecheck: (t) =>
+    `京东今日价检查结束：成功 ${(t.ok ?? 0) + (t.alert ?? 0)} 个，价格倒挂/预警 ${t.alert ?? 0} 个，失败 ${t.fail ?? 0} 个` +
+    (t.alert ? '（已列在“已发布 → 价格倒挂”中，可勾选后“批量改价”）' : ''),
+  reprice: (t) => `批量改价结束：成功 ${t.ok ?? 0} 个，未完成 ${t.fail ?? 0} 个${t.fail ? '（原因见各商品的状态和日志，需要处理的编辑页已保留）' : ''}`,
+};
 
 /**
  * @param {{onChange: () => void, onLog: (line: string) => void,
@@ -63,13 +83,13 @@ export function createQueueRunner({ onChange, onLog, saveLocal = async () => nul
       await saveLocalOne(saved);
       return 'ok';
     }
-    if (['throttle', 'login', 'setup'].includes(res.status)) {
-      await itemRepo.update(item.id, { status: 'pending', message: res.message });
+    const patch = collectFailurePatch(item, res);
+    await itemRepo.update(item.id, patch);
+    if (PAUSE_STATUSES.includes(res.status)) {
       setState({ pauseReason: res.message, pausedMode: 'collect' });
       return 'pause';
     }
-    await itemRepo.update(item.id, { status: 'failed', message: res.message });
-    onLog(`[${item.id}] 采集失败：${res.message}`);
+    onLog(`[${item.id}] ${item.product ? patch.message : `采集失败：${res.message}`}`);
     return 'fail';
   }
 
@@ -83,37 +103,83 @@ export function createQueueRunner({ onChange, onLog, saveLocal = async () => nul
     return res.message?.includes('重新登录') ? 'pause' : 'ok';
   }
 
-  async function run(mode, ids) {
+  // 只读取京东商品页当前显示的价格，和店铺售价对比；频控/验证/登录时整体暂停
+  async function priceCheckOne(item, settings) {
+    const res = await checkPriceUrl(item.url, { useIncognito: settings.collect.useIncognito });
+    if (PAUSE_STATUSES.includes(res.status)) {
+      setState({ pauseReason: res.message, pausedMode: 'pricecheck' });
+      return 'pause';
+    }
+    const patch = priceCheckPatch(res, Date.now(), item.priceCheck);
+    await itemRepo.update(item.id, patch);
+    if (res.status !== 'ok') {
+      const kept = patch.priceCheck.price > 0 ? `（保留上次的价格 ¥${patch.priceCheck.price}）` : '';
+      onLog(`[${item.id}] 京东今日价获取失败：${res.message}${kept}`);
+      return 'fail';
+    }
+    const st = priceStatus({ ...item, ...patch }, settings);
+    onLog(`[${item.id}] ${priceCheckLine(patch.priceCheck, st)}`);
+    return st.alert ? 'alert' : 'ok';
+  }
+
+  async function repriceOne(item, settings, price, verify) {
+    const { log } = itemLogger(item.id);
+    const res = await repriceItem(item, price, settings, log, { verify });
+    if (res.status === 'login') {
+      setState({ pauseReason: res.message, pausedMode: 'reprice' });
+      return 'pause';
+    }
+    await itemRepo.update(item.id, repricePatch(item, { ...res, price }));
+    const done = res.status === 'ok' && !res.draft;
+    log(done ? `改价完成：¥${price}` : res.draft ? `新价格 ¥${price} 已保存为草稿` : `改价未完成：${res.message}`);
+    return done ? 'ok' : 'fail';
+  }
+
+  /** 每种批量任务：单条处理函数 + 两条之间的间隔（秒） */
+  function modeRunner(mode, settings, { prices = {}, verify = true } = {}) {
+    const pw = settings.priceWatch;
+    const runners = {
+      collect: [(item) => collectOne(item, settings), () => randomBetween(settings.collect.minDelaySec, settings.collect.maxDelaySec)],
+      publish: [(item) => publishOne(item, settings), () => settings.publish.delaySec],
+      save: [(item) => saveLocalOne(item), () => 0],
+      pricecheck: [(item) => priceCheckOne(item, settings), () => randomBetween(pw.minDelaySec, pw.maxDelaySec)],
+      reprice: [(item) => repriceOne(item, settings, prices[item.id], verify), () => settings.publish.delaySec],
+    };
+    const [handle, delay] = runners[mode];
+    return { handle, delay };
+  }
+
+  async function run(mode, ids, opts) {
     if (state.running) return;
     const { value: settings } = validateSettings(await settingsRepo.get());
+    const { handle, delay } = modeRunner(mode, settings, opts);
     setState({ running: true, mode, stopRequested: false, pauseReason: '', pausedMode: null });
     let paused = false;
+    let aborted = false;
+    let tally = {};
     try {
       for (const [idx, id] of ids.entries()) {
         if (state.stopRequested) break;
         const item = await itemRepo.findById(id);
         if (!item) continue;
         setState({ currentId: id });
-        const outcome =
-          mode === 'collect' ? await collectOne(item, settings) : mode === 'save' ? await saveLocalOne(item) : await publishOne(item, settings);
+        const outcome = await handle(item);
+        tally = { ...tally, [outcome]: (tally[outcome] ?? 0) + 1 };
         if (outcome === 'pause') {
           paused = true;
           onLog(`已暂停：${state.pauseReason || '需要人工处理'}`);
           break;
         }
-        if (idx < ids.length - 1 && mode !== 'save') {
-          const wait =
-            mode === 'collect'
-              ? randomBetween(settings.collect.minDelaySec, settings.collect.maxDelaySec)
-              : settings.publish.delaySec;
-          await waitDelay(wait);
-        }
+        const wait = delay();
+        if (idx < ids.length - 1 && wait > 0) await waitDelay(wait);
       }
     } catch (e) {
+      aborted = true;
       onLog(`任务异常中止：${e.message}`);
     } finally {
       // 暂停时保留采集页：频控/验证需要用户在该页面手动处理
-      if (mode === 'collect' && !paused) await closeCollectTab().catch((e) => onLog(`关闭采集标签页失败：${e.message}`));
+      if (COLLECT_TAB_MODES.has(mode) && !paused) await closeCollectTab().catch((e) => onLog(`关闭采集标签页失败：${e.message}`));
+      if (SUMMARIES[mode] && !aborted) onLog(SUMMARIES[mode](tally));
       setState({ running: false, currentId: null, mode: null });
     }
   }
@@ -148,7 +214,7 @@ export function createQueueRunner({ onChange, onLog, saveLocal = async () => nul
       const found = res.state.skus.length;
       const kept = skipped ? `已加入任务列表，其中 ${skipped} 个已发布过，已跳过` : '已加入任务列表';
       const skipNote = skipped ? `，其中 ${skipped} 个已发布过，未加入任务列表` : '';
-      if (['throttle', 'login', 'setup'].includes(res.status)) {
+      if (PAUSE_STATUSES.includes(res.status)) {
         paused = true;
         setState({ pauseReason: res.message, pausedMode: 'shop' });
         onLog(`抓取店铺已暂停：${res.message}（已抓到的 ${found} 个商品${kept}）`);
@@ -172,6 +238,13 @@ export function createQueueRunner({ onChange, onLog, saveLocal = async () => nul
     collect: (ids) => run('collect', ids),
     publish: (ids) => run('publish', ids),
     saveLocal: (ids) => run('save', ids),
+    checkPrices: (ids) => run('pricecheck', ids),
+    /**
+     * @param {{id: string, price: number}[]} plan 每个商品的新售价
+     * @param {{verify?: boolean}} [opts] verify：改价前核对编辑页上的原价与记录的售价一致
+     */
+    reprice: (plan, { verify = true } = {}) =>
+      run('reprice', plan.map((p) => p.id), { prices: Object.fromEntries(plan.map((p) => [p.id, p.price])), verify }),
     stop: () => setState({ stopRequested: true }),
   };
 }

@@ -16,6 +16,7 @@
     <button id="btnShop">抓取店铺</button>
     <span class="sep"></span>
     <button id="btnCollect">采集选中</button>
+    <button id="btnRecollect" title="把勾选的已采集商品重新采集一遍，覆盖商品信息和图片（编辑内容保留）">重新采集选中</button>
     <button id="btnPublish">发布选中</button>
     <button id="btnStop" disabled>停止</button>
     <span class="sep"></span>
@@ -44,7 +45,12 @@
 
   <nav id="archiveBar" class="archive-bar" hidden>
     <div id="archiveCrumb" class="crumb"></div>
-    <input id="folderSearch" type="search" placeholder="搜索品牌" aria-label="搜索品牌" />
+    <div class="archive-tools">
+      <button id="btnPriceCheck" title="打开每个已发布商品对标的京东商品页，读取今天的价格，和店铺售价对比">检查京东今日价</button>
+      <button id="btnReturn" title="把勾选的已发布商品移回任务列表，状态改为“已采集”，可以重新编辑、采集或发布（店铺里的商品不受影响）">退回任务列表</button>
+      <button id="btnReprice" title="把勾选商品的店铺售价改成京东今日价或指定价格（没有勾选时默认改价格倒挂的商品）">批量改价</button>
+      <input id="folderSearch" type="search" placeholder="搜索品牌" aria-label="搜索品牌" />
+    </div>
   </nav>
 
   <main>

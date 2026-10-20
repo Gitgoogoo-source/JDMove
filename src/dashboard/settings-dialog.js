@@ -1,7 +1,8 @@
 // 设置弹窗
 import { h, openDialog } from './dom.js';
-import { PUBLISH_ACTIONS, validateSettings } from '../shared/settings.js';
+import { PUBLISH_ACTIONS, REPRICE_ACTIONS, validateSettings } from '../shared/settings.js';
 import { parseCateListInput } from '../shared/category-pick.js';
+import { EDIT_URL_HINT, editUrlPreview } from './reprice-dialog.js';
 
 const field = (label, control, hint) => h('label', { class: 'field' }, h('span', {}, label), control, hint ? h('small', {}, hint) : null);
 const num = (value, attrs = {}) => h('input', { type: 'number', value, ...attrs });
@@ -50,6 +51,11 @@ export async function editSettings(settings) {
     attrDefaults: h('textarea', {}, s.attrDefaultsText),
     packList: h('textarea', {}, s.packList),
     categoryMap: h('textarea', { placeholder: '休闲食品>巧克力 => 17991,17994,18132 | 巧克力' }, mapToText(s.categoryMap)),
+    pwMinDelay: num(s.priceWatch.minDelaySec, { min: 2 }),
+    pwMaxDelay: num(s.priceWatch.maxDelaySec, { min: 2 }),
+    pwMargin: num(s.priceWatch.alertMargin, { min: 0, step: '0.01' }),
+    pwEditUrl: h('input', { value: s.priceWatch.editUrlTemplate, placeholder: '粘贴任意一个商品的编辑页地址' }),
+    pwAction: select(s.priceWatch.repriceAction, REPRICE_ACTIONS),
   };
 
   const dialog = h(
@@ -78,6 +84,15 @@ export async function editSettings(settings) {
           h('div', { class: 'row2' }, field('填写完成后', f.action), field('每条发布间隔（秒）', f.pubDelay)),
           h('div', { class: 'row2' }, field('主图最多', f.maxMain), field('详情图最多', f.maxDetail)),
           f.reupload.node, f.skuAttrs.node),
+        h('fieldset', {}, h('legend', {}, '已发布商品：京东今日价检查与改价'),
+          h('div', { class: 'row3' },
+            field('检查最小间隔（秒）', f.pwMinDelay),
+            field('检查最大间隔（秒）', f.pwMaxDelay),
+            field('预警线（元）', f.pwMargin)),
+          h('small', { class: 'muted' }, '预警线：售价比京东今日价高出不到这个数也提醒，0 = 只在京东价高于售价时提醒。检查价格只打开商品页读价格（用采集窗口和消费者账号），比采集快；遇到频控/验证同样会暂停。'),
+          field('商品编辑页地址', f.pwEditUrl, EDIT_URL_HINT),
+          editUrlPreview(f.pwEditUrl),
+          field('改价后', f.pwAction, '依次尝试的按钮；第一次使用建议先选“只填写新价格”，确认编辑页上价格改对了再换成自动提交')),
         field('属性默认值', f.attrDefaults, '源页面没有对应参数时使用，每行“属性名=值”'),
         field('包装清单（可选）', f.packList),
         field('类目映射', f.categoryMap, '每行：源类目路径（任意连续几级，用 > 分隔，写上级可覆盖所有子类，多条命中时用最具体的）=> 目标类目ID路径 | 名称'),
@@ -116,5 +131,12 @@ export async function editSettings(settings) {
     attrDefaultsText: f.attrDefaults.value,
     packList: f.packList.value,
     categoryMap: textToMap(f.categoryMap.value),
+    priceWatch: {
+      minDelaySec: Number(f.pwMinDelay.value),
+      maxDelaySec: Number(f.pwMaxDelay.value),
+      alertMargin: Number(f.pwMargin.value),
+      editUrlTemplate: f.pwEditUrl.value,
+      repriceAction: f.pwAction.value,
+    },
   });
 }

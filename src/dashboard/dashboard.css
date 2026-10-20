@@ -79,7 +79,7 @@ table.items th, table.items td {
 table.items th { background: #fafbfc; font-weight: 600; white-space: nowrap; }
 .col-check { width: 36px; }
 .col-img { width: 72px; }
-.col-price { width: 120px; }
+.col-price { width: 150px; }
 .col-cat { width: 240px; }
 .col-status { width: 220px; }
 .col-ops { width: 150px; }
@@ -185,3 +185,29 @@ button[aria-pressed="true"] { background: #e7f6ec; border-color: #1e7b34; color:
 .local { color: #1e7b34; }
 .local-error { color: #b3261e; }
 #btnStorage { max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* 已发布：京东今日价与价格倒挂 */
+.archive-tools { display: flex; align-items: center; gap: 8px; }
+tr.price-alert > td { background: #fff5f5; }
+.today { margin-top: 4px; font-size: 12px; }
+.today.alert { color: var(--red); font-weight: 600; }
+.today.failed { color: #8a4b00; }
+.price-label { margin-left: 4px; padding: 0 4px; border-radius: 3px; background: #fde8e7; color: var(--red); font-size: 11px; font-weight: 400; }
+.verdict { color: var(--red); font-size: 12px; font-weight: 600; }
+.sub.missing { color: #8a4b00; }
+.alert-text { color: var(--red); font-weight: 600; }
+.alert-badge { margin-left: 6px; padding: 0 6px; border-radius: 8px; background: var(--red); color: #fff; font-size: 11px; }
+.folder.alert { border-color: var(--red); background: #fff5f5; }
+.folder.alert .folder-icon { background: var(--red); }
+.folder.alert .folder-icon::before { background: var(--red-dark); }
+.folder.alert .folder-name { color: var(--red); }
+
+/* 批量改价弹窗 */
+dialog.wide { width: min(1000px, 94vw); }
+.quick-fill { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.quick-fill input.narrow { width: 90px; padding: 5px 8px; border: 1px solid #d0d3d6; border-radius: 6px; }
+table.plan input { width: 120px; padding: 4px 6px; border: 1px solid #d0d3d6; border-radius: 6px; }
+table.plan input:invalid { border-color: var(--red); }
+.url-preview { color: #1e7b34; word-break: break-all; }
+.url-preview.bad { color: var(--red); }
+.clamp { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }

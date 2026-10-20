@@ -218,6 +218,44 @@
     return { ok: issues.length === 0, issues, missing, rows: domRows.length };
   }
 
+  const priceInputOf = (tr) => tr.querySelectorAll('input[placeholder="请输入"]')[0];
+  const skuEnabled = (tr) => tr.querySelector('.jd-switch').classList.contains('is-checked');
+
+  /**
+   * 编辑页上已启用 SKU 的行和当前京东价。SKU 表和原价格是异步加载的：等价格出现、表格稳定后再读，
+   * 价格一直没加载出来时报错，而不是在空表上改价（随后加载的数据会把新价格覆盖掉）
+   */
+  async function enabledSkuPrices({ loadTimeout = 15000 } = {}) {
+    const loaded = await waitFor(() => skuRows().some((tr) => priceInputOf(tr).value !== ''), { timeout: loadTimeout });
+    const rows = skuRows();
+    if (!rows.length) return { error: '页面上没有找到 SKU 价格表' };
+    if (!loaded) return { error: '编辑页上的京东价一直没有加载出来' };
+    await waitSkuTableStable({ quietMs: 1000, timeout: 8000 });
+    const targets = skuRows().filter(skuEnabled);
+    if (!targets.length) return { error: '页面上的 SKU 都没有启用' };
+    return { targets, prices: targets.map((tr) => priceInputOf(tr).value) };
+  }
+
+  /** 只读：编辑页上已启用 SKU 的京东价（改价前核对是不是这个商品、改价后核对是否生效） */
+  async function readSkuPrices(opts) {
+    const res = await enabledSkuPrices(opts);
+    return res.error ? { ok: false, error: res.error, prices: [] } : { ok: true, prices: res.prices };
+  }
+
+  // 改价（商品编辑页）：把已启用的 SKU 行的京东价统一改成 price，库存和规格不动
+  async function setSkuPrices(price, opts) {
+    const res = await enabledSkuPrices(opts);
+    if (res.error) return { ok: false, error: res.error, rows: 0, before: [] };
+    const { targets, prices: before } = res;
+    for (const tr of targets) {
+      tr.scrollIntoView({ block: 'center' });
+      commitInput(priceInputOf(tr), String(price));
+    }
+    await sleep(500);
+    const failed = targets.flatMap((tr, i) => (Number(priceInputOf(tr).value) === Number(price) ? [] : [i + 1]));
+    return { ok: failed.length === 0, error: failed.length ? `第 ${failed.join('、')} 个 SKU 的京东价没有写进去` : '', rows: targets.length, before };
+  }
+
   // 重新读取页面：京东价/库存与计划不一致（被页面清空或没写进去）的行
   function rowsNotWritten(rows) {
     const domRows = skuRows();
@@ -229,6 +267,46 @@
       const ok = (!row.enabled || same(priceInput, row.price)) && same(stockInput, row.stock);
       return ok ? [] : [{ row: idx, price: String(row.price), stock: String(row.stock) }];
     });
+  }
+
+  /** 只读：京东价/库存与计划不一致的行（填完 SKU属性后、保存前最后核对一次） */
+  function checkSkuRows(rows) {
+    return { missing: rowsNotWritten(rows) };
+  }
+
+  // SKU属性列（field=skuProps）里的必填项；字段 id 与表单 skus[i].skuProps 的键一致
+  function skuAttrRequiredFields() {
+    const store = B.pinia && B.pinia() && B.pinia().state.value['publish-product'];
+    const columns = (store && store.saleAttrConfig && store.saleAttrConfig.skuTableColumn) || [];
+    const column = columns.find((c) => c && (c.field === 'skuProps' || c.componentCode === 'SkuAttr'));
+    if (!column) return [];
+    return (column.children || []).flatMap((group) =>
+      (group.children || [])
+        .filter((f) => f.field != null && (group.componentCode === 'ATTR_REQUIRED' || (f.props && f.props.rule && f.props.rule.required)))
+        .map((f) => ({ field: String(f.field), label: f.title || String(f.field) })),
+    );
+  }
+
+  // SKU 表组件的当前数据（每行的 skuProps 是抽屉点“确定”后写入的）。新发布页上表单 skus 要到保存时才生成，
+  // 保存前一直是空数组，只能从表格组件读；草稿/编辑页上两者一致
+  function skuTableData() {
+    const cell = qsa('.shop-sku-attribute')[0];
+    let c = cell && cell.__vueParentComponent;
+    for (let i = 0; c && i < 12; i += 1, c = c.parent) {
+      if (c.props && Array.isArray(c.props.tableData)) return c.props.tableData;
+    }
+    return null;
+  }
+
+  /** 只读：每行 SKU属性的当前值，保存前用来核对必填项有没有真的写进去 */
+  function readSkuAttrState() {
+    const api = B.getFApi();
+    const table = skuTableData();
+    const formSkus = api && api.getValue('skus');
+    const rows = table && table.length ? table : formSkus;
+    if (!Array.isArray(rows) || !rows.length) return { ok: false, error: '读不到 SKU 表数据' };
+    const skuProps = rows.map((s) => (s && s.skuProps ? JSON.parse(JSON.stringify(s.skuProps)) : null));
+    return { ok: true, required: skuAttrRequiredFields(), skuProps };
   }
 
   function matchLabelValue(label, valueMap) {
@@ -266,44 +344,63 @@
     return [...legacy, ...dynamic].filter((f) => f.root && f.label);
   }
 
+  // 逐个字段填写；返回实际写入的标签和仍为空的必填项
+  async function fillDrawerFields(drawer, valueMap) {
+    const filled = [];
+    const missing = [];
+    for (const { root: fi, label, required } of drawerFields(drawer)) {
+      const value = matchLabelValue(label, valueMap);
+      const input = fi.querySelector('input.jd-input__inner:not([readonly]), textarea');
+      let done = false;
+      if (value != null && input && !input.value) {
+        commitInput(input, String(value));
+        done = true;
+      } else if (value != null && fi.querySelector('.jd-select')) {
+        done = await chooseSelectOption(fi, value);
+      } else if (input && input.value) done = true;
+      if (done && value != null) filled.push(label);
+      if (!done && required) missing.push(label);
+    }
+    return { filled, missing };
+  }
+
+  // 京麦的数字输入框（如建议零售价）失焦后过一会儿才把值写进表单：立刻点“确定”会报“请输入…”、抽屉不关。
+  // 所以点之前先等一下，被拦下就再等再点；几次都关不上才点“取消”（抽屉里已填的值随之丢弃）
+  const DRAWER_SETTLE_MS = 500;
+  const DRAWER_CONFIRM_TRIES = 3;
+  async function confirmDrawer(drawer) {
+    for (let i = 0; i < DRAWER_CONFIRM_TRIES; i += 1) {
+      await sleep(DRAWER_SETTLE_MS);
+      const ok = buttonByText('确定', drawer);
+      if (ok) click(ok);
+      if (await waitFor(() => !visible(drawer), { timeout: 2500 })) return true;
+    }
+    const cancel = buttonByText('取消', drawer);
+    if (cancel) click(cancel);
+    await sleep(500);
+    return false;
+  }
+
   async function fillSkuAttrDrawers(valueMap) {
     const results = [];
     const count = skuRows().length;
     for (let idx = 0; idx < count; idx += 1) {
       const tr = skuRows()[idx];
-      const trigger = tr && qsa('input', tr).find((i) => i.placeholder === 'SKU属性' || i.value === 'SKU属性');
+      // 设置过的行显示“已设置N项”，按组件找入口，找不到再按文字找
+      const trigger = tr && (tr.querySelector('.shop-sku-attribute input') || qsa('input', tr).find((i) => i.placeholder === 'SKU属性' || i.value === 'SKU属性'));
       if (!trigger) continue;
       tr.scrollIntoView({ block: 'center' });
       click(trigger);
       const drawer = await waitFor(() => qsa('.jd-drawer').find((d) => visible(d) && /SKU属性/.test(textOf(d))), { timeout: 5000 });
       if (!drawer) {
-        results.push({ row: idx, ok: false, error: '未打开SKU属性面板' });
+        results.push({ row: idx, confirmed: false, error: '未打开SKU属性面板', filled: [], missing: [] });
         continue;
       }
-      const missing = [];
-      for (const { root: fi, label, required } of drawerFields(drawer)) {
-        const value = matchLabelValue(label, valueMap);
-        const input = fi.querySelector('input.jd-input__inner:not([readonly]), textarea');
-        let done = false;
-        if (value != null && input && !input.value) {
-          commitInput(input, String(value));
-          done = true;
-        } else if (value != null && fi.querySelector('.jd-select')) {
-          done = await chooseSelectOption(fi, value);
-        } else if (input && input.value) done = true;
-        if (!done && required) missing.push(label);
-      }
-      const ok = buttonByText('确定', drawer);
-      if (ok) click(ok);
-      const closed = await waitFor(() => !visible(drawer), { timeout: 2500 });
-      if (!closed) {
-        const cancel = buttonByText('取消', drawer);
-        if (cancel) click(cancel);
-        await sleep(500);
-      }
-      results.push({ row: idx, ok: !!closed && missing.length === 0, missing });
+      const { filled, missing } = await fillDrawerFields(drawer, valueMap);
+      const confirmed = await confirmDrawer(drawer);
+      results.push({ row: idx, confirmed, filled, missing });
     }
-    return { ok: results.every((r) => r.ok), results };
+    return { ok: results.every((r) => r.confirmed && r.missing.length === 0), results };
   }
 
   // ---------- 商品详情 ----------
@@ -409,7 +506,13 @@
   }
 
   // ---------- 提交动作 ----------
-  const ACTION_BUTTON = { draft: '保存草稿', submit_off: '提交暂不上架', submit_on: '提交并上架' };
+  // auto：改价时用，编辑页上按顺序找“提交/保存”类按钮，不点会改变上下架状态的按钮
+  const ACTION_BUTTONS = {
+    draft: ['保存草稿'],
+    submit_off: ['提交暂不上架'],
+    submit_on: ['提交并上架', '提交审核并上架'],
+    auto: ['提交', '保存', '提交审核', '提交修改', '保存修改', '确认修改'],
+  };
   // 保存/提交成功后京麦弹出“保存成功 … 我知道了”，需要点掉才算结束
   const SUCCESS_POPUP_RE = /保存成功|提交成功|发布成功|操作成功/;
   const ACK_LABELS = ['我知道了', '知道了', '确定', '关闭'];
@@ -422,13 +525,70 @@
     return null;
   }
 
+  const idField = (text, name) => (String(text || '').match(new RegExp(`"${name}"\\s*:\\s*"?(\\d{6,20})`)) || [])[1] || '';
+  // 发布页的提交接口（saveproduct / saveProductNew）：成功时返回新商品的 productId，也就是店铺商品编号（wareId）
+  const SAVE_API_RE = /saveproduct/i;
+  // 返回了编号但同时标着失败（success:false、4xx/5xx 错误码）不算提交成功
+  const FAILED_BODY_RE = /"success"\s*:\s*false|"code"\s*:\s*"?[45]\d\d\b/;
+
+  // 提交接口的返回里带店铺商品编号：点击期间临时拦截 XHR/fetch 的返回，记下其中的编号；
+  // productId 只认提交接口的（其他接口里的 productId 可能是标准产品编号）。
+  // “提交并上架”成功后京麦不弹提示，100ms 后直接整页跳到成功页，所以提交接口返回编号就算提交成功（saved）。
+  // 结束后 restore() 恢复原来的 XHR/fetch，不长期改动页面
+  function installWareIdCapture() {
+    const captured = [];
+    const saved = [];
+    const restores = [];
+    const record = (text, url) => {
+      const isSave = SAVE_API_RE.test(String(url || ''));
+      const id = idField(text, 'wareId') || (isSave ? idField(text, 'productId') : '');
+      if (id) captured.push({ id, at: Date.now() });
+      if (id && isSave && !FAILED_BODY_RE.test(String(text))) saved.push({ id, at: Date.now() });
+    };
+    if (typeof XMLHttpRequest !== 'undefined') {
+      const origSend = XMLHttpRequest.prototype.send;
+      restores.push(() => (XMLHttpRequest.prototype.send = origSend));
+      XMLHttpRequest.prototype.send = function send(body) {
+        this.addEventListener('load', () => {
+          try {
+            record(this.responseText, this.responseURL);
+          } catch {
+            /* 非文本响应忽略 */
+          }
+        });
+        return origSend.call(this, body);
+      };
+    }
+    if (typeof window.fetch === 'function') {
+      const origFetch = window.fetch;
+      restores.push(() => (window.fetch = origFetch));
+      window.fetch = function fetchWithCapture(...args) {
+        return origFetch.apply(window, args).then((res) => {
+          if (/json|text/.test(res.headers.get('content-type') || '')) res.clone().text().then((t) => record(t, res.url), () => undefined);
+          return res;
+        });
+      };
+    }
+    return { captured, saved, restore: () => [...restores].reverse().forEach((fn) => fn()) };
+  }
+
+  async function runAction(action, opts) {
+    const capture = installWareIdCapture();
+    try {
+      return await clickAndWatch(action, opts, capture);
+    } finally {
+      capture.restore();
+    }
+  }
+
   // 只认点击之后新出现的提示：页面上可能还留着“批量设置成功”之类的提示，
   // 之前把它当成保存结果，误报成功并立刻关掉标签页，保存请求根本没发出去
-  async function runAction(action, { timeoutMs = 20000 } = {}) {
-    const label = ACTION_BUTTON[action];
-    if (!label) return { ok: true, skipped: true };
-    const btn = buttonByText(label);
-    if (!btn) return { ok: false, error: `找不到“${label}”按钮` };
+  async function clickAndWatch(action, { timeoutMs = 20000 } = {}, capture = { captured: [], saved: [] }) {
+    const labels = ACTION_BUTTONS[action];
+    if (!labels) return { ok: true, skipped: true };
+    const btn = labels.map((l) => buttonByText(l)).find(Boolean);
+    if (!btn) return { ok: false, error: `找不到“${labels.join('”或“')}”按钮` };
+    const label = textOf(btn);
     if (btn.classList.contains('is-disabled') || btn.disabled) {
       const st = B.status();
       return { ok: false, error: `“${label}”不可用：${st.publishDisabledMsg || '请检查页面提示'}` };
@@ -436,11 +596,19 @@
     const startUrl = location.href;
     const preexisting = new Set(messages());
     const seen = new Set();
+    const clickedAt = Date.now();
     click(btn);
     const end = Date.now() + timeoutMs;
     let confirmText = '';
     let popupSuccess = false;
+    let submitted = false;
     while (Date.now() < end) {
+      // 页面马上会跳走，脚本随之结束：先把结果带回去
+      // 保存草稿不跳转、草稿也没有店铺编号：只按弹窗判断
+      if (action !== 'draft' && capture.saved.some((c) => c.at >= clickedAt)) {
+        submitted = true;
+        break;
+      }
       messages().filter((m) => !preexisting.has(m)).forEach((m) => seen.add(m));
       const box = visibleDialogs().find(
         (d) => d.classList.contains('jd-message-box') || /提示|确认/.test(textOf(d).slice(0, 20)) || SUCCESS_POPUP_RE.test(textOf(d)),
@@ -461,13 +629,23 @@
       }
       if (location.href !== startUrl) break;
       if ([...seen].some((m) => SUCCESS_POPUP_RE.test(m) || /失败|错误|请/.test(m))) break;
-      await sleep(300);
+      await sleep(100);
     }
     const msgs = [...seen];
+    if (submitted && !msgs.some((m) => SUCCESS_POPUP_RE.test(m))) msgs.push('商品提交成功');
     const errors = B.collectErrors();
-    const success = popupSuccess || msgs.some((m) => SUCCESS_POPUP_RE.test(m)) || (location.href !== startUrl && !/popPublish/.test(location.href));
+    const success = submitted || popupSuccess || msgs.some((m) => SUCCESS_POPUP_RE.test(m)) || (location.href !== startUrl && !/popPublish/.test(location.href));
     if (!success && !msgs.length && !errors.length) msgs.push(`点击“${label}”后没有看到保存结果`);
-    return { ok: popupSuccess || (success && errors.length === 0), messages: msgs, errors, confirmText: popupSuccess ? '' : confirmText, url: location.href };
+    const draftIds = new Set(action === 'draft' ? capture.saved.map((c) => c.id) : []);
+    const wareIds = capture.captured.filter((c) => c.at >= clickedAt && !draftIds.has(c.id)).map((c) => c.id);
+    return {
+      ok: submitted || popupSuccess || (success && errors.length === 0),
+      messages: msgs,
+      errors,
+      confirmText: popupSuccess ? '' : confirmText,
+      url: location.href,
+      wareIds,
+    };
   }
 
   Object.assign(B, {
@@ -475,7 +653,11 @@
     uploadMainImages,
     setSaleValues,
     setSkuRows,
+    setSkuPrices,
+    readSkuPrices,
     fillSkuAttrDrawers,
+    readSkuAttrState,
+    checkSkuRows,
     switchDescMode,
     drawerFields,
     waitSkuTableStable,

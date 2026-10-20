@@ -2,13 +2,18 @@
 import { buildPublishPlan, descriptionHtml, publishImagePlan } from '../shared/publish-plan.js';
 import { searchBestCategory, matchCategoryMap } from '../shared/category-pick.js';
 import { buildPublishUrl, imgzoneUrl } from '../shared/url-utils.js';
-import { callBackend, openWorkTab, navigateTab, closeTab, sleep } from './chrome-env.js';
+import { callBackend, openWorkTab, navigateTab, closeTab, sleep, waitForTabUrl } from './chrome-env.js';
 import { CATEGORY_PAGE, CATEGORY_REDIRECT_MSG, landedPageKind } from './category-search.js';
 import { startImagePrep } from './image-prep.js';
 import { createStopwatch } from '../shared/stopwatch.js';
+import { parseWareId } from '../shared/price-watch.js';
+import { describeSkuAttrResults, formatMissingRows, missingSkuAttrs, skuAttrStop } from '../shared/sku-attrs.js';
 
 const LOGIN_MSG = '商家后台需要重新登录';
 const DETAIL_CHUNK = 6;
+// 提交成功后京麦整页跳到 /ware/publish-success?wareId=<店铺商品编号>
+const SUCCESS_PAGE_RE = /\/publish-success\b/;
+const LAND_TIMEOUT_MS = 5000;
 
 async function waitReady(tabId, timeoutMs = 40000) {
   const end = Date.now() + timeoutMs;
@@ -45,8 +50,9 @@ async function autoCategory(tabId, product, log) {
 }
 
 async function fillDescription(tabId, plan, settings, log, { timer, images }) {
+  // 源商品没有详情图时发布计划已经拦下；走到这里说明设置里的详情图数量为 0
   if (!plan.detailImageUrls.length) {
-    log('源商品没有详情图，跳过商品详情');
+    log('详情图数量设置为 0，跳过商品详情');
     return;
   }
   let urls = plan.detailImageUrls;
@@ -100,6 +106,36 @@ async function fillMainImages(tabId, log, { timer, images }) {
   log(`主图 ${up.urls.length} 张`);
 }
 
+/**
+ * 保存前填写 SKU属性并按表单数据核对：京麦在填写过程中会重建 SKU 表、清空已填的 SKU属性（页面上看不出来），
+ * 所以放在最后一步填，空了重填一次；仍为空就返回停止原因，不带着空的必填项保存
+ * @returns {Promise<{stop?: {status: string, message: string}}>}
+ */
+async function ensureSkuAttrs(tabId, plan, log, timer) {
+  const enabled = plan.sale.rows.map((r) => r.enabled);
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const drawers = await callBackend(tabId, 'fillSkuAttrDrawers', plan.skuAttrValues);
+    timer.lap(attempt ? 'SKU 属性重填' : 'SKU 属性');
+    describeSkuAttrResults(drawers?.results).forEach((line) => log(line));
+    const state = await callBackend(tabId, 'readSkuAttrState');
+    if (!state?.ok) {
+      log(`无法核对 SKU属性：${state?.error || '页面没有返回数据'}`);
+      return {};
+    }
+    const missing = missingSkuAttrs(state, enabled);
+    if (!missing.length) return {};
+    if (attempt === 0) log(`保存前核对：SKU属性必填项为空（${formatMissingRows(missing)}），重新填写一次`);
+    else return { stop: skuAttrStop(missing, plan.skuAttrValues) };
+  }
+  return {};
+}
+
+/** 填完 SKU属性后只读核对京东价/库存：被清空就不保存 */
+async function pricesStillThere(tabId, plan) {
+  const check = await callBackend(tabId, 'checkSkuRows', plan.sale.rows);
+  return !check?.missing?.length;
+}
+
 async function fillForm(tabId, settings, plan, log, ctx) {
   const { timer } = ctx;
   const basics = await fillBasics(tabId, plan, log, timer);
@@ -115,23 +151,42 @@ async function fillForm(tabId, settings, plan, log, ctx) {
   timer.lap('SKU 表');
   if (!rows?.ok) log(`SKU 表：${rows?.issues?.join('；')}`);
   log(`SKU ${rows?.rows ?? 0} 行`);
-  if (settings.publish.fillSkuAttrs) {
-    const drawers = await callBackend(tabId, 'fillSkuAttrDrawers', plan.skuAttrValues);
-    timer.lap('SKU 属性');
-    const miss = (drawers?.results ?? []).flatMap((r) => r.missing ?? []);
-    if (miss.length) log(`SKU属性未填：${[...new Set(miss)].join('、')}`);
-  }
 
   await fillDescription(tabId, plan, settings, log, ctx);
   return {};
 }
 
 /**
- * 发布单个条目
- * @param {{imageMakers?: {main?: Function, detail?: Function}}} [deps] 图片处理函数（测试时替换）
- * @returns {Promise<{status: 'published'|'filled'|'need_action'|'failed', message: string, target?: object, tabId?: number}>}
+ * 点保存/提交按钮。提交成功后京麦马上整页跳到成功页，页面脚本可能来不及返回结果（或返回了但没带编号）：
+ * 这时以落地的成功页为准，编号从地址里的 wareId 读。保存草稿不跳转，不等
  */
-export async function publishItem(item, settings, log, { imageMakers } = {}) {
+async function submitAction(tabId, action, landTimeoutMs) {
+  let result;
+  let error;
+  try {
+    result = await callBackend(tabId, 'runAction', action);
+  } catch (e) {
+    error = e;
+  }
+  const hasId = result?.ok && parseWareId({ captured: result.wareIds, url: result.url, messages: result.messages });
+  if (action === 'draft' || hasId || (result && !result.ok)) return result;
+  const url = await waitForTabUrl(tabId, SUCCESS_PAGE_RE, landTimeoutMs);
+  if (url) {
+    const messages = result?.messages?.length ? result.messages : ['商品提交成功'];
+    return { ...result, ok: true, url, messages, errors: [], confirmText: '', wareIds: result?.wareIds ?? [] };
+  }
+  if (error) throw error;
+  return result;
+}
+
+/**
+ * 发布单个条目
+ * @param {{imageMakers?: {main?: Function, detail?: Function}, landTimeoutMs?: number}} [deps]
+ *   imageMakers：图片处理函数；landTimeoutMs：提交后等待跳到成功页的时间（测试时替换）
+ * @returns {Promise<{status: 'published'|'filled'|'need_action'|'failed', message: string, target?: object, tabId?: number,
+ *   price?: number, wareId?: string}>} price：发布的售价；wareId：店铺商品编号（拿得到时）
+ */
+export async function publishItem(item, settings, log, { imageMakers, landTimeoutMs = LAND_TIMEOUT_MS } = {}) {
   if (!item.product) return { status: 'need_action', message: '尚未采集' };
   const preset = presetCategory(item, settings);
   let startUrl;
@@ -154,7 +209,7 @@ export async function publishItem(item, settings, log, { imageMakers } = {}) {
     throw e;
   }
   timer.lap('打开页面');
-  const result = await publishInTab(tab, item, settings, log, preset, { timer, images });
+  const result = await publishInTab(tab, item, settings, log, preset, { timer, images, landTimeoutMs });
   images.cancel();
   log(`耗时：${timer.summary()}`);
   // 需要人工检查的情况保留标签页，其余关闭
@@ -201,17 +256,26 @@ async function publishInTab(tab, item, settings, log, preset, ctx) {
     if (skuCheck?.missing?.length) {
       return { status: 'failed', message: `SKU 表的京东价/库存没有写进去，已停止保存：${skuCheck.issues.join('；')}`, target, tabId: tab.id };
     }
+    if (settings.publish.fillSkuAttrs) {
+      const attrs = await ensureSkuAttrs(tab.id, plan, log, timer);
+      if (attrs.stop) return { ...attrs.stop, target, tabId: tab.id };
+      if (!(await pricesStillThere(tab.id, plan))) {
+        return { status: 'failed', message: '填写 SKU属性后京东价/库存被清空，已停止保存，请在工作窗口中检查', target, tabId: tab.id };
+      }
+    }
 
     const action = settings.publish.action;
     if (action === 'none') return { status: 'filled', message: '已填写完成，请在工作窗口中检查后手动提交', target, tabId: tab.id };
-    const result = await callBackend(tab.id, 'runAction', action);
+    const result = await submitAction(tab.id, action, ctx.landTimeoutMs);
     timer.lap('保存');
     if (result?.confirmText) return { status: 'need_action', message: `页面弹出确认：${result.confirmText}`, target, tabId: tab.id };
     if (!result?.ok) {
       const detail = [result?.error, ...(result?.errors ?? []), ...(result?.messages ?? [])].filter(Boolean).join('；');
       return { status: 'failed', message: detail || '提交未成功', target, tabId: tab.id };
     }
-    return { status: 'published', message: (result.messages ?? []).join('；') || '完成', target };
+    const wareId = parseWareId({ captured: result.wareIds, url: result.url, messages: result.messages });
+    log(wareId ? `店铺商品编号：${wareId}` : '没有拿到店铺商品编号：以后改价前请在“编辑”中填写');
+    return { status: 'published', message: (result.messages ?? []).join('；') || '完成', target, price: plan.price, wareId };
   } catch (e) {
     return { status: 'failed', message: e.message, tabId: tab.id };
   }

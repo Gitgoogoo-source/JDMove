@@ -174,7 +174,7 @@ const fullItem = {
     price: 45.9,
     params: [],
     mainImages: ['data:,x'],
-    detailImages: [],
+    detailImages: ['https://d/1.jpg'],
     saleDims: [],
     variants: [],
     crumbs: ['休闲食品', '巧克力'],
@@ -182,7 +182,7 @@ const fullItem = {
   },
 };
 
-function publishBackend(skuResults) {
+function publishBackend(skuResults, overrides = {}) {
   const calls = [];
   let skuCall = 0;
   const replies = {
@@ -192,42 +192,147 @@ function publishBackend(skuResults) {
     selectBrand: { ok: true, label: '德芙' },
     uploadMainImages: { ok: true, urls: ['jfs/1'] },
     fillSkuAttrDrawers: { ok: true, results: [] },
-    runAction: { ok: true, messages: ['保存成功'] },
+    runAction: { ok: true, messages: ['提交成功'], wareIds: ['10088812345'] },
+    ...overrides,
   };
-  const backend = (method) => {
+  const backend = (method, args) => {
     calls.push(method);
     if (method === 'setSkuRows') return skuResults[Math.min(skuCall++, skuResults.length - 1)];
-    return replies[method] ?? { ok: true };
+    const reply = replies[method];
+    return (typeof reply === 'function' ? reply(args) : reply) ?? { ok: true };
   };
   return { calls, backend };
 }
 
 const skuOk = { ok: true, rows: 1, issues: [], missing: [] };
+// 不转存详情图：详情图地址直接写进详情，测试里不会真的去下载图片
+const SETTINGS = mergeSettings({ publish: { reuploadDetailImages: false } });
+
+test('publishItem: 源商品没有详情图时标为需处理，不保存', async () => {
+  const { calls, backend } = publishBackend([skuOk, skuOk]);
+  installFakeChrome({ backend });
+  const noDetail = { ...fullItem, product: { ...fullItem.product, detailImages: [] } };
+  const res = await publishItem(noDetail, SETTINGS, () => {});
+  assert.equal(res.status, 'need_action');
+  assert.match(res.message, /缺少详情图/);
+  assert.ok(!calls.includes('runAction'), '不应保存');
+});
+
+test('publishItem: SKU属性面板没能保存时在日志里说明丢弃了哪些值', async () => {
+  const drawers = {
+    ok: false,
+    results: [{ row: 0, confirmed: false, filled: ['建议零售价', '市场价'], missing: ['最小可售单位UPC'] }],
+  };
+  const { backend } = publishBackend([skuOk, skuOk], { fillSkuAttrDrawers: drawers });
+  installFakeChrome({ backend });
+  const lines = [];
+  const res = await publishItem(fullItem, SETTINGS, (l) => lines.push(l));
+  assert.equal(res.status, 'published');
+  assert.ok(lines.some((l) => /UPC/.test(l) && /编辑/.test(l)), '发布前提示缺少 UPC');
+  const report = lines.find((l) => l.includes('未能保存'));
+  assert.ok(report, lines.join('\n'));
+  assert.match(report, /第 1 行/);
+  assert.match(report, /最小可售单位UPC/);
+  assert.match(report, /建议零售价、市场价 已被京麦丢弃/);
+});
 
 test('publishItem: 保存前重新写入并核对 SKU 价格/库存', async () => {
   const { calls, backend } = publishBackend([skuOk, skuOk]);
   installFakeChrome({ backend });
-  const res = await publishItem(fullItem, mergeSettings({}), () => {});
+  const res = await publishItem(fullItem, SETTINGS, () => {});
   assert.equal(res.status, 'published');
   const lastSku = calls.lastIndexOf('setSkuRows');
   assert.ok(calls.indexOf('setSkuRows') < lastSku, '应写入两次');
-  assert.equal(calls[lastSku + 1], 'runAction', '最后一次写入紧挨着保存');
+  // 之后只有 SKU属性填写与只读核对，不再有改动价格/库存的步骤
+  const between = calls.slice(lastSku + 1, calls.indexOf('runAction'));
+  assert.deepEqual([...new Set(between)].sort(), ['checkSkuRows', 'fillSkuAttrDrawers', 'readSkuAttrState']);
 });
 
 test('publishItem: 保存前发现价格/库存被清空时停止保存，并保留页面', async () => {
   const lost = { ok: false, rows: 1, issues: ['第 1 行的京东价/库存没有写进去'], missing: [{ row: 0, price: '45.9', stock: '100' }] };
   const { calls, backend } = publishBackend([skuOk, lost]);
   installFakeChrome({ backend });
-  const res = await publishItem(fullItem, mergeSettings({}), () => {});
+  const res = await publishItem(fullItem, SETTINGS, () => {});
   assert.equal(res.status, 'failed');
   assert.match(res.message, /京东价\/库存/);
   assert.ok(!calls.includes('runAction'));
   assert.ok(res.tabId, '保留标签页供检查');
 });
 
+// ---------- SKU属性：保存前填写并通过表单数据核对 ----------
+const UPC_REQUIRED = [{ field: '256076', label: '最小可售单位UPC' }];
+const attrState = (...props) => ({ ok: true, required: UPC_REQUIRED, skuProps: props });
+const filledUpc = { 256076: '6914973609563' };
+/** readSkuAttrState 依次返回 states 里的结果，最后一个重复使用 */
+const stateSeq = (states) => {
+  let i = 0;
+  return () => states[Math.min(i++, states.length - 1)];
+};
+const upcItem = { ...fullItem, edits: { ...fullItem.edits, upc: '6914973609563' } };
+
+test('publishItem: SKU属性在价格核对之后、保存之前填写并核对', async () => {
+  const { calls, backend } = publishBackend([skuOk, skuOk], { readSkuAttrState: attrState(filledUpc) });
+  installFakeChrome({ backend });
+  const res = await publishItem(upcItem, SETTINGS, () => {});
+  assert.equal(res.status, 'published');
+  const order = ['setSkuRows', 'fillSkuAttrDrawers', 'readSkuAttrState', 'checkSkuRows', 'runAction'].map((m) => calls.lastIndexOf(m));
+  assert.deepEqual([...order].sort((a, b) => a - b), order, calls.join(' > '));
+  assert.equal(calls.filter((m) => m === 'fillSkuAttrDrawers').length, 1, '只在保存前填写一次');
+});
+
+test('publishItem: 核对发现 SKU属性被清空时重填一次，成功后保存', async () => {
+  const { calls, backend } = publishBackend([skuOk, skuOk], { readSkuAttrState: stateSeq([attrState(null), attrState(filledUpc)]) });
+  installFakeChrome({ backend });
+  const lines = [];
+  const res = await publishItem(upcItem, SETTINGS, (l) => lines.push(l));
+  assert.equal(res.status, 'published');
+  assert.equal(calls.filter((m) => m === 'fillSkuAttrDrawers').length, 2);
+  assert.ok(lines.some((l) => /重新填写/.test(l) && /最小可售单位UPC/.test(l)), lines.join('\n'));
+});
+
+test('publishItem: 重填后仍为空且已有 UPC 时停止保存，并保留页面', async () => {
+  const { calls, backend } = publishBackend([skuOk, skuOk], { readSkuAttrState: attrState(null) });
+  installFakeChrome({ backend });
+  const res = await publishItem(upcItem, SETTINGS, () => {});
+  assert.equal(res.status, 'failed');
+  assert.match(res.message, /SKU属性/);
+  assert.match(res.message, /已停止保存/);
+  assert.ok(!calls.includes('runAction'));
+  assert.ok(res.tabId, '保留标签页供检查');
+});
+
+test('publishItem: 缺 UPC 导致 SKU属性必填项为空时标为需处理，不保存', async () => {
+  const { calls, backend } = publishBackend([skuOk, skuOk], { readSkuAttrState: attrState(null) });
+  installFakeChrome({ backend });
+  const res = await publishItem(fullItem, SETTINGS, () => {});
+  assert.equal(res.status, 'need_action');
+  assert.match(res.message, /最小可售单位UPC/);
+  assert.ok(!calls.includes('runAction'));
+});
+
+test('publishItem: 填写 SKU属性后京东价/库存被清空时停止保存', async () => {
+  const lost = { missing: [{ row: 0, price: '45.9', stock: '100' }] };
+  const { calls, backend } = publishBackend([skuOk, skuOk], { readSkuAttrState: attrState(filledUpc), checkSkuRows: lost });
+  installFakeChrome({ backend });
+  const res = await publishItem(upcItem, SETTINGS, () => {});
+  assert.equal(res.status, 'failed');
+  assert.match(res.message, /京东价\/库存/);
+  assert.ok(!calls.includes('runAction'));
+});
+
+test('publishItem: 关闭“自动填写 SKU 属性”时不填写也不核对', async () => {
+  const { calls, backend } = publishBackend([skuOk, skuOk], { readSkuAttrState: attrState(null) });
+  installFakeChrome({ backend });
+  const off = mergeSettings({ publish: { reuploadDetailImages: false, fillSkuAttrs: false } });
+  const res = await publishItem(fullItem, off, () => {});
+  assert.equal(res.status, 'published');
+  assert.ok(!calls.includes('fillSkuAttrDrawers'));
+  assert.ok(!calls.includes('readSkuAttrState'));
+});
+
 // ---------- 图片提前处理 / 并发 / 耗时统计 ----------
 const delay = (ms) => new Promise((r) => setTimeout(r, ms));
-const withImages = (mainImages, detailImages = []) => ({ ...fullItem, product: { ...fullItem.product, mainImages, detailImages } });
+const withImages = (mainImages, detailImages = fullItem.product.detailImages) => ({ ...fullItem, product: { ...fullItem.product, mainImages, detailImages } });
 const argsOf = (fake, method) => fake.calls.find((c) => c.op === 'inject.func' && c.args[0] === method)?.args[1] ?? null;
 
 test('publishItem: 打开发布页之前就开始处理主图', async () => {
@@ -240,7 +345,7 @@ test('publishItem: 打开发布页之前就开始处理主图', async () => {
       return { name, mime: 'image/jpeg', b64: url };
     },
   };
-  const res = await publishItem(withImages(['https://img/a.jpg']), mergeSettings({}), () => {}, { imageMakers });
+  const res = await publishItem(withImages(['https://img/a.jpg']), SETTINGS, () => {}, { imageMakers });
   assert.equal(res.status, 'published');
   assert.deepEqual(tabOpenedAtFirstMake, [false]);
 });
@@ -259,7 +364,7 @@ test('publishItem: 主图并发处理，上传时仍按原顺序排列', async (
       return { name, mime: 'image/jpeg', b64: url };
     },
   };
-  await publishItem(withImages(['https://img/a.jpg', 'https://img/b.jpg', 'https://img/c.jpg']), mergeSettings({}), () => {}, { imageMakers });
+  await publishItem(withImages(['https://img/a.jpg', 'https://img/b.jpg', 'https://img/c.jpg']), SETTINGS, () => {}, { imageMakers });
   const [mains] = argsOf(fake, 'uploadMainImages');
   assert.deepEqual(mains.map((m) => m.name), ['jdmove_9_m0.jpg', 'jdmove_9_m1.jpg', 'jdmove_9_m2.jpg']);
   assert.ok(peak > 1, '应同时处理多张');
@@ -275,7 +380,7 @@ test('publishItem: 单张主图处理失败只记日志，其余照常上传', a
       return { name, mime: 'image/jpeg', b64: url };
     },
   };
-  await publishItem(withImages(['https://img/bad.jpg', 'https://img/ok.jpg']), mergeSettings({}), (m) => logs.push(m), { imageMakers });
+  await publishItem(withImages(['https://img/bad.jpg', 'https://img/ok.jpg']), SETTINGS, (m) => logs.push(m), { imageMakers });
   const [mains] = argsOf(fake, 'uploadMainImages');
   assert.deepEqual(mains.map((m) => m.name), ['jdmove_9_m1.jpg']);
   assert.ok(logs.some((l) => l.includes('图片处理失败：图片下载失败 404')));
@@ -310,7 +415,7 @@ test('publishItem: 结束时日志里写出各步骤耗时', async () => {
   installFakeChrome({ backend });
   const logs = [];
   const imageMakers = { main: async (url, name) => ({ name, mime: 'image/jpeg', b64: url }) };
-  await publishItem(withImages(['https://img/a.jpg']), mergeSettings({}), (m) => logs.push(m), { imageMakers });
+  await publishItem(withImages(['https://img/a.jpg']), SETTINGS, (m) => logs.push(m), { imageMakers });
   const line = logs.find((l) => l.startsWith('耗时：'));
   assert.ok(line, '应有耗时日志');
   for (const step of ['打开页面', '页面就绪', '品牌', '后台主图处理 1 张', '等待主图处理', '主图上传', '保存', '合计']) {
@@ -330,10 +435,64 @@ test('publishItem: 提前结束（需处理）时停止启动剩余图片的处�
   };
   const urls = Array.from({ length: 8 }, (_, i) => `https://img/${i}.jpg`);
   const logs = [];
-  const res = await publishItem(withImages(urls), mergeSettings({}), (m) => logs.push(m), { imageMakers });
+  const res = await publishItem(withImages(urls), SETTINGS, (m) => logs.push(m), { imageMakers });
   assert.equal(res.status, 'need_action');
   assert.ok(logs.some((l) => l.startsWith('耗时：')));
   release.forEach((r) => r());
   await delay(5);
   assert.equal(started.length, 4, '只处理已经开始的那一批');
+});
+
+const SUCCESS_URL = 'https://wares-jdm.jd.com/ware/publish-success?wareId=10036327675342&categoryId=18132';
+// 把正在发布的标签页改成京麦提交成功后跳转到的成功页
+const landOnSuccess = (fake) => {
+  for (const [id, tab] of fake.tabs) fake.tabs.set(id, { ...tab, url: SUCCESS_URL, status: 'complete' });
+};
+
+test('publishItem: 默认“提交并上架”，提交后页面跳到成功页、脚本没能返回结果时，从成功页地址读出店铺编号', async () => {
+  let fake;
+  const { calls, backend } = publishBackend([skuOk, skuOk], {
+    runAction: () => {
+      landOnSuccess(fake);
+      throw new Error('Frame with ID 0 was removed.');
+    },
+  });
+  fake = installFakeChrome({ backend });
+  const settings = mergeSettings({ publish: { reuploadDetailImages: false } });
+  const lines = [];
+  const res = await publishItem(fullItem, settings, (l) => lines.push(l));
+  assert.equal(res.status, 'published', res.message);
+  assert.equal(res.wareId, '10036327675342');
+  assert.ok(lines.some((l) => l.includes('10036327675342')));
+  const action = fake.calls.find((c) => c.op === 'inject.func' && c.args[0] === 'runAction');
+  assert.deepEqual(action.args[1], ['submit_on']);
+  assert.ok(calls.includes('runAction'));
+  assert.ok(fake.ops().includes('tabs.remove'), '成功后关闭标签页');
+});
+
+test('publishItem: 提交成功但接口里没拿到编号时，等页面跳到成功页再从地址读取', async () => {
+  let fake;
+  const { backend } = publishBackend([skuOk, skuOk], {
+    runAction: () => {
+      setTimeout(() => landOnSuccess(fake), 20);
+      return { ok: true, messages: ['提交成功'], wareIds: [], url: PUBLISH_URL };
+    },
+  });
+  fake = installFakeChrome({ backend });
+  const res = await publishItem(fullItem, mergeSettings({ publish: { reuploadDetailImages: false } }), () => {});
+  assert.equal(res.status, 'published');
+  assert.equal(res.wareId, '10036327675342');
+});
+
+test('publishItem: 提交时脚本出错且页面没有跳到成功页，按失败处理并保留页面', async () => {
+  const { backend } = publishBackend([skuOk, skuOk], {
+    runAction: () => {
+      throw new Error('Frame with ID 0 was removed.');
+    },
+  });
+  installFakeChrome({ backend });
+  const res = await publishItem(fullItem, mergeSettings({ publish: { reuploadDetailImages: false } }), () => {}, { landTimeoutMs: 50 });
+  assert.equal(res.status, 'failed');
+  assert.match(res.message, /removed/);
+  assert.ok(res.tabId);
 });

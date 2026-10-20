@@ -20,7 +20,7 @@ const el = (text, extra = {}) => ({
 });
 
 /** 模拟京麦发布页：点“保存草稿”后弹出 { 保存成功 … 我知道了 } */
-function loadPage(popupText, popupButtons, actionLabel = '保存草稿', { toasts = [], showPopup = true, toastsAfterClick = [] } = {}) {
+function loadPage(popupText, popupButtons, actionLabel = '保存草稿', { toasts = [], showPopup = true, toastsAfterClick = [], afterClick, globals = {} } = {}) {
   const state = { popup: null, toasts: [...toasts] };
   const buttons = popupButtons.map((t) => el(t, { onClick: () => (state.popup = null) }));
   const popup = { ...el(popupText, { classes: ['jd-message-box'] }), buttons };
@@ -28,6 +28,7 @@ function loadPage(popupText, popupButtons, actionLabel = '保存草稿', { toast
     onClick: () => {
       if (showPopup) state.popup = popup;
       state.toasts.push(...toastsAfterClick);
+      afterClick?.();
     },
   });
   const textOf = (e) => (e ? String(e.innerText || '').replace(/\s+/g, ' ').trim() : '');
@@ -44,7 +45,7 @@ function loadPage(popupText, popupButtons, actionLabel = '保存草稿', { toast
   };
   const backend = { __core: true, util, collectErrors: () => [], status: () => ({}) };
   const window = { __JDMOVE__: { backend } };
-  vm.runInNewContext(MEDIA_SRC, { window, document: {}, location: { href: 'https://wares-jdm.jd.com/popPublish/?a=1' } });
+  vm.runInNewContext(MEDIA_SRC, { window, document: {}, location: { href: 'https://wares-jdm.jd.com/popPublish/?a=1' }, ...globals });
   return { B: backend, buttons, state };
 }
 
@@ -80,4 +81,116 @@ test('runAction: 点击后新出现的“保存成功”提示算成功', async 
   const { B } = loadPage('', [], '保存草稿', { toasts: ['批量设置成功'], showPopup: false, toastsAfterClick: ['保存成功'] });
   const res = await B.runAction('draft', { timeoutMs: 50 });
   assert.equal(res.ok, true);
+});
+
+test('runAction: auto（改价）在编辑页上找“保存”类按钮点击，成功弹窗按成功处理', async () => {
+  const { B, buttons } = loadPage('保存成功', ['我知道了'], '保存');
+  const res = await B.runAction('auto');
+  assert.equal(res.ok, true);
+  assert.equal(buttons[0].clicks, 1);
+  assert.deepEqual([...res.wareIds], []);
+});
+
+test('runAction: auto 找不到提交/保存按钮时不乱点其他按钮', async () => {
+  const { B } = loadPage('保存成功', ['我知道了'], '提交并上架');
+  const res = await B.runAction('auto');
+  assert.equal(res.ok, false);
+  assert.match(res.error, /找不到“提交”或“保存”/);
+});
+
+/** 最小 XHR 替身：send 后立即以 responseText 触发 load */
+function fakeXhrClass(responseText, responseURL = 'https://wares-jdm.jd.com/dsm/other') {
+  return class FakeXhr {
+    constructor() {
+      this.listeners = [];
+      this.responseText = responseText;
+      this.responseURL = responseURL;
+    }
+    addEventListener(type, fn) {
+      if (type === 'load') this.listeners.push(fn);
+    }
+    send() {
+      this.listeners.forEach((fn) => fn());
+    }
+  };
+}
+
+test('runAction: 记下点击后提交接口返回的店铺商品编号，结束后恢复页面原来的 XHR', async () => {
+  const Xhr = fakeXhrClass('{"code":200,"data":{"wareId":10088812345}}');
+  const originalSend = Xhr.prototype.send;
+  const { B } = loadPage('保存成功', ['我知道了'], '提交并上架', {
+    globals: { XMLHttpRequest: Xhr },
+    afterClick: () => new Xhr().send(),
+  });
+  const res = await B.runAction('submit_on');
+  assert.equal(res.ok, true);
+  assert.deepEqual([...res.wareIds], ['10088812345']);
+  assert.equal(Xhr.prototype.send, originalSend);
+});
+
+const SAVE_URL = 'https://wares-jdm.jd.com/dsm/dsm.wareshop.product.writeservice.saveproduct';
+
+test('runAction: 提交并上架后京麦直接跳转成功页、不弹提示：以提交接口返回的 productId 判定成功并记下编号', async () => {
+  const Xhr = fakeXhrClass('{"code":200,"data":{"productId":10036327675342}}', SAVE_URL);
+  const { B } = loadPage('', [], '提交并上架', {
+    showPopup: false,
+    globals: { XMLHttpRequest: Xhr },
+    afterClick: () => new Xhr().send(),
+  });
+  const res = await B.runAction('submit_on', { timeoutMs: 5000 });
+  assert.equal(res.ok, true);
+  assert.deepEqual([...res.wareIds], ['10036327675342']);
+  assert.match(res.messages.join(), /提交成功/);
+});
+
+test('runAction: 其他接口里的 productId（如标准产品编号）不当作新商品编号', async () => {
+  const Xhr = fakeXhrClass('{"data":{"productId":123456789}}');
+  const { B } = loadPage('', [], '提交并上架', {
+    showPopup: false,
+    globals: { XMLHttpRequest: Xhr },
+    afterClick: () => new Xhr().send(),
+  });
+  const res = await B.runAction('submit_on', { timeoutMs: 50 });
+  assert.equal(res.ok, false);
+  assert.deepEqual([...res.wareIds], []);
+});
+
+test('runAction: 提交接口没有返回商品编号（提交失败）时不算成功', async () => {
+  const Xhr = fakeXhrClass('{"code":500,"message":"类目需缴纳保证金"}', SAVE_URL);
+  const { B } = loadPage('', [], '提交并上架', {
+    showPopup: false,
+    globals: { XMLHttpRequest: Xhr },
+    afterClick: () => new Xhr().send(),
+  });
+  const res = await B.runAction('submit_on', { timeoutMs: 50 });
+  assert.equal(res.ok, false);
+});
+
+test('runAction: 按钮叫“提交审核并上架”时也能点到', async () => {
+  const { B } = loadPage('提交成功', ['我知道了'], '提交审核并上架');
+  const res = await B.runAction('submit_on');
+  assert.equal(res.ok, true);
+});
+
+test('runAction: 提交接口返回了 productId 但标着错误码时不算成功', async () => {
+  const Xhr = fakeXhrClass('{"code":500,"success":false,"data":{"productId":123456789}}', SAVE_URL);
+  const { B } = loadPage('', [], '提交并上架', {
+    showPopup: false,
+    globals: { XMLHttpRequest: Xhr },
+    afterClick: () => new Xhr().send(),
+  });
+  const res = await B.runAction('submit_on', { timeoutMs: 50 });
+  assert.equal(res.ok, false);
+});
+
+test('runAction: 保存草稿时提交接口返回的编号不当作店铺编号，仍按“保存成功”弹窗判断', async () => {
+  const Xhr = fakeXhrClass('{"code":200,"data":{"productId":10036327675342}}', SAVE_URL);
+  const { B, buttons } = loadPage('保存成功', ['我知道了'], '保存草稿', {
+    globals: { XMLHttpRequest: Xhr },
+    afterClick: () => new Xhr().send(),
+  });
+  const res = await B.runAction('draft');
+  assert.equal(res.ok, true);
+  assert.equal(buttons[0].clicks, 1, '仍点掉保存成功弹窗');
+  assert.deepEqual([...res.wareIds], []);
 });

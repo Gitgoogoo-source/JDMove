@@ -2,6 +2,7 @@
 import { buildItemUrl } from './url-utils.js';
 import { mergeSettings } from './settings.js';
 import { isArchived } from './brand-folders.js';
+import { normalizeWareId } from './price-watch.js';
 
 const ITEMS_KEY = 'items';
 const SETTINGS_KEY = 'settings';
@@ -12,7 +13,9 @@ const PUBLISHED_KEY = 'publishedSkus';
  * @typedef {'pending'|'collecting'|'collected'|'publishing'|'published'|'failed'|'need_action'} ItemStatus
  * @typedef {{id: string, skuId: string, url: string, status: ItemStatus, product: object|null,
  *   edits: object, target: object|null, message: string, log: string[], createdAt: number, updatedAt: number,
- *   publishedAt?: number}} Item  publishedAt：最近一次发布成功的时间，有值的条目显示在“已发布”页
+ *   publishedAt?: number, salePrice?: number, shopWareId?: string, priceCheck?: object, reprice?: object}} Item
+ *   publishedAt：最近一次发布成功的时间，有值的条目显示在“已发布”页；salePrice：店铺里的售价（发布/改价时记录）；
+ *   shopWareId：店铺商品编号（改价时打开编辑页用）；priceCheck：最近一次京东今日价检查；reprice：最近一次改价结果
  */
 
 /** @returns {Item} */
@@ -57,15 +60,80 @@ export function applyEdits(item, edits, now = Date.now()) {
   return { ...item, edits, message, updatedAt: Math.max(now, item.updatedAt) };
 }
 
+const canonical = (v) => {
+  if (Array.isArray(v)) return v.map(canonical);
+  if (!v || typeof v !== 'object') return v;
+  const entries = Object.keys(v)
+    .sort()
+    .map((k) => [k, canonical(v[k])])
+    .filter(([, x]) => x !== undefined);
+  return entries.length ? Object.fromEntries(entries) : undefined;
+};
+
+/** 两份编辑内容是否相同：忽略键顺序、未填写的项和空的属性覆盖 */
+export const editsEqual = (a, b) => JSON.stringify(canonical(a ?? {}) ?? {}) === JSON.stringify(canonical(b ?? {}) ?? {});
+
 /**
- * 发布结果写回条目的字段：发布成功时记下 publishedAt，条目随之移到“已发布”页
+ * 发布结果写回条目的字段：发布成功时记下 publishedAt，条目随之移到“已发布”页；
+ * 同时记下店铺里的售价和商品编号（以后检查价格倒挂、改价用）。重新发布会生成新商品，
+ * 没拿到新编号时清掉旧编号，避免改价改到旧商品上
  * @param {Item} item
- * @param {{status: string, message: string, target?: object}} res publishItem 的结果
+ * @param {{status: string, message: string, target?: object, price?: number, wareId?: string}} res publishItem 的结果
  */
 export function publishResultPatch(item, res, now = Date.now()) {
   const status = res.status === 'filled' ? 'need_action' : res.status;
   const patch = { status, message: res.message, target: res.target ?? item.target };
-  return status === 'published' ? { ...patch, publishedAt: now } : patch;
+  if (status !== 'published') return patch;
+  const price = res.price > 0 ? { salePrice: res.price } : {};
+  return { ...patch, publishedAt: now, ...price, shopWareId: normalizeWareId(res.wareId) };
+}
+
+export const RETURNED_NOTE = '已从“已发布”退回任务列表（店铺里的商品不受影响）';
+// 店铺里那件商品的记录：退回任务列表后不再对应任何店铺商品，重新发布会生成新商品
+const SHOP_FIELDS = ['publishedAt', 'salePrice', 'shopWareId', 'priceCheck', 'reprice'];
+
+/**
+ * 已发布商品退回任务列表的“已采集”：保留商品数据、编辑和本地保存记录，清掉店铺售价/编号/价格检查
+ * @param {Item} item
+ * @returns {Item}
+ */
+export function returnToTasksPatch(item, now = Date.now()) {
+  const rest = Object.fromEntries(Object.entries(item).filter(([k]) => !SHOP_FIELDS.includes(k)));
+  return { ...rest, status: 'collected', message: RETURNED_NOTE, updatedAt: Math.max(now, item.updatedAt) };
+}
+
+const RECOLLECT_BLOCKED = new Set(['collecting', 'publishing']);
+
+/** 任务列表里采集过的商品可以重新采集（覆盖商品数据，编辑保留）；已发布的要先退回任务列表 */
+export const canRecollect = (item) => Boolean(item?.product) && !isArchived(item) && !RECOLLECT_BLOCKED.has(item.status);
+
+/**
+ * 批量重新采集：只取勾选里可以重新采集的商品；没勾选时不默认全部（重新采集很慢，还会覆盖数据）
+ * @param {Item[]} items
+ * @param {Set<string>} selectedIds
+ * @returns {{ids: string[], skipped: number}}
+ */
+export function pickRecollect(items, selectedIds) {
+  const chosen = items.filter((i) => selectedIds.has(i.id));
+  const ids = chosen.filter(canRecollect).map((i) => i.id);
+  return { ids, skipped: chosen.length - ids.length };
+}
+
+// 首次采集遇到频控/验证/登录时回到“待采集”，处理后点“采集选中”继续
+const PAUSE_COLLECT_STATUSES = new Set(['throttle', 'login', 'setup']);
+
+/**
+ * 采集没成功时写回条目的字段。重新采集（已有商品数据）时保留原状态和上次采集的数据，
+ * 不把能发布的商品变成“失败/待采集”
+ * @param {Item} item 采集前的条目
+ * @param {{status: string, message: string}} res collectUrl 的结果
+ */
+export function collectFailurePatch(item, res) {
+  if (item.product) {
+    const status = item.status === 'collecting' ? 'collected' : item.status;
+    return { status, message: `重新采集失败：${res.message}（保留上次采集的数据）` };
+  }
+  return { status: PAUSE_COLLECT_STATUSES.has(res.status) ? 'pending' : 'failed', message: res.message };
 }
 
 /** 已发布条目对应的全部 SKU：条目本身 + 一起发布的规格 SKU（同一商品换个颜色的链接也算已发布） */
@@ -117,6 +185,14 @@ export function createItemRepository(storage) {
   const load = async () => (await storage.get(ITEMS_KEY)) ?? [];
   const persist = (items) => storage.set(ITEMS_KEY, items);
   const loadPublished = async () => (await storage.get(PUBLISHED_KEY)) ?? {};
+  // 记进已发布记录（已有的保留原来的时间）：条目离开“已发布”页后，重新添加同一商品仍会被跳过
+  const rememberPublished = async (skuIds) => {
+    if (!skuIds.length) return;
+    const registry = await loadPublished();
+    const now = Date.now();
+    const fresh = Object.fromEntries(skuIds.filter((id) => !(id in registry)).map((id) => [id, now]));
+    await storage.set(PUBLISHED_KEY, { ...registry, ...fresh });
+  };
 
   /**
    * 批量加入任务：已在列表里的不重复添加，已发布过的商品默认跳过
@@ -191,14 +267,23 @@ export function createItemRepository(storage) {
       serial(async () => {
         const drop = new Set(ids.map(String));
         const items = await load();
-        const gone = items.filter((i) => drop.has(i.id)).flatMap(archivedSkuIds);
-        if (gone.length) {
-          const registry = await loadPublished();
-          const now = Date.now();
-          const fresh = Object.fromEntries(gone.filter((id) => !(id in registry)).map((id) => [id, now]));
-          await storage.set(PUBLISHED_KEY, { ...registry, ...fresh });
-        }
+        await rememberPublished(items.filter((i) => drop.has(i.id)).flatMap(archivedSkuIds));
         await persist(items.filter((i) => !drop.has(i.id)));
+      }),
+
+    /**
+     * 已发布商品退回任务列表的“已采集”状态；不是已发布（或没有商品数据）的条目跳过
+     * @returns {Promise<{returned: string[], skipped: string[]}>}
+     */
+    returnToTasks: (ids) =>
+      serial(async () => {
+        const wanted = new Set(ids.map(String));
+        const items = await load();
+        const targets = items.filter((i) => wanted.has(i.id) && isArchived(i) && i.product);
+        const hit = new Set(targets.map((i) => i.id));
+        await rememberPublished(targets.flatMap(archivedSkuIds));
+        if (targets.length) await persist(items.map((i) => (hit.has(i.id) ? returnToTasksPatch(i) : i)));
+        return { returned: [...hit], skipped: [...wanted].filter((id) => !hit.has(id)) };
       }),
   };
 }

@@ -1,8 +1,11 @@
-// 单个商品的编辑弹窗：标题/价格/库存/品牌/类目/属性覆盖
+// 单个商品的编辑弹窗：标题/价格/库存/品牌/UPC/类目/属性覆盖
 import { h, openDialog, safeImgSrc } from './dom.js';
 import { parseCateListInput, mappingSourceFor } from '../shared/category-pick.js';
 import { parseAttrDefaults } from '../shared/settings.js';
 import { searchShopCategories } from '../lib/category-search.js';
+import { isArchived } from '../shared/brand-folders.js';
+import { normalizeWareId } from '../shared/price-watch.js';
+import { normalizeUpc, productUpc } from '../shared/sku-attrs.js';
 
 const field = (label, control, hint) => h('label', { class: 'field' }, h('span', {}, label), control, hint ? h('small', {}, hint) : null);
 
@@ -75,15 +78,38 @@ function productInfo(p) {
   );
 }
 
+/** 已发布商品：店铺商品编号（改价时用它打开编辑页） */
+function shopIdField(item) {
+  if (!isArchived(item)) return { node: null, read: () => undefined };
+  const input = h('input', { value: item.shopWareId ?? '', placeholder: '如 10088812345', inputmode: 'numeric', pattern: '\\d{4,20}' });
+  return {
+    node: field('店铺商品编号', input, '商品在你店铺里的编号（商品编辑页地址里的那串数字），批量改价时用它打开编辑页；发布时拿到了会自动填写'),
+    read: () => normalizeWareId(input.value),
+  };
+}
+
+/** 商品条形码：与发布时同一套规则校验，无效时阻止保存 */
+function upcInput(value, scraped) {
+  const placeholder = scraped ? `${scraped}（采集到的，留空即使用）` : '如 6901234567890';
+  const input = h('input', { value: value ?? '', placeholder, inputmode: 'numeric' });
+  const check = () => input.setCustomValidity(input.value.trim() && !normalizeUpc(input.value) ? 'UPC 应为 8~14 位数字' : '');
+  input.addEventListener('input', check);
+  check();
+  return input;
+}
+
 /**
- * @returns {Promise<{edits: object, mapping: object|null} | null>}
+ * @returns {Promise<{edits: object, mapping: object|null, shopWareId?: string} | null>} shopWareId 只在已发布商品上返回
  */
 export async function editItem(item, { onLog }) {
   const e = item.edits ?? {};
+  const archived = isArchived(item);
   const title = h('input', { value: e.title ?? '', placeholder: item.product?.title ?? '' });
   const price = h('input', { type: 'number', step: '0.01', min: '0', value: e.price ?? '', placeholder: '留空按改价规则' });
+  const shopId = shopIdField(item);
   const stock = h('input', { type: 'number', step: '1', min: '0', value: e.stock ?? '', placeholder: '留空用默认库存' });
   const brand = h('input', { value: e.brandName ?? '', placeholder: item.product?.brand?.name ?? '' });
+  const upc = upcInput(e.upc, productUpc(item.product));
   const overrides = h('textarea', { placeholder: '属性名=值，每行一条，如：\n产地=中国大陆\n保质期=365' }, overridesToText(e.attrOverrides));
   const cat = categoryPicker(item, onLog);
   const logView = h('pre', { class: 'sub' }, (item.log ?? []).join('\n') || '暂无日志');
@@ -100,12 +126,15 @@ export async function editItem(item, { onLog }) {
         { class: 'dlg-body' },
         field('标题', title, '留空=按设置自动清洗源标题；京东标题上限 60 字符（汉字算 2）'),
         h('div', { class: 'row3' }, field('售价', price), field('库存', stock), field('品牌名', brand, '必须是店铺已授权品牌')),
+        archived ? h('small', { class: 'muted' }, '这里的售价只影响“重新发布”；要改店铺里的售价，请用“已发布”页的“批量改价”。') : null,
+        shopId.node,
+        field('UPC（商品条形码）', upc, '填到 SKU属性的“最小可售单位UPC”。留空=用采集到的条形码；采集不到时需手动填写，否则京麦 SKU属性面板保存不了'),
         cat.node,
         field('属性覆盖', overrides, '优先级高于采集数据和默认值'),
         productInfo(item.product),
         h('fieldset', {}, h('legend', {}, '最近日志'), logView),
       ),
-      h('div', { class: 'dlg-foot' }, h('button', { value: 'cancel' }, '取消'), h('button', { value: 'save', class: 'primary' }, '保存')),
+      h('div', { class: 'dlg-foot' }, h('button', { value: 'cancel', formnovalidate: true }, '取消'), h('button', { value: 'save', class: 'primary' }, '保存')),
     ),
   );
   const result = await openDialog(dialog);
@@ -117,6 +146,7 @@ export async function editItem(item, { onLog }) {
     price: Number(price.value) > 0 ? Number(price.value) : undefined,
     stock: stock.value === '' ? undefined : Math.max(0, Math.floor(Number(stock.value))),
     brandName: brand.value.trim() || undefined,
+    upc: normalizeUpc(upc.value) || undefined,
     attrOverrides: parseAttrDefaults(overrides.value),
     cateList: c.cateList.length ? c.cateList : undefined,
     cateName: c.cateList.length ? c.cateName : undefined,
@@ -124,5 +154,5 @@ export async function editItem(item, { onLog }) {
   const source = mappingSourceFor(item.product);
   const mapping =
     c.saveMap && c.cateList.length && source ? { source, cateList: c.cateList, name: c.cateName || c.cateList.join(',') } : null;
-  return { edits, mapping };
+  return { edits, mapping, shopWareId: shopId.read() };
 }

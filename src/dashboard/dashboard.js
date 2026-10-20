@@ -5,10 +5,13 @@ import { renderFolders, renderCrumb } from './archive-view.js';
 import { editItem } from './editor.js';
 import { editSettings } from './settings-dialog.js';
 import { createStorageController } from './storage-ui.js';
+import { openRepriceDialog } from './reprice-dialog.js';
 import { extractSkuIds } from '../shared/url-utils.js';
 import { parseShopInput } from '../shared/shop-url.js';
 import { itemRepo, settingsRepo } from '../lib/chrome-env.js';
-import { EDITED_NOTE } from '../shared/store.js';
+import { EDITED_NOTE, editsEqual, pickRecollect } from '../shared/store.js';
+import { PUBLISH_ACTIONS, REPRICE_ACTIONS, validateSettings } from '../shared/settings.js';
+import { ALERT_FOLDER_KEY, alertItems, priceStatus, checkedToday } from '../shared/price-watch.js';
 import { groupPublishedByBrand, filterFolders, isArchived, taskItems } from '../shared/brand-folders.js';
 import { createQueueRunner } from '../lib/queue.js';
 
@@ -21,11 +24,19 @@ let lastShopUrl = '';
 // 'tasks'：任务列表；'archive'：已发布按品牌归档，folderKey 为空时显示文件夹列表
 let view = { mode: 'tasks', folderKey: null };
 
-const MODE_LABELS = { collect: '采集', publish: '发布', shop: '抓取店铺', save: '保存到本地' };
+const MODE_LABELS = { collect: '采集', publish: '发布', shop: '抓取店铺', save: '保存到本地', pricecheck: '检查京东今日价', reprice: '改价' };
 const RESUME_HINTS = {
-  collect: '处理完成后重新点击“采集选中/发布选中”即可继续。',
+  collect: '处理完成后重新点击“采集选中/重新采集选中/发布选中”即可继续。',
   shop: '处理完成后重新点击“抓取店铺”即可（已加入的商品不会重复添加）。',
+  pricecheck: '处理完成后重新点击“检查京东今日价”即可继续（今天已检查过的商品会自动跳过）。',
+  reprice: '在工作窗口重新登录商家后台后，重新点击“批量改价”即可继续。',
 };
+const ALERT_FOLDER_NAME = '价格倒挂';
+const ALERT_EMPTY_TEXT = '没有价格倒挂的商品。每天点击“检查京东今日价”更新价格后，京东今日价高于店铺售价的商品会列在这里。';
+// 新售价与当前售价相差超过这个比例时，开始改价前再确认一次（防止输错）
+const BIG_CHANGE_RATIO = 0.3;
+// 检查一个商品大约需要的打开页面时间（秒），用于估算总耗时
+const PRICE_CHECK_PAGE_SEC = 4;
 
 function appendLog(line) {
   logLines = [...logLines, `${new Date().toLocaleTimeString()} ${line}`].slice(-MAX_LOG);
@@ -40,9 +51,22 @@ const runner = createQueueRunner({ onChange: renderState, onLog: appendLog, save
 const TASKS_EMPTY_TEXT = $('#empty').textContent;
 const TASKS_DONE_TEXT = '没有待处理的任务。发布成功的商品已移到“已发布”页，点击上方“已发布”查看。';
 
+const isAlert = (item) => priceStatus(item, settings).alert;
+
+/** 虚拟文件夹：所有价格倒挂（或利润低于预警线）的已发布商品，亏得最多的在前 */
+function alertFolder() {
+  return { key: ALERT_FOLDER_KEY, brand: ALERT_FOLDER_NAME, items: alertItems(items, settings), alert: true };
+}
+
 function currentFolder() {
   if (view.mode !== 'archive' || !view.folderKey) return null;
+  if (view.folderKey === ALERT_FOLDER_KEY) return alertFolder();
   return groupPublishedByBrand(items).find((f) => f.key === view.folderKey) ?? null;
+}
+
+/** “已发布”页的操作范围：打开了文件夹时是文件夹里的商品，否则是全部已发布商品 */
+function archiveScope() {
+  return currentFolder()?.items ?? items.filter(isArchived);
 }
 
 function setView(next) {
@@ -66,7 +90,9 @@ function renderState() {
   const el = $('#runState');
   el.textContent = st.running ? `${MODE_LABELS[st.mode] ?? ''}中：${st.currentId ?? ''}${st.stopRequested ? '（正在停止）' : ''}` : '空闲';
   el.classList.toggle('busy', st.running);
-  for (const id of ['btnCollect', 'btnPublish', 'btnDelete', 'btnAdd', 'btnShop', 'btnSettings', 'btnImport', 'btnSaveLocal', 'btnStorage']) $(`#${id}`).disabled = st.running;
+  for (const id of ['btnCollect', 'btnRecollect', 'btnPublish', 'btnDelete', 'btnAdd', 'btnShop', 'btnSettings', 'btnImport', 'btnSaveLocal', 'btnStorage', 'btnPriceCheck', 'btnReprice', 'btnReturn']) {
+    $(`#${id}`).disabled = st.running;
+  }
   $('#btnStorage').textContent = storage.label();
   $('#btnStorage').title = storage.title();
   $('#btnStop').disabled = !st.running;
@@ -79,8 +105,12 @@ function renderArchive() {
   const archive = view.mode === 'archive';
   const folder = currentFolder();
   const folders = archive ? groupPublishedByBrand(items) : [];
+  const alerts = archive ? alertFolder() : null;
   const showFolders = archive && !folder;
   const shown = showFolders ? filterFolders(folders, $('#folderSearch').value) : [];
+  // 有价格倒挂时，“价格倒挂”文件夹排在最前面（按品牌搜索时只显示匹配的品牌）
+  const searching = Boolean($('#folderSearch').value.trim());
+  const cards = showFolders && alerts.items.length && !searching ? [alerts, ...shown] : shown;
   $('#btnArchive').setAttribute('aria-pressed', String(archive));
   $('#filter').disabled = archive;
   $('#archiveBar').hidden = !archive;
@@ -90,18 +120,20 @@ function renderArchive() {
       ? renderCrumb({
           folders,
           folder,
+          alerts: alerts.items.length,
           onHome: () => setView({ mode: 'archive', folderKey: null }),
           onExit: () => setView({ mode: 'tasks', folderKey: null }),
         })
       : []),
   );
   $('#folders').hidden = !showFolders;
-  $('#folders').replaceChildren(...renderFolders(shown, { onOpen: (key) => setView({ mode: 'archive', folderKey: key }) }));
+  $('#folders').replaceChildren(...renderFolders(cards, { onOpen: (key) => setView({ mode: 'archive', folderKey: key }), isAlert }));
   $('#itemsTable').hidden = showFolders;
   const tasks = archive ? [] : taskItems(items);
-  const emptyText = !archive ? (tasks.length < items.length ? TASKS_DONE_TEXT : TASKS_EMPTY_TEXT) : folders.length ? '没有匹配的品牌' : '还没有发布成功的商品。发布成功后会自动按品牌归到这里。';
-  $('#empty').textContent = emptyText;
-  return archive ? (showFolders ? shown.length > 0 : true) : tasks.length > 0;
+  const archiveEmpty = folder?.alert ? ALERT_EMPTY_TEXT : folders.length ? '没有匹配的品牌' : '还没有发布成功的商品。发布成功后会自动按品牌归到这里。';
+  $('#empty').textContent = archive ? archiveEmpty : tasks.length < items.length ? TASKS_DONE_TEXT : TASKS_EMPTY_TEXT;
+  if (!archive) return tasks.length > 0;
+  return showFolders ? cards.length > 0 : folder.items.length > 0;
 }
 
 function render() {
@@ -124,6 +156,7 @@ function render() {
           const item = items.find((i) => i.id === id);
           return item?.product ? runner.publish([id]) : runner.collect([id]);
         },
+        onRecollect: handleRecollect,
       }),
     ),
   );
@@ -131,10 +164,38 @@ function render() {
   const tasks = taskItems(items);
   const archived = items.length - tasks.length;
   const count = (s) => tasks.filter((i) => i.status === s).length;
-  $('#summary').textContent = `任务 ${tasks.length} · 待采集 ${count('pending')} · 已采集 ${count('collected')} · 需处理 ${count('need_action')} · 失败 ${count('failed')} · 已发布 ${archived}`;
+  const inverted = alertItems(items, settings).length;
+  $('#summary').textContent =
+    `任务 ${tasks.length} · 待采集 ${count('pending')} · 已采集 ${count('collected')} · 需处理 ${count('need_action')} · 失败 ${count('failed')} · 已发布 ${archived}` +
+    (inverted ? `（价格倒挂 ${inverted}）` : '');
   $('#btnArchive').textContent = archived ? `已发布（${archived}）` : '已发布';
   $('#checkAll').checked = list.length > 0 && list.every((i) => selected.has(i.id));
   renderState();
+}
+
+// 已采集的商品重新采集：覆盖商品数据（例如上次没采到详情图），编辑内容保留
+async function handleRecollect(id) {
+  const local = await storage.prepare();
+  appendLog(`[${id}] 开始重新采集${local ? '（完成后自动保存到本地）' : ''}`);
+  runner.collect([id]);
+}
+
+/** 批量重新采集勾选的已采集商品：覆盖商品信息和图片，编辑内容保留 */
+async function handleRecollectSelected() {
+  const { ids, skipped } = pickRecollect(visibleItems(), selected);
+  const skipNote = skipped ? `（${skipped} 个不能重新采集：未采集的用“采集选中”，已发布的需先退回任务列表）` : '';
+  if (!ids.length) return appendLog(`请先在任务列表勾选已采集的商品${skipNote}`);
+  const c = settings.collect;
+  const minutes = Math.max(1, Math.ceil((ids.length * (c.minDelaySec + c.maxDelaySec)) / 2 / 60));
+  const msg =
+    `确定重新采集选中的 ${ids.length} 个商品？预计约 ${minutes} 分钟。` +
+    '\n会重新打开京东商品页，覆盖已采集的商品信息和图片（编辑内容保留）；设置了存储位置时本地文件夹也会更新。' +
+    '\n某个商品重新采集失败时保留它上次采集的数据。';
+  // 先申请存储文件夹权限（需要在用户点击后立即进行），再确认
+  const local = await storage.prepare();
+  if (!confirm(msg)) return;
+  appendLog(`开始重新采集 ${ids.length} 个商品${skipNote}${local ? '（完成后自动保存到本地）' : ''}`);
+  runner.collect(ids);
 }
 
 async function reload() {
@@ -226,9 +287,16 @@ async function handleEdit(id) {
   if (!item) return;
   const res = await editItem(item, { onLog: appendLog });
   if (!res) return;
-  const saved = await itemRepo.saveEdits(id, res.edits);
-  if (!saved) return appendLog(`[${id}] 条目已不存在，修改未保存`);
-  if (saved.message.startsWith(EDITED_NOTE)) appendLog(`[${id}] 修改已保存，需点“重新发布”或“发布选中”才会提交到店铺`);
+  if (res.shopWareId !== undefined && res.shopWareId !== (item.shopWareId ?? '')) {
+    if (!(await itemRepo.update(id, { shopWareId: res.shopWareId }))) return appendLog(`[${id}] 条目已不存在，修改未保存`);
+    appendLog(res.shopWareId ? `[${id}] 店铺商品编号已设为 ${res.shopWareId}` : `[${id}] 已清除店铺商品编号`);
+  }
+  // 只改了店铺商品编号时不动编辑内容，避免已发布商品被误标为“已修改，尚未重新发布”
+  if (!editsEqual(item.edits, res.edits)) {
+    const saved = await itemRepo.saveEdits(id, res.edits);
+    if (!saved) return appendLog(`[${id}] 条目已不存在，修改未保存`);
+    if (saved.message.startsWith(EDITED_NOTE)) appendLog(`[${id}] 修改已保存，需点“重新发布”或“发布选中”才会提交到店铺`);
+  }
   if (res.mapping) {
     const others = settings.categoryMap.filter((m) => m.source !== res.mapping.source);
     await settingsRepo.save({ ...settings, categoryMap: [...others, res.mapping] });
@@ -285,6 +353,77 @@ async function handleSettings() {
   await reload();
 }
 
+function handlePriceCheck() {
+  const scope = archiveScope().filter((i) => i.url);
+  const chosen = scope.filter((i) => selected.has(i.id));
+  const now = Date.now();
+  const unchecked = scope.filter((i) => !checkedToday(i, now));
+  // 勾选了就检查勾选的；没勾选时只检查今天还没检查过的（都检查过则全部重新检查）
+  const pool = chosen.length ? chosen : unchecked.length ? unchecked : scope;
+  if (!pool.length) return appendLog('没有可检查的已发布商品');
+  const skipped = scope.length - unchecked.length;
+  const note = chosen.length
+    ? '（勾选的商品）'
+    : !unchecked.length
+      ? '（今天都检查过，全部重新检查）'
+      : skipped
+        ? `（跳过今天已检查过的 ${skipped} 个，勾选后可重新检查）`
+        : '';
+  const pw = settings.priceWatch;
+  const minutes = Math.ceil((pool.length * ((pw.minDelaySec + pw.maxDelaySec) / 2 + PRICE_CHECK_PAGE_SEC)) / 60);
+  appendLog(`开始检查京东今日价：${pool.length} 个商品${note}，预计约 ${minutes} 分钟`);
+  runner.checkPrices(pool.map((i) => i.id));
+}
+
+/** 改价前保存弹窗里填写的编辑页地址和店铺商品编号 */
+async function saveRepriceInputs(res, pool) {
+  if (res.template !== settings.priceWatch.editUrlTemplate) {
+    await settingsRepo.save({ ...settings, priceWatch: { ...settings.priceWatch, editUrlTemplate: res.template } });
+    appendLog(`已保存商品编辑页地址：${res.template}`);
+  }
+  const before = new Map(pool.map((i) => [i.id, i.shopWareId ?? '']));
+  const changed = res.rows.filter((r) => r.wareId !== before.get(r.id));
+  for (const r of changed) await itemRepo.update(r.id, { shopWareId: r.wareId });
+  if (changed.length) appendLog(`已保存 ${changed.length} 个店铺商品编号`);
+}
+
+async function handleReprice() {
+  const scope = archiveScope();
+  const chosen = scope.filter((i) => selected.has(i.id));
+  const pool = chosen.length ? chosen : alertItems(scope, settings);
+  if (!pool.length) return appendLog('请先打开文件夹勾选要改价的商品（没有勾选时默认对价格倒挂的商品改价）');
+  const res = await openRepriceDialog(pool, settings);
+  if (!res) return;
+  await saveRepriceInputs(res, pool);
+  const plan = res.rows.filter((r) => r.price > 0 && r.wareId).map(({ id, price }) => ({ id, price }));
+  if (!plan.length) return appendLog('没有填写新售价，未改价');
+  const byId = new Map(pool.map((i) => [i.id, i]));
+  const big = plan.filter(({ id, price }) => {
+    const sale = priceStatus(byId.get(id), settings).sale;
+    return sale > 0 && Math.abs(price - sale) / sale > BIG_CHANGE_RATIO;
+  });
+  if (big.length && !confirm(`有 ${big.length} 个商品的新售价与当前售价相差超过 ${BIG_CHANGE_RATIO * 100}%，确定继续改价？`)) return;
+  const { value: latest } = validateSettings(await settingsRepo.get());
+  const verifyNote = res.verify ? '' : '，不核对原价';
+  appendLog(`开始批量改价：${plan.length} 个商品（改价后：${REPRICE_ACTIONS[latest.priceWatch.repriceAction]}${verifyNote}）`);
+  runner.reprice(plan, { verify: res.verify });
+}
+
+/** 已发布商品退回任务列表的“已采集”状态（只改插件里的记录，不动店铺） */
+async function handleReturnToTasks() {
+  const pool = archiveScope().filter((i) => selected.has(i.id));
+  if (!pool.length) return appendLog('请先打开文件夹，勾选要退回任务列表的商品');
+  const head = pool.length === 1 ? `确定把 SKU ${pool[0].skuId} 退回任务列表？` : `确定把选中的 ${pool.length} 个商品退回任务列表？`;
+  const note =
+    '\n退回后状态为“已采集”，可以重新编辑、采集或发布；会清掉这里记录的店铺售价、店铺商品编号和京东今日价检查结果。' +
+    '\n只改插件里的记录，店铺里已发布的商品不会被删除或修改；重新发布会在店铺里生成一个新商品。';
+  if (!confirm(`${head}${note}`)) return;
+  const res = await itemRepo.returnToTasks(pool.map((i) => i.id));
+  const skipNote = res.skipped.length ? `，${res.skipped.length} 个不是已发布状态，未处理` : '';
+  appendLog(`已退回任务列表 ${res.returned.length} 个商品（状态：已采集）${skipNote}`);
+  await reload();
+}
+
 function handleExport() {
   const chosen = items.filter((i) => i.product && (selected.size === 0 || selected.has(i.id)));
   if (!chosen.length) return appendLog('没有可导出的已采集条目');
@@ -326,6 +465,9 @@ function bind() {
   });
   $('#filter').addEventListener('change', render);
   $('#btnArchive').addEventListener('click', () => setView({ mode: view.mode === 'archive' ? 'tasks' : 'archive', folderKey: null }));
+  $('#btnPriceCheck').addEventListener('click', handlePriceCheck);
+  $('#btnReprice').addEventListener('click', handleReprice);
+  $('#btnReturn').addEventListener('click', handleReturnToTasks);
   $('#folderSearch').addEventListener('input', render);
   $('#checkAll').addEventListener('change', (e) => {
     selected = e.target.checked ? new Set(visibleItems().map((i) => i.id)) : new Set();
@@ -338,6 +480,7 @@ function bind() {
     appendLog(`开始采集 ${ids.length} 条${local ? '（完成后自动保存到本地）' : ''}`);
     runner.collect(ids);
   });
+  $('#btnRecollect').addEventListener('click', handleRecollectSelected);
   $('#btnStorage').addEventListener('click', () => storage.choose());
   $('#btnSaveLocal').addEventListener('click', async () => {
     // 勾选了就按勾选的保存（可重新保存）；没勾选时只保存还没存到本地的
@@ -350,7 +493,7 @@ function bind() {
   $('#btnPublish').addEventListener('click', () => {
     const ids = targetIds((i) => i.product && ['collected', 'failed', 'need_action'].includes(i.status));
     if (!ids.length) return appendLog('没有可发布的条目（需先采集；已发布的商品在“已发布”页，需要时可用行内“重新发布”）');
-    appendLog(`开始发布 ${ids.length} 条（动作：${settings.publish.action}）`);
+    appendLog(`开始发布 ${ids.length} 条（填写完成后：${PUBLISH_ACTIONS[settings.publish.action] ?? settings.publish.action}）`);
     runner.publish(ids);
   });
   $('#btnDelete').addEventListener('click', async () => {

@@ -1,0 +1,143 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { normalizeUpc, productUpc, skuAttrValueMap, describeSkuAttrResults, missingSkuAttrs, skuAttrStop } from '../src/shared/sku-attrs.js';
+
+test('normalizeUpc keeps 8-14 digit barcodes, accepts full-width digits and spaces', () => {
+  assert.equal(normalizeUpc('6901234567890'), '6901234567890');
+  assert.equal(normalizeUpc(' 6901 2345 67890 '), '6901234567890');
+  assert.equal(normalizeUpc('６９０１２３４５'), '69012345');
+  assert.equal(normalizeUpc('12345678901234'), '12345678901234');
+});
+
+test('normalizeUpc rejects empty, too short/long and non-digit values', () => {
+  for (const bad of [undefined, null, '', '1234567', '123456789012345', '69012345678AB', '无']) {
+    assert.equal(normalizeUpc(bad), '', String(bad));
+  }
+});
+
+test('skuAttrValueMap: params, price and UPC by label', () => {
+  const map = skuAttrValueMap({
+    params: [{ name: '原产地', value: '中国大陆' }],
+    sourcePrice: 59.9,
+    upc: '6901234567890',
+  });
+  assert.equal(map['建议零售价'], '59.9');
+  assert.equal(map['市场价'], '59.9');
+  assert.equal(map['原产地'], '中国大陆');
+  assert.equal(map['最小可售单位UPC'], '6901234567890');
+  assert.equal(map['商品条形码'], '6901234567890');
+});
+
+test('skuAttrValueMap: precedence is defaults < params < price < overrides < upc field', () => {
+  const map = skuAttrValueMap({
+    defaults: { 生产日期: '2026-01-01', 原产地: '默认产地', 建议零售价: '1' },
+    params: [{ name: '原产地', value: '中国大陆' }],
+    sourcePrice: 50,
+    overrides: { 建议零售价: '66', 最小可售单位UPC: '11111111' },
+    upc: '6901234567890',
+  });
+  assert.equal(map['生产日期'], '2026-01-01');
+  assert.equal(map['原产地'], '中国大陆');
+  assert.equal(map['建议零售价'], '66');
+  assert.equal(map['市场价'], '50');
+  assert.equal(map['最小可售单位UPC'], '6901234567890');
+});
+
+test('skuAttrValueMap: UPC from overrides is used when the UPC field is empty', () => {
+  const map = skuAttrValueMap({ overrides: { 最小可售单位UPC: '6901234567890' } });
+  assert.equal(map['最小可售单位UPC'], '6901234567890');
+});
+
+test('skuAttrValueMap: no price or UPC keys when unknown', () => {
+  const map = skuAttrValueMap({ params: [], sourcePrice: 0 });
+  assert.equal(map['建议零售价'], undefined);
+  assert.equal(map['最小可售单位UPC'], undefined);
+});
+
+test('describeSkuAttrResults: empty for confirmed rows with nothing missing', () => {
+  assert.deepEqual(describeSkuAttrResults([{ row: 0, confirmed: true, filled: ['建议零售价'], missing: [] }]), []);
+  assert.deepEqual(describeSkuAttrResults(undefined), []);
+});
+
+test('describeSkuAttrResults: unconfirmed panel says what was discarded, rows grouped', () => {
+  const lines = describeSkuAttrResults([
+    { row: 0, confirmed: false, filled: ['建议零售价'], missing: ['最小可售单位UPC'] },
+    { row: 1, confirmed: false, filled: ['建议零售价'], missing: ['最小可售单位UPC'] },
+  ]);
+  assert.equal(lines.length, 1);
+  assert.match(lines[0], /第 1、2 行/);
+  assert.match(lines[0], /未能保存/);
+  assert.match(lines[0], /最小可售单位UPC/);
+  assert.match(lines[0], /建议零售价.*丢弃/);
+});
+
+test('describeSkuAttrResults: unconfirmed without filled values or missing list', () => {
+  const [line] = describeSkuAttrResults([{ row: 2, confirmed: false, filled: [], missing: [] }]);
+  assert.match(line, /第 3 行/);
+  assert.match(line, /未能保存/);
+  assert.doesNotMatch(line, /丢弃/);
+});
+
+test('describeSkuAttrResults: panel not opened and confirmed-but-missing are reported', () => {
+  const lines = describeSkuAttrResults([
+    { row: 0, confirmed: false, error: '未打开SKU属性面板', filled: [], missing: [] },
+    { row: 1, confirmed: true, filled: [], missing: ['生产日期'] },
+  ]);
+  assert.equal(lines.length, 2);
+  assert.match(lines[0], /第 1 行.*未打开SKU属性面板/);
+  assert.match(lines[1], /第 2 行.*生产日期/);
+});
+
+const REQUIRED = [
+  { field: '256076', label: '最小可售单位UPC' },
+  { field: '393788', label: '建议零售价' },
+];
+
+test('missingSkuAttrs: lists empty required fields per enabled row', () => {
+  const state = {
+    required: REQUIRED,
+    skuProps: [{ 256076: '6914973609563', 393788: '25.9' }, null, { 256076: ' ', 393788: '25.9' }],
+  };
+  assert.deepEqual(missingSkuAttrs(state, [true, true, true]), [
+    { row: 1, missing: ['最小可售单位UPC', '建议零售价'] },
+    { row: 2, missing: ['最小可售单位UPC'] },
+  ]);
+});
+
+test('missingSkuAttrs: disabled rows and categories without required fields are skipped', () => {
+  assert.deepEqual(missingSkuAttrs({ required: REQUIRED, skuProps: [null, null] }, [false, true]), [
+    { row: 1, missing: ['最小可售单位UPC', '建议零售价'] },
+  ]);
+  assert.deepEqual(missingSkuAttrs({ required: [], skuProps: [null] }, [true]), []);
+});
+
+test('missingSkuAttrs: numeric values count as filled', () => {
+  assert.deepEqual(missingSkuAttrs({ required: REQUIRED, skuProps: [{ 256076: 6914973609563, 393788: 0 }] }, [true]), []);
+});
+
+test('skuAttrStop: need_action when the plan has no value for a missing field', () => {
+  const stop = skuAttrStop([{ row: 0, missing: ['最小可售单位UPC', '建议零售价'] }], { 建议零售价: '25.9' });
+  assert.equal(stop.status, 'need_action');
+  assert.match(stop.message, /最小可售单位UPC/);
+  assert.match(stop.message, /编辑/);
+  assert.match(stop.message, /已停止保存/);
+});
+
+test('skuAttrStop: failed when values were planned but did not stick', () => {
+  const stop = skuAttrStop(
+    [{ row: 0, missing: ['最小可售单位UPC'] }, { row: 1, missing: ['最小可售单位UPC'] }],
+    { 最小可售单位UPC: '6914973609563' },
+  );
+  assert.equal(stop.status, 'failed');
+  assert.match(stop.message, /第 1、2 行/);
+  assert.match(stop.message, /没有生效/);
+  assert.match(stop.message, /已停止保存/);
+});
+
+test('productUpc drops a barcode that equals the SKU id or a variant SKU id', () => {
+  assert.equal(productUpc({ skuId: '100229520979', upc: '100229520979' }), '');
+  assert.equal(productUpc({ skuId: '1', upc: '100002', variants: [{ skuId: 100002 }] }), '');
+  assert.equal(productUpc({ skuId: '100229520979', upc: '6914973609563' }), '6914973609563');
+  assert.equal(productUpc({ skuId: '1', upc: 'abc' }), '');
+  assert.equal(productUpc(undefined), '');
+});
