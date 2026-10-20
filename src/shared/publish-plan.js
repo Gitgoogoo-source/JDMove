@@ -5,7 +5,7 @@ import { buildPropPlan, convertInputValue, findSourceValue } from './attr-mappin
 import { buildSalePlan } from './sale-plan.js';
 import { parseAttrDefaults } from './settings.js';
 import { toOriginalImageUrl } from './url-utils.js';
-import { UPC_LABEL, hasUpc, productUpc, skuAttrValueMap } from './sku-attrs.js';
+import { UPC_LABEL, hasUpc, normalizeUpc, productUpc, skuAttrValueMap } from './sku-attrs.js';
 
 const escapeAttr = (s) =>
   String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -36,11 +36,13 @@ export function publishImagePlan({ product, edits = {}, settings }) {
 }
 
 // 京麦部分类目的 SKU属性抽屉要求必填 UPC；缺了抽屉点不了“确定”，建议零售价也跟着保存不上
-function upcWarnings(present, enabledRows) {
+function upcWarnings(present, enabledRows, defaultUpc) {
   if (!present) {
-    return [`未填写${UPC_LABEL}（商品条形码）：部分类目必填，缺少时 SKU属性面板无法保存、建议零售价也写不进去；源商品页没有条形码时请在「编辑 → UPC」中填写；之前采集的商品请重新采集`];
+    return [`未填写${UPC_LABEL}（商品条形码）：部分类目必填，缺少时 SKU属性面板无法保存、建议零售价也写不进去；源商品页没有条形码时请在「编辑 → UPC」中填写，或在设置里填写「默认 UPC」；之前采集的商品请重新采集`];
   }
-  return enabledRows > 1 ? [`${enabledRows} 个规格将共用同一个 UPC，京东可能要求每个规格使用不同的条形码，请核对`] : [];
+  const usedDefault = defaultUpc ? [`源商品没有条形码，${UPC_LABEL}使用设置里的默认 UPC ${defaultUpc}`] : [];
+  const shared = enabledRows > 1 ? [`${enabledRows} 个规格将共用同一个 UPC，京东可能要求每个规格使用不同的条形码，请核对`] : [];
+  return [...usedDefault, ...shared];
 }
 
 /**
@@ -88,8 +90,11 @@ export function buildPublishPlan({ product, edits = {}, settings, schema }) {
     sourcePrice,
     // productUpc：修复前采集的商品可能把 SKU 编号存成了 upc，这里同样排除
     upc: edits.upc || productUpc(product),
+    fallbackUpc: settings.publish.defaultUpc,
   });
-  const skuAttrWarnings = upcWarnings(hasUpc(skuAttrValues), sale.rows.filter((r) => r.enabled).length);
+  const ownUpc = skuAttrValueMap({ overrides: edits.attrOverrides ?? {}, upc: edits.upc || productUpc(product) });
+  const defaultUsed = hasUpc(ownUpc) ? '' : normalizeUpc(settings.publish.defaultUpc);
+  const skuAttrWarnings = upcWarnings(hasUpc(skuAttrValues), sale.rows.filter((r) => r.enabled).length, defaultUsed);
 
   const brand = edits.brandName ? { id: null, name: edits.brandName } : { id: product.brand?.id ?? null, name: product.brand?.name ?? '' };
   if (!brand.name && !brand.id) blockers.push('缺少品牌');

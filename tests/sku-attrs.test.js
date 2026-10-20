@@ -150,3 +150,10 @@ test('productUpc reads multi-value upc_code "SKU编号;条形码" and skips the 
   assert.equal(productUpc({ skuId: '100357660574', upc: '100357660574;' }), '');
   assert.equal(productUpc({ skuId: '1', upc: '无;abc' }), '');
 });
+
+test('skuAttrValueMap: fallbackUpc is used only when neither upc nor overrides give one', () => {
+  assert.equal(skuAttrValueMap({ fallbackUpc: '6914973039001' })['最小可售单位UPC'], '6914973039001');
+  assert.equal(skuAttrValueMap({ upc: '6914973600058', fallbackUpc: '6914973039001' })['最小可售单位UPC'], '6914973600058');
+  assert.equal(skuAttrValueMap({ overrides: { UPC: '6914973611436' }, fallbackUpc: '6914973039001' })['最小可售单位UPC'], '6914973611436');
+  assert.equal(skuAttrValueMap({ fallbackUpc: 'abc' })['最小可售单位UPC'], undefined);
+});

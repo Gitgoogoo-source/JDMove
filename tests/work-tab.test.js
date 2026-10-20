@@ -301,10 +301,24 @@ test('publishItem: 重填后仍为空且已有 UPC 时停止保存，并保留�
   assert.ok(res.tabId, '保留标签页供检查');
 });
 
-test('publishItem: 缺 UPC 导致 SKU属性必填项为空时标为需处理，不保存', async () => {
-  const { calls, backend } = publishBackend([skuOk, skuOk], { readSkuAttrState: attrState(null) });
+test('publishItem: 没有采集到 UPC 时自动填写设置里的默认 UPC 并保存', async () => {
+  const filled = [];
+  const { calls, backend } = publishBackend([skuOk, skuOk], {
+    fillSkuAttrDrawers: (args) => (filled.push([args].flat()[0]), { ok: true, results: [] }),
+    readSkuAttrState: attrState({ 256076: '6914973039001' }),
+  });
   installFakeChrome({ backend });
   const res = await publishItem(fullItem, SETTINGS, () => {});
+  assert.equal(res.status, 'published');
+  assert.equal(filled[0]?.['最小可售单位UPC'], '6914973039001');
+  assert.ok(calls.includes('runAction'));
+});
+
+test('publishItem: 缺 UPC（默认 UPC 已清空）导致 SKU属性必填项为空时标为需处理，不保存', async () => {
+  const { calls, backend } = publishBackend([skuOk, skuOk], { readSkuAttrState: attrState(null) });
+  installFakeChrome({ backend });
+  const noDefault = mergeSettings({ publish: { reuploadDetailImages: false, defaultUpc: '' } });
+  const res = await publishItem(fullItem, noDefault, () => {});
   assert.equal(res.status, 'need_action');
   assert.match(res.message, /最小可售单位UPC/);
   assert.ok(!calls.includes('runAction'));

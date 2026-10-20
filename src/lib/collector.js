@@ -2,9 +2,12 @@
 import { normalizeProduct, validateProduct } from '../shared/product-normalize.js';
 import { parsePrice } from '../shared/pricing.js';
 import { classifyPageUrl } from '../shared/url-utils.js';
-import { ITEM_FILES, runInPage, openWorkTab, navigateTab, closeTab, sleep } from './chrome-env.js';
+import { ITEM_FILES, runInPage, openWorkTab, navigateTab, closeTab, bringTabToFront, sleep } from './chrome-env.js';
 
 const COLLECT_TAB_KEY = 'collectTabId';
+// 与 jd-detail.js 的 DETAIL_STATE.notLoaded 一致
+const DETAIL_NOT_LOADED = 'not_loaded';
+const DETAIL_RETRY_DELAY_MS = 1500;
 export const MERCHANT_BLOCK_MSG =
   '当前浏览器登录的是商家账号，京东不允许查看其他店铺商品。请开启“无痕窗口采集”并在无痕窗口登录消费者账号，或在另一个 Chrome 用户中采集后导出/导入';
 
@@ -23,19 +26,31 @@ async function itemPageProblem(tabId) {
   return blockedResult(kind) ?? (kind === 'item' ? null : { status: 'error', message: '当前页面不是京东商品详情页' });
 }
 
+const extractRaw = (tabId, scrollDetail) =>
+  runInPage(tabId, ITEM_FILES, (opts) => window.__JDMOVE__.extractItem(opts), [{ scrollDetail }]);
+
 /**
- * 对已打开的商品页执行采集
+ * 对已打开的商品页执行采集。详情区没加载出来（窗口被遮挡/最小化时页面不渲染）时，
+ * 把标签页切到前台再取一次；第二次不整页滚动，只等详情区。
+ * @param {number} tabId
+ * @param {{scrollDetail?: boolean, allVariants?: boolean, retryDelayMs?: number}} [opts]
  * @returns {Promise<{status: 'ok'|'throttle'|'login'|'setup'|'error', product?: object, warnings?: string[], message?: string}>}
  */
-export async function collectFromTab(tabId, { scrollDetail = true, allVariants = false } = {}) {
+export async function collectFromTab(tabId, { scrollDetail = true, allVariants = false, retryDelayMs = DETAIL_RETRY_DELAY_MS } = {}) {
   const problem = await itemPageProblem(tabId);
   if (problem) return problem;
-  const raw = await runInPage(tabId, ITEM_FILES, (opts) => window.__JDMOVE__.extractItem(opts), [{ scrollDetail }]);
+  let raw = await extractRaw(tabId, scrollDetail);
+  if (raw?.pageType === 'item' && raw.detailState === DETAIL_NOT_LOADED) {
+    await bringTabToFront(tabId);
+    await sleep(retryDelayMs);
+    // 重试没拿到结果（如页面脚本异常）时保留第一次的数据
+    raw = (await extractRaw(tabId, false)) ?? raw;
+  }
   if (!raw) return { status: 'error', message: '页面脚本未返回数据' };
   const blocked = blockedResult(raw.pageType);
   if (blocked) return blocked;
   const product = normalizeProduct(raw, { allVariants });
-  return { status: 'ok', product, warnings: validateProduct(product) };
+  return { status: 'ok', product, warnings: validateProduct(product, { detailState: raw.detailState }) };
 }
 
 /**
@@ -84,6 +99,8 @@ export async function collectUrl(url, opts = {}) {
   } catch (e) {
     return { status: openErrorStatus(e), message: e.message };
   }
+  // 采集窗口在后台（无痕窗口创建时不抢焦点、之后被其他窗口挡住）时页面不渲染，详情区不会加载
+  await bringTabToFront(tab.id);
   await sleep(1500);
   return collectFromTab(tab.id, opts);
 }

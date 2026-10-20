@@ -130,15 +130,23 @@ export function normalizeProduct(raw = {}, opts = {}) {
   };
 }
 
+// 采集时详情区的加载状态（jd-detail.js 的 classifyDetail）对应的提示：发布时缺少详情图会被拦下
+const MISSING_DETAIL_MSG = {
+  not_loaded: '缺少详情图：采集窗口不在前台，商品详情没有加载出来（采集时不要遮挡或最小化采集窗口，然后重新采集）',
+  empty: '缺少详情图：京东商品页没有商品介绍图片',
+  parse_failed: '缺少详情图：商品详情已加载，但没解析出详情图（详情样式表下载失败或页面结构变化），请重新采集；仍失败请反馈这个 SKU',
+};
+
 /**
+ * @param {object} p 归一化后的商品
+ * @param {{detailState?: string}} [ctx] 采集时详情区的加载状态，用来说明缺少详情图的原因
  * @returns {string[]} 缺失项列表（为空表示可发布）
  */
-export function validateProduct(p) {
+export function validateProduct(p, { detailState } = {}) {
   const errs = [];
   if (!p?.title) errs.push('缺少标题');
   if (!p?.mainImages?.length) errs.push('缺少主图');
   if (!(p?.price > 0)) errs.push('缺少价格');
-  // 详情区没加载出来、详情接口请求失败时会采到 0 张：发布时会被拦下，采集时就提示重新采集
-  if (!p?.detailImages?.length) errs.push('缺少详情图（请重新采集）');
+  if (!p?.detailImages?.length) errs.push(MISSING_DETAIL_MSG[detailState] ?? '缺少详情图（请重新采集）');
   return errs;
 }

@@ -1,5 +1,6 @@
 // 插件设置：默认值、合并与校验（纯函数）
 import { deriveEditUrlTemplate } from './price-watch.js';
+import { normalizeUpc } from './sku-attrs.js';
 
 export const PUBLISH_ACTIONS = {
   submit_on: '提交并上架（推荐：审核通过后直接售卖，能拿到店铺编号）',
@@ -36,6 +37,8 @@ export const DEFAULT_SETTINGS = Object.freeze({
     maxDetailImages: 30,
     reuploadDetailImages: true,
     fillSkuAttrs: true,
+    // 源商品没有条形码（编辑里也没填）时填到“最小可售单位UPC”的默认值；留空则不填，由发布流程停下提示
+    defaultUpc: '6914973039001',
   },
   // 已发布商品的京东今日价检查与批量改价；editUrlTemplate 为店铺商品编辑页地址，商品编号写成 {wareId}
   priceWatch: { minDelaySec: 3, maxDelaySec: 6, alertMargin: 0, editUrlTemplate: '', repriceAction: 'auto' },
@@ -129,11 +132,21 @@ export function validateSettings(input) {
       maxDetailImages: num(v.publish.maxDetailImages, d.publish.maxDetailImages, { min: 0, max: 50 }, '详情图数量'),
       reuploadDetailImages: Boolean(v.publish.reuploadDetailImages),
       fillSkuAttrs: Boolean(v.publish.fillSkuAttrs),
+      defaultUpc: validDefaultUpc(v.publish.defaultUpc, errors),
     },
     priceWatch,
     categoryMap: Array.isArray(v.categoryMap) ? v.categoryMap : [],
   };
   return { ok: errors.length === 0, errors, value };
+}
+
+/** 默认 UPC：留空表示不使用；填了但不是 8~14 位数字时恢复默认 */
+function validDefaultUpc(input, errors) {
+  if (String(input ?? '').trim() === '') return '';
+  const code = normalizeUpc(input);
+  if (code) return code;
+  errors.push('默认 UPC 应为 8~14 位数字，已恢复默认');
+  return DEFAULT_SETTINGS.publish.defaultUpc;
 }
 
 function validatePriceWatch(pw, num, errors) {

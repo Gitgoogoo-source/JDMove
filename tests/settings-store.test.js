@@ -96,6 +96,17 @@ test('validateSettings: price watch turns a pasted edit link into a template and
   assert.match(bad.errors.join(), /商品编辑页地址无效/);
 });
 
+test('validateSettings: 默认 UPC 默认 6914973039001，可清空关闭，无效时恢复默认', () => {
+  assert.equal(DEFAULT_SETTINGS.publish.defaultUpc, '6914973039001');
+  const set = (defaultUpc) => validateSettings({ publish: { defaultUpc } });
+  assert.equal(set(' ６９０１２３４５６７８９２ ').value.publish.defaultUpc, '6901234567892');
+  assert.equal(set('').value.publish.defaultUpc, '');
+  assert.ok(set('').ok);
+  const bad = set('12ab');
+  assert.equal(bad.value.publish.defaultUpc, '6914973039001');
+  assert.ok(bad.errors.some((e) => e.includes('默认 UPC')));
+});
+
 test('parseAttrDefaults parses key=value lines', () => {
   assert.deepEqual(parseAttrDefaults('销售单位=盒\n 保质期 ＝ 365 \n# 注释\n无效行\n=空键'), {
     销售单位: '盒',

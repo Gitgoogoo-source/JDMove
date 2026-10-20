@@ -152,15 +152,35 @@ test('buildPublishPlan uses the scraped UPC; the edit field overrides it', () =>
 
 test('buildPublishPlan ignores a stored UPC that is just the SKU id (collected before the fix)', () => {
   const stale = { ...product, skuId: '100229520979', upc: '100229520979' };
-  const plan = buildPublishPlan({ product: stale, edits: {}, settings: DEFAULT_SETTINGS, schema });
+  const plan = buildPublishPlan({ product: stale, edits: {}, settings: mergeSettings({ publish: { defaultUpc: '' } }), schema });
   assert.equal(plan.skuAttrValues['最小可售单位UPC'], undefined);
   assert.ok(plan.warnings.some((w) => w.includes('最小可售单位UPC')));
   const edited = buildPublishPlan({ product: stale, edits: { upc: '6901234567892' }, settings: DEFAULT_SETTINGS, schema });
   assert.equal(edited.skuAttrValues['最小可售单位UPC'], '6901234567892');
 });
 
-test('buildPublishPlan warns (not blocks) when no UPC is available', () => {
-  const plan = buildPublishPlan({ product, edits: {}, settings: DEFAULT_SETTINGS, schema });
+test('buildPublishPlan falls back to the default UPC from settings when none was collected', () => {
+  const settings = mergeSettings({ publish: { defaultUpc: '6914973039001' } });
+  const plan = buildPublishPlan({ product, edits: {}, settings, schema });
+  assert.equal(plan.skuAttrValues['最小可售单位UPC'], '6914973039001');
+  assert.ok(plan.warnings.some((w) => w.includes('默认 UPC') && w.includes('6914973039001')));
+  assert.ok(!plan.warnings.some((w) => w.includes('未填写')));
+});
+
+test('buildPublishPlan: collected UPC, the edit field and 属性覆盖 all win over the default UPC', () => {
+  const settings = mergeSettings({ publish: { defaultUpc: '6914973039001' } });
+  const scraped = buildPublishPlan({ product: { ...product, upc: '6914973600058' }, edits: {}, settings, schema });
+  assert.equal(scraped.skuAttrValues['最小可售单位UPC'], '6914973600058');
+  assert.ok(!scraped.warnings.some((w) => w.includes('默认 UPC')));
+  const edited = buildPublishPlan({ product, edits: { upc: '6901234567892' }, settings, schema });
+  assert.equal(edited.skuAttrValues['最小可售单位UPC'], '6901234567892');
+  const override = buildPublishPlan({ product, edits: { attrOverrides: { 最小可售单位UPC: '6914973611436' } }, settings, schema });
+  assert.equal(override.skuAttrValues['最小可售单位UPC'], '6914973611436');
+  assert.ok(!override.warnings.some((w) => w.includes('默认 UPC')));
+});
+
+test('buildPublishPlan warns (not blocks) when no UPC is available and the default UPC is cleared', () => {
+  const plan = buildPublishPlan({ product, edits: {}, settings: mergeSettings({ publish: { defaultUpc: '' } }), schema });
   assert.ok(plan.warnings.some((w) => w.includes('最小可售单位UPC') && w.includes('重新采集') && w.includes('编辑')));
   assert.deepEqual(plan.blockers, []);
 });

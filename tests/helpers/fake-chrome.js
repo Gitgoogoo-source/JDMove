@@ -14,6 +14,7 @@ export function installFakeChrome({ resolveUrl = (u) => u, backend = () => undef
   const tabs = new Map();
   const calls = [];
   const sessionStore = {};
+  const windows = new Map([[currentWindowId, { id: currentWindowId, type: 'normal', incognito: false, state: 'normal' }]]);
   let nextTabId = 100;
   let nextWindowId = 500;
 
@@ -50,12 +51,20 @@ export function installFakeChrome({ resolveUrl = (u) => u, backend = () => undef
       getCurrent: async () => ({ id: currentWindowId, type: 'normal', incognito: false }),
       getLastFocused: async () => ({ id: currentWindowId, type: 'normal', incognito: false }),
       get: async (id) => {
-        throw new Error(`No window with id: ${id}`);
+        if (!windows.has(id)) throw new Error(`No window with id: ${id}`);
+        return { ...windows.get(id) };
       },
       create: async (opts) => {
         const id = nextWindowId++;
         calls.push({ op: 'windows.create', opts });
-        return { id, incognito: !!opts.incognito };
+        windows.set(id, { id, type: 'normal', incognito: !!opts.incognito, state: 'normal' });
+        return { ...windows.get(id) };
+      },
+      update: async (id, props) => {
+        if (!windows.has(id)) throw new Error(`No window with id: ${id}`);
+        calls.push({ op: 'windows.update', windowId: id, props });
+        windows.set(id, { ...windows.get(id), ...props });
+        return { ...windows.get(id) };
       },
     },
     tabs: {
@@ -67,7 +76,13 @@ export function installFakeChrome({ resolveUrl = (u) => u, backend = () => undef
         startNavigation(id, url);
         return { ...tabs.get(id) };
       },
-      update: async (id, { url }) => {
+      update: async (id, { url, ...props }) => {
+        if (!tabs.has(id)) throw new Error(`No tab with id: ${id}`);
+        if (url === undefined) {
+          calls.push({ op: 'tabs.activate', tabId: id, props });
+          tabs.set(id, { ...tabs.get(id), ...props });
+          return { ...tabs.get(id) };
+        }
         calls.push({ op: 'tabs.update', tabId: id, url });
         startNavigation(id, url);
         return { ...tabs.get(id) };
@@ -100,7 +115,10 @@ export function installFakeChrome({ resolveUrl = (u) => u, backend = () => undef
     calls,
     tabs,
     ops: () => calls.map((c) => c.op),
+    windows,
     /** 把已有标签页设为某个地址且已加载完成（模拟停留在某页） */
-    seedTab: (tab) => tabs.set(tab.id, { status: 'complete', incognito: false, ...tab }),
+    seedTab: (tab) => tabs.set(tab.id, { status: 'complete', incognito: false, windowId: currentWindowId, ...tab }),
+    /** 模拟一个已存在的窗口（如被最小化的无痕采集窗口） */
+    seedWindow: (win) => windows.set(win.id, { type: 'normal', incognito: false, state: 'normal', ...win }),
   };
 }

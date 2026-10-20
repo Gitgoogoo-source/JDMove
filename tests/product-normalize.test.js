@@ -145,6 +145,21 @@ test('validateProduct: 没有采到详情图时提示（发布时会被拦下）
   assert.ok(errs.some((e) => e.includes('缺少详情图')));
 });
 
+test('validateProduct: 按详情区加载状态说明为什么缺少详情图', () => {
+  const noDetail = normalizeProduct({ ...legacyRaw, detailImages: [] });
+  const notLoaded = validateProduct(noDetail, { detailState: 'not_loaded' }).find((e) => e.includes('详情图'));
+  assert.match(notLoaded, /采集窗口/);
+  assert.match(notLoaded, /重新采集/);
+  const empty = validateProduct(noDetail, { detailState: 'empty' }).find((e) => e.includes('详情图'));
+  assert.match(empty, /没有商品介绍/);
+  assert.doesNotMatch(empty, /重新采集/);
+  const parseFailed = validateProduct(noDetail, { detailState: 'parse_failed' }).find((e) => e.includes('详情图'));
+  assert.match(parseFailed, /没解析出详情图/);
+  assert.match(parseFailed, /重新采集/);
+  // 采到了详情图时不管状态如何都不提示
+  assert.ok(!validateProduct(normalizeProduct(legacyRaw), { detailState: 'not_loaded' }).some((e) => e.includes('详情图')));
+});
+
 test('源页面参数里没有保质期时，取 wareInfoReadMap.shelf_life（天）', () => {
   const p = normalizeProduct({ ...legacyRaw, wareInfo: { shelf_life: '364', IsYouShelfLife: '1' } });
   assert.deepEqual(p.params.find((x) => x.name === '保质期'), { name: '保质期', value: '364天' });

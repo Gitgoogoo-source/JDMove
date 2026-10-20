@@ -161,6 +161,23 @@ export async function openWorkTab(url, { incognito = false } = {}) {
 }
 
 /**
+ * 激活标签页并把它所在的窗口切到前台（最小化的先恢复）。
+ * 窗口被遮挡或最小化时 Chrome 不渲染页面，京东商品页的详情区（视口内才加载）就不会加载。
+ * @returns {Promise<boolean>} 是否切换成功；标签页/窗口已关闭时为 false
+ */
+export async function bringTabToFront(tabId) {
+  try {
+    const tab = await chrome.tabs.get(tabId);
+    await chrome.tabs.update(tabId, { active: true });
+    const win = await chrome.windows.get(tab.windowId);
+    await chrome.windows.update(win.id, win.state === 'minimized' ? { state: 'normal', focused: true } : { focused: true });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * 在已有标签页中跳转并等待新页面加载完成
  * @param {{startTimeoutMs?: number, timeoutMs?: number}} [opts]
  */
@@ -216,7 +233,7 @@ export async function runInPage(tabId, files, func, args = []) {
 }
 
 export const BACKEND_FILES = ['src/inject/backend-core.js', 'src/inject/backend-media.js'];
-export const ITEM_FILES = ['src/inject/jd-price.js', 'src/inject/jd-item-extract.js'];
+export const ITEM_FILES = ['src/inject/jd-price.js', 'src/inject/jd-detail.js', 'src/inject/jd-item-extract.js'];
 export const SHOP_FILES = ['src/inject/jd-shop-list.js'];
 
 /** 调用后台桥接 API：window.__JDMOVE__.backend[method](...args) */

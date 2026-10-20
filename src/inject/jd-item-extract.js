@@ -194,16 +194,12 @@
     return dims;
   }
 
-  // 详情：<img> 与 ssd-module 背景图（CSS 中按模块 class 定义，如 .ssd-module-wrap .M1786...）按 DOM 顺序收集
-  function detailFromRoot(root) {
+  // 详情：<img> 与 ssd-module 背景图（CSS 中按模块 class 定义，如 .ssd-module-wrap .M1786...）按 DOM 顺序收集；
+  // externalCss 为详情区引用的外部样式表内容（见 fetchExternalCss）
+  function detailFromRoot(root, externalCss = '') {
     const urls = [];
-    const bgByClass = {};
-    const styleText = qsa('style', root).map((s) => s.textContent || '').join('\n');
-    for (const m of styleText.matchAll(/([^{}]+)\{([^}]*)\}/g)) {
-      const url = (m[2].match(/background(?:-image)?\s*:[^;]*?url\(\s*['"]?([^'")]+)['"]?\s*\)/) || [])[1];
-      const cls = (m[1].trim().match(/\.([\w-]+)\s*$/) || [])[1];
-      if (url && cls && !bgByClass[cls]) bgByClass[cls] = url;
-    }
+    const inlineCss = qsa('style', root).map((s) => s.textContent || '').join('\n');
+    const bgByClass = NS.cssBackgrounds(`${inlineCss}\n${externalCss}`);
     for (const el of root.querySelectorAll('img, [class*="ssd-module"], [style*="background"]')) {
       if (el.tagName === 'IMG') {
         const u = el.getAttribute('data-lazyload') || el.getAttribute('data-src') || el.getAttribute('data-original') || el.getAttribute('src');
@@ -227,20 +223,60 @@
     return null;
   }
 
-  async function fetchDescription(pc) {
-    if (!pc || !pc.desc) return [];
-    const url = pc.desc.startsWith('//') ? `https:${pc.desc}` : pc.desc;
-    try {
-      const res = await fetch(url, { credentials: 'include' });
-      const body = await res.text();
-      const jsonText = body.replace(/^[^{]*?\(/, '').replace(/\)\s*;?\s*$/, '');
-      const data = JSON.parse(body.trim().startsWith('{') ? body : jsonText);
-      const html = data.content || (data.data && data.data.content) || '';
-      if (!html) return [];
-      const doc = new DOMParser().parseFromString(`<div id="x">${html}</div>`, 'text/html');
-      return detailFromRoot(doc.getElementById('x'));
-    } catch {
-      return [];
+  // 新版商品页“商品详情”楼层：标题 #SPXQ-title 的父节点；骨架 .imgtext-ske 在详情加载完成后被替换
+  const DETAIL_WAIT_MS = 8000;
+  const DETAIL_POLL_MS = 400;
+  const CSS_FETCH_TIMEOUT_MS = 5000;
+
+  // 详情区引用的外部样式表（<div cssurl="//sku-market-gw.jd.com/css/pc/xxx.css">）：新版页面不会加载它，
+  // 背景图只写在这里。下载失败的样式表跳过，没解析出图片时由 classifyDetail 记为 parse_failed
+  async function fetchExternalCss(root) {
+    const refs = qsa('[cssurl]', root)
+      .map((el) => el.getAttribute('cssurl'))
+      .concat(qsa('link[rel~="stylesheet"][href]', root).map((el) => el.getAttribute('href')));
+    const texts = await Promise.all(
+      NS.externalCssUrls(refs).map(async (url) => {
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), CSS_FETCH_TIMEOUT_MS);
+        try {
+          const res = await fetch(url, { credentials: 'omit', signal: ctrl.signal });
+          return res.ok ? await res.text() : '';
+        } catch {
+          return '';
+        } finally {
+          clearTimeout(timer);
+        }
+      }),
+    );
+    return texts.join('\n');
+  }
+
+  async function detailSnapshot() {
+    const root = detailRoot();
+    const images = root ? detailFromRoot(root, await fetchExternalCss(root)) : [];
+    const moduleCount = root ? root.querySelectorAll('.ssd-module').length : 0;
+    const title = document.getElementById('SPXQ-title');
+    const section = title && title.parentElement;
+    const skeleton = document.querySelector('.imgtext-ske');
+    const state = NS.classifyDetail({
+      imageCount: images.length,
+      moduleCount,
+      hasSection: Boolean(section),
+      skeleton: Boolean(skeleton),
+      sectionText: text(section),
+    });
+    return { state, images, skeleton };
+  }
+
+  // 详情区要等骨架进入视口才会加载：把骨架滚到视口中间并等待，超时仍未加载记为 not_loaded
+  async function waitForDetail(timeout = DETAIL_WAIT_MS) {
+    const end = Date.now() + timeout;
+    for (;;) {
+      const snap = await detailSnapshot();
+      if (snap.state !== NS.DETAIL_STATE.pending) return snap;
+      if (Date.now() >= end) return { ...snap, state: NS.DETAIL_STATE.notLoaded };
+      if (snap.skeleton) snap.skeleton.scrollIntoView({ block: 'center' });
+      await sleep(DETAIL_POLL_MS);
     }
   }
 
@@ -284,9 +320,8 @@
     const pc = (fromBiz && fromBiz.pageConfig) || pageConfigProduct();
     const price = fromBiz && fromBiz.priceText ? fromBiz.priceText : await waitForPrice();
     if (opts.scrollDetail !== false) await scrollThrough();
-    const root = detailRoot();
-    let detailImages = root ? detailFromRoot(root) : [];
-    if (detailImages.length === 0) detailImages = await fetchDescription(pc);
+    const detail = await waitForDetail();
+    window.scrollTo(0, 0);
     const shopName = (fromBiz && fromBiz.shopName) || text(first(['.contact .name', '.J-hove-wrap .name', '[class*="shop-name"]', '[class*="shopName"]']));
     const self = document.querySelector('.u-jd, [class*="self-operated"], [class*="ziying"]');
     return {
@@ -304,7 +339,8 @@
       mainImages: mainImages(),
       priceText: price || priceText(),
       saleDims: saleDims(),
-      detailImages,
+      detailImages: detail.images,
+      detailState: detail.state,
       isSelf: self || /自营/.test(shopName) ? true : null,
     };
   };
