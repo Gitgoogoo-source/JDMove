@@ -141,3 +141,12 @@ test('productUpc drops a barcode that equals the SKU id or a variant SKU id', ()
   assert.equal(productUpc({ skuId: '1', upc: 'abc' }), '');
   assert.equal(productUpc(undefined), '');
 });
+
+test('productUpc reads multi-value upc_code "SKU编号;条形码" and skips the SKU id', () => {
+  // 实例：item.jd.com/100050587042 的 upc_code === '100050587042;6914973600058'
+  assert.equal(productUpc({ skuId: '100050587042', upc: '100050587042;6914973600058' }), '6914973600058');
+  assert.equal(productUpc({ skuId: '100039440604', upc: ' 100039440604 ； 6914973611436 ' }), '6914973611436');
+  assert.equal(productUpc({ skuId: '1', upc: '6914973600058,6914973611436' }), '6914973600058');
+  assert.equal(productUpc({ skuId: '100357660574', upc: '100357660574;' }), '');
+  assert.equal(productUpc({ skuId: '1', upc: '无;abc' }), '');
+});

@@ -182,3 +182,8 @@ test('京东没有条形码时 upc_code 填的是 SKU 编号本身：不当作�
   assert.equal(normalizeProduct({ ...legacyRaw, wareInfo: { upc_code: '100002' } }, { allVariants: true }).upc, '');
   assert.equal(normalizeProduct({ ...legacyRaw, wareInfo: { upc_code: '10000200' } }).upc, '10000200');
 });
+
+test('upc_code 为“SKU编号;条形码”多值格式时取出条形码', () => {
+  const raw = { ...legacyRaw, skuId: '100050587042', pageConfig: { ...legacyRaw.pageConfig, skuid: 100050587042, colorSize: [] } };
+  assert.equal(normalizeProduct({ ...raw, wareInfo: { upc_code: '100050587042;6914973600058' } }).upc, '6914973600058');
+});

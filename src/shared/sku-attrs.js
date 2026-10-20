@@ -16,17 +16,22 @@ export function normalizeUpc(input) {
   return UPC_RE.test(s) ? s : '';
 }
 
+const UPC_LIST_SEP = /[;；,，|、]/;
+
 /**
- * 采集到的商品条形码。京东商品没有条形码时，主数据 wareInfoReadMap.upc_code 会直接填成 SKU 编号
- * （如 item.jd.com/100229520979 的 upc_code 就是 100229520979），12 位数字能通过格式校验，
- * 但它不是条形码，填进“最小可售单位UPC”会被京麦拒收，所以等于本商品或同款任一规格 SKU 编号时视为没有条形码
+ * 采集到的商品条形码。京东主数据 wareInfoReadMap.upc_code 有三种写法：
+ * - 真条形码：'6914973039001'
+ * - 多值：'100050587042;6914973600058'（SKU 编号 + 条形码，分号分隔）
+ * - 只有 SKU 编号：'100229520979'（商品没有登记条形码）
+ * SKU 编号是 12 位数字能通过格式校验，但不是条形码，填进“最小可售单位UPC”会被京麦拒收；
+ * 所以按分隔符拆开，跳过等于本商品或同款任一规格 SKU 编号的值，取第一个有效条形码
  * @param {{upc?: unknown, skuId?: unknown, variants?: {skuId?: unknown}[]} | undefined} product
  * @returns {string}
  */
 export function productUpc(product) {
-  const code = normalizeUpc(product?.upc);
   const skuIds = [product?.skuId, ...(product?.variants ?? []).map((v) => v?.skuId)].map((id) => String(id ?? '').trim());
-  return code && !skuIds.includes(code) ? code : '';
+  const codes = toHalfWidth(product?.upc).split(UPC_LIST_SEP).map(normalizeUpc);
+  return codes.find((code) => code && !skuIds.includes(code)) ?? '';
 }
 
 const fill = (labels, value) => Object.fromEntries(labels.map((l) => [l, value]));
