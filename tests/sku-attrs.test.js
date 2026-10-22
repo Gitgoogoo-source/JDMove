@@ -1,12 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { normalizeUpc, productUpc, skuAttrValueMap, describeSkuAttrResults, missingSkuAttrs, skuAttrStop } from '../src/shared/sku-attrs.js';
+import { normalizeUpc, productUpc, resolveUpc, skuAttrValueMap, describeSkuAttrResults, missingSkuAttrs, skuAttrStop } from '../src/shared/sku-attrs.js';
 
 test('normalizeUpc keeps 8-14 digit barcodes, accepts full-width digits and spaces', () => {
-  assert.equal(normalizeUpc('6901234567890'), '6901234567890');
-  assert.equal(normalizeUpc(' 6901 2345 67890 '), '6901234567890');
-  assert.equal(normalizeUpc('６９０１２３４５'), '69012345');
-  assert.equal(normalizeUpc('12345678901234'), '12345678901234');
+  assert.equal(normalizeUpc('6901234567892'), '6901234567892');
+  assert.equal(normalizeUpc(' 6901 2345 67892 '), '6901234567892');
+  assert.equal(normalizeUpc('６９０１２３４１'), '69012341');
+  assert.equal(normalizeUpc('12345678901231'), '12345678901231');
 });
 
 test('normalizeUpc rejects empty, too short/long and non-digit values', () => {
@@ -15,17 +15,42 @@ test('normalizeUpc rejects empty, too short/long and non-digit values', () => {
   }
 });
 
+test('normalizeUpc rejects placeholder barcodes made of one repeated digit (e.g. 0000000000000)', () => {
+  // 实例：item.jd.com/100027810038 没有登记条形码，upc_code 是 '0000000000000;100027810038'
+  for (const bad of ['0000000000000', '00000000', '11111111111111', '８８８８８８８８']) {
+    assert.equal(normalizeUpc(bad), '', bad);
+  }
+});
+
+test('normalizeUpc rejects codes whose GTIN check digit is wrong', () => {
+  // 源商品页上的真实条形码（格力高百奇）校验位都正确
+  for (const good of ['6901845046120', '6901845045529', '6901845010206', '6914973039001']) {
+    assert.equal(normalizeUpc(good), good);
+  }
+  for (const bad of ['6901845046121', '6901234567890', '69012345', '12345678901234']) {
+    assert.equal(normalizeUpc(bad), '', bad);
+  }
+});
+
+test('resolveUpc: own UPC > override UPC > fallback UPC, invalid values skipped', () => {
+  assert.equal(resolveUpc({ upc: '6901845046120', overrides: { UPC: '6914973611436' }, fallbackUpc: '6914973039001' }), '6901845046120');
+  assert.equal(resolveUpc({ upc: '0000000000000', overrides: { 商品条形码: '6914973611436' }, fallbackUpc: '6914973039001' }), '6914973611436');
+  assert.equal(resolveUpc({ upc: '0000000000000', fallbackUpc: '6914973039001' }), '6914973039001');
+  assert.equal(resolveUpc({ upc: '0000000000000', fallbackUpc: '' }), '');
+  assert.equal(resolveUpc(), '');
+});
+
 test('skuAttrValueMap: params, price and UPC by label', () => {
   const map = skuAttrValueMap({
     params: [{ name: '原产地', value: '中国大陆' }],
     retailPrice: 59.9,
-    upc: '6901234567890',
+    upc: '6901234567892',
   });
   assert.equal(map['建议零售价'], '59.9');
   assert.equal(map['市场价'], '59.9');
   assert.equal(map['原产地'], '中国大陆');
-  assert.equal(map['最小可售单位UPC'], '6901234567890');
-  assert.equal(map['商品条形码'], '6901234567890');
+  assert.equal(map['最小可售单位UPC'], '6901234567892');
+  assert.equal(map['商品条形码'], '6901234567892');
 });
 
 test('skuAttrValueMap: precedence is defaults < params < price < overrides < upc field', () => {
@@ -34,18 +59,18 @@ test('skuAttrValueMap: precedence is defaults < params < price < overrides < upc
     params: [{ name: '原产地', value: '中国大陆' }],
     retailPrice: 50,
     overrides: { 建议零售价: '66', 最小可售单位UPC: '11111111' },
-    upc: '6901234567890',
+    upc: '6901234567892',
   });
   assert.equal(map['生产日期'], '2026-01-01');
   assert.equal(map['原产地'], '中国大陆');
   assert.equal(map['建议零售价'], '66');
   assert.equal(map['市场价'], '50');
-  assert.equal(map['最小可售单位UPC'], '6901234567890');
+  assert.equal(map['最小可售单位UPC'], '6901234567892');
 });
 
 test('skuAttrValueMap: UPC from overrides is used when the UPC field is empty', () => {
-  const map = skuAttrValueMap({ overrides: { 最小可售单位UPC: '6901234567890' } });
-  assert.equal(map['最小可售单位UPC'], '6901234567890');
+  const map = skuAttrValueMap({ overrides: { 最小可售单位UPC: '6901234567892' } });
+  assert.equal(map['最小可售单位UPC'], '6901234567892');
 });
 
 test('skuAttrValueMap: no price or UPC keys when unknown', () => {
@@ -149,6 +174,11 @@ test('productUpc reads multi-value upc_code "SKU编号;条形码" and skips the 
   assert.equal(productUpc({ skuId: '1', upc: '6914973600058,6914973611436' }), '6914973600058');
   assert.equal(productUpc({ skuId: '100357660574', upc: '100357660574;' }), '');
   assert.equal(productUpc({ skuId: '1', upc: '无;abc' }), '');
+});
+
+test('productUpc treats "0000000000000;SKU编号" as no barcode', () => {
+  assert.equal(productUpc({ skuId: '100027810038', upc: '0000000000000;100027810038' }), '');
+  assert.equal(productUpc({ skuId: '1', upc: '0000000000000;6901845046120' }), '6901845046120');
 });
 
 test('skuAttrValueMap: fallbackUpc is used only when neither upc nor overrides give one', () => {

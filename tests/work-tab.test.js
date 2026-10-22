@@ -243,9 +243,9 @@ test('publishItem: 保存前重新写入并核对 SKU 价格/库存', async () =
   assert.equal(res.status, 'published');
   const lastSku = calls.lastIndexOf('setSkuRows');
   assert.ok(calls.indexOf('setSkuRows') < lastSku, '应写入两次');
-  // 之后只有 SKU属性填写与只读核对，不再有改动价格/库存的步骤
+  // 之后只有 SKU属性填写、只读核对和基本信息条形码核对，不再有改动价格/库存的步骤
   const between = calls.slice(lastSku + 1, calls.indexOf('runAction'));
-  assert.deepEqual([...new Set(between)].sort(), ['checkSkuRows', 'fillSkuAttrDrawers', 'readSkuAttrState']);
+  assert.deepEqual([...new Set(between)].sort(), ['checkSkuRows', 'fillSkuAttrDrawers', 'readSkuAttrState', 'setUpcCode']);
 });
 
 test('publishItem: 保存前发现价格/库存被清空时停止保存，并保留页面', async () => {
@@ -257,6 +257,87 @@ test('publishItem: 保存前发现价格/库存被清空时停止保存，并保
   assert.match(res.message, /京东价\/库存/);
   assert.ok(!calls.includes('runAction'));
   assert.ok(res.tabId, '保留标签页供检查');
+});
+
+// ---------- SKU 表的“商品条形码”列 ----------
+test('publishItem: SKU 表每行带上商品条形码（采集到的 UPC）写入页面', async () => {
+  const written = [];
+  const { backend } = publishBackend([skuOk, skuOk]);
+  const spy = (method, args) => {
+    if (method === 'setSkuRows') written.push([args].flat()[0]);
+    return backend(method, args);
+  };
+  installFakeChrome({ backend: spy });
+  const scraped = { ...fullItem, product: { ...fullItem.product, upc: '6901845046120' } };
+  const res = await publishItem(scraped, SETTINGS, () => {});
+  assert.equal(res.status, 'published');
+  assert.ok(written.length >= 2);
+  for (const rows of written) assert.deepEqual(rows.map((r) => r.upc), rows.map(() => '6901845046120'));
+});
+
+test('publishItem: 必填的商品条形码为空（没有可填的 UPC）时标为需处理，不保存', async () => {
+  const emptyUpc = { ok: false, rows: 1, issues: ['第 1 行的商品条形码为空'], missing: [], emptyUpc: [0] };
+  const { calls, backend } = publishBackend([skuOk, emptyUpc]);
+  installFakeChrome({ backend });
+  const noDefault = mergeSettings({ publish: { reuploadDetailImages: false, defaultUpc: '' } });
+  const res = await publishItem(fullItem, noDefault, () => {});
+  assert.equal(res.status, 'need_action');
+  assert.match(res.message, /第 1 行的商品条形码为空/);
+  assert.match(res.message, /编辑 → UPC/);
+  assert.ok(!calls.includes('runAction'), '不应提交，否则每行都报“条形码不能为空”');
+  assert.ok(res.tabId, '保留标签页供检查');
+});
+
+test('publishItem: 商品条形码没写进去时算失败，不保存', async () => {
+  const lost = { ok: false, rows: 1, issues: [], missing: [{ row: 0, price: '45.9', stock: '100', upc: '6901845046120' }], emptyUpc: [] };
+  const { calls, backend } = publishBackend([skuOk, lost]);
+  installFakeChrome({ backend });
+  const res = await publishItem(fullItem, SETTINGS, () => {});
+  assert.equal(res.status, 'failed');
+  assert.match(res.message, /商品条形码/);
+  assert.ok(!calls.includes('runAction'));
+});
+
+// ---------- 商品基本信息里的“商品条形码”（upcCode） ----------
+test('publishItem: 选完品牌后填写基本信息的商品条形码，保存前再写一次核对', async () => {
+  const upcCalls = [];
+  const { calls, backend } = publishBackend([skuOk, skuOk], {
+    setUpcCode: (args) => {
+      const code = [args].flat()[0];
+      upcCalls.push(code);
+      return { ok: true, present: true, value: code };
+    },
+  });
+  installFakeChrome({ backend });
+  const scraped = { ...fullItem, product: { ...fullItem.product, upc: '6901845044423' } };
+  const lines = [];
+  const res = await publishItem(scraped, SETTINGS, (l) => lines.push(l));
+  assert.equal(res.status, 'published');
+  assert.deepEqual(upcCalls, ['6901845044423', '6901845044423']);
+  assert.ok(calls.indexOf('selectBrand') < calls.indexOf('setUpcCode'), '品牌之后填写');
+  assert.ok(calls.lastIndexOf('setUpcCode') < calls.indexOf('runAction'), '保存前核对');
+  assert.ok(lines.includes('商品条形码：6901845044423'), lines.join('\n'));
+});
+
+test('publishItem: 基本信息的商品条形码为空（没有可填的 UPC）时标为需处理，不保存', async () => {
+  const { calls, backend } = publishBackend([skuOk, skuOk], { setUpcCode: { ok: true, present: true, value: '' } });
+  installFakeChrome({ backend });
+  const noDefault = mergeSettings({ publish: { reuploadDetailImages: false, defaultUpc: '', fillSkuAttrs: false } });
+  const res = await publishItem(fullItem, noDefault, () => {});
+  assert.equal(res.status, 'need_action');
+  assert.match(res.message, /商品基本信息的商品条形码为空/);
+  assert.match(res.message, /编辑 → UPC/);
+  assert.ok(!calls.includes('runAction'), '不应提交，否则报“请输入商品条形码”');
+  assert.ok(res.tabId, '保留标签页供检查');
+});
+
+test('publishItem: 基本信息的商品条形码写不进去时算失败，不保存', async () => {
+  const { calls, backend } = publishBackend([skuOk, skuOk], { setUpcCode: { ok: false, present: true, value: '123' } });
+  installFakeChrome({ backend });
+  const res = await publishItem(fullItem, SETTINGS, () => {});
+  assert.equal(res.status, 'failed');
+  assert.match(res.message, /没有写进去/);
+  assert.ok(!calls.includes('runAction'));
 });
 
 // ---------- SKU属性：保存前填写并通过表单数据核对 ----------
@@ -331,6 +412,19 @@ test('publishItem: 填写 SKU属性后京东价/库存被清空时停止保存',
   const res = await publishItem(upcItem, SETTINGS, () => {});
   assert.equal(res.status, 'failed');
   assert.match(res.message, /京东价\/库存/);
+  assert.match(res.message, /填写 SKU属性后/);
+  assert.ok(!calls.includes('runAction'));
+});
+
+test('publishItem: 填写 SKU属性后商品条形码列变空时标为需处理，不保存', async () => {
+  const { calls, backend } = publishBackend([skuOk, skuOk], {
+    readSkuAttrState: attrState(filledUpc),
+    checkSkuRows: { missing: [], emptyUpc: [0] },
+  });
+  installFakeChrome({ backend });
+  const res = await publishItem(upcItem, SETTINGS, () => {});
+  assert.equal(res.status, 'need_action');
+  assert.match(res.message, /商品条形码为空/);
   assert.ok(!calls.includes('runAction'));
 });
 

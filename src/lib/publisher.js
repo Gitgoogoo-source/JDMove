@@ -88,6 +88,9 @@ async function fillBasics(tabId, plan, log, timer) {
   if (!brand?.ok) return { needAction: brand?.error || '品牌选择失败' };
   log(`品牌：${brand.label}`);
 
+  const upc = await callBackend(tabId, 'setUpcCode', plan.upc);
+  if (upc?.present) log(upc.value ? `商品条形码：${upc.value}` : '商品条形码：没有可填的值');
+
   const props = await callBackend(tabId, 'setProps', plan.props.values);
   timer.lap('属性');
   if (!props?.ok) log(`部分属性写入异常：${props?.failed?.join(',')}`);
@@ -130,10 +133,35 @@ async function ensureSkuAttrs(tabId, plan, log, timer) {
   return {};
 }
 
-/** 填完 SKU属性后只读核对京东价/库存：被清空就不保存 */
-async function pricesStillThere(tabId, plan) {
-  const check = await callBackend(tabId, 'checkSkuRows', plan.sale.rows);
-  return !check?.missing?.length;
+const EMPTY_UPC_MSG = '请在「编辑 → UPC」中填写商品条形码，或在设置里填写「默认 UPC」';
+
+/**
+ * SKU 表核对结果对应的停止原因：值没写进去/被清空算失败；必填的商品条形码为空（计划里没有可填的值）需要用户补
+ * @param {{missing?: {row: number}[], emptyUpc?: number[]} | undefined} check setSkuRows / checkSkuRows 的结果
+ * @param {string} when 发生在哪一步，写进提示里
+ * @returns {{status: 'failed'|'need_action', message: string} | null}
+ */
+function skuTableStop(check, when) {
+  const rowList = (rows) => rows.map((r) => r + 1).join('、');
+  if (check?.missing?.length) {
+    return { status: 'failed', message: `${when}SKU 表第 ${rowList(check.missing.map((m) => m.row))} 行的京东价/库存/商品条形码没有写进去或被清空，已停止保存，请在工作窗口中检查` };
+  }
+  if (check?.emptyUpc?.length) {
+    return { status: 'need_action', message: `SKU 表第 ${rowList(check.emptyUpc)} 行的商品条形码为空（必填），已停止保存；${EMPTY_UPC_MSG}` };
+  }
+  return null;
+}
+
+/**
+ * 保存前重写并核对基本信息里的商品条形码（upcCode）：没有可填的值时需要用户补，写不进去算失败
+ * @returns {Promise<{status: 'failed'|'need_action', message: string} | null>}
+ */
+async function upcCodeStop(tabId, plan) {
+  const res = await callBackend(tabId, 'setUpcCode', plan.upc);
+  if (!res?.present) return null;
+  if (!res.value) return { status: 'need_action', message: `商品基本信息的商品条形码为空（必填），已停止保存；${EMPTY_UPC_MSG}` };
+  if (!res.ok) return { status: 'failed', message: `商品基本信息的商品条形码没有写进去（页面上是“${res.value}”），已停止保存，请在工作窗口中检查` };
+  return null;
 }
 
 async function fillForm(tabId, settings, plan, log, ctx) {
@@ -250,19 +278,19 @@ async function publishInTab(tab, item, settings, log, preset, ctx) {
     const filled = await fillForm(tab.id, settings, plan, log, ctx);
     if (filled.needAction) return { status: 'need_action', message: filled.needAction, target };
 
-    // 京麦可能在填写过程中重建 SKU 表、清空京东价和库存：保存前重写一遍并核对，写不进去就不保存
+    // 京麦可能在填写过程中重建 SKU 表、清空京东价/库存/商品条形码：保存前重写一遍并核对，写不进去就不保存
     const skuCheck = await callBackend(tab.id, 'setSkuRows', plan.sale.rows);
     timer.lap('SKU 核对');
-    if (skuCheck?.missing?.length) {
-      return { status: 'failed', message: `SKU 表的京东价/库存没有写进去，已停止保存：${skuCheck.issues.join('；')}`, target, tabId: tab.id };
-    }
+    const tableStop = skuTableStop(skuCheck, '');
+    if (tableStop) return { ...tableStop, target, tabId: tab.id };
     if (settings.publish.fillSkuAttrs) {
       const attrs = await ensureSkuAttrs(tab.id, plan, log, timer);
       if (attrs.stop) return { ...attrs.stop, target, tabId: tab.id };
-      if (!(await pricesStillThere(tab.id, plan))) {
-        return { status: 'failed', message: '填写 SKU属性后京东价/库存被清空，已停止保存，请在工作窗口中检查', target, tabId: tab.id };
-      }
+      const afterAttrs = skuTableStop(await callBackend(tab.id, 'checkSkuRows', plan.sale.rows), '填写 SKU属性后');
+      if (afterAttrs) return { ...afterAttrs, target, tabId: tab.id };
     }
+    const upcStop = await upcCodeStop(tab.id, plan);
+    if (upcStop) return { ...upcStop, target, tabId: tab.id };
 
     const action = settings.publish.action;
     if (action === 'none') return { status: 'filled', message: '已填写完成，请在工作窗口中检查后手动提交', target, tabId: tab.id };

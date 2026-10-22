@@ -28,19 +28,37 @@ function input(placeholder, { sticky = true } = {}) {
   };
 }
 
+/** 输入框挂在京麦单元格组件下（JdInput < name） */
+const inComponent = (el, name) => Object.assign(el, { __vueParentComponent: { type: { name: 'JdInput' }, parent: { type: { name }, parent: null } } });
+
+/**
+ * 一行 SKU。withUpc：带“商品条形码”列（与价格/库存一样是“请输入”输入框）；
+ * order：单元格里“请输入”输入框的顺序，用来验证按组件而不是按位置找输入框
+ */
 function skuRow(opts) {
   const price = input('请输入', opts);
   const stock = input('请输入', opts);
+  const upc = opts?.withUpc ? inComponent(input('请输入', opts), 'shop-upc-code') : null;
+  if (opts?.withUpc) {
+    inComponent(price, 'shop-jd-price');
+    inComponent(stock, 'ShopInventory');
+  }
+  const byName = { price, stock, upc };
+  const inputs = (opts?.order ?? ['price', 'stock', 'upc']).map((k) => byName[k]).filter(Boolean);
   const sw = { classList: { contains: (c) => c === 'is-checked' && opts?.enabled !== false }, click() {} };
   return {
     price,
     stock,
+    upc,
     isConnected: true,
     scrollIntoView() {},
-    querySelectorAll: (sel) => (sel === 'input[placeholder="请输入"]' ? [price, stock] : []),
+    querySelectorAll: (sel) => (sel === 'input[placeholder="请输入"]' ? inputs : []),
     querySelector: (sel) => (sel === '.jd-switch' ? sw : null),
   };
 }
+
+// 京麦“商品条形码”列的配置（saleAttrConfig.skuTableColumn 里的一项）
+const UPC_COLUMN = { field: 'plu', componentCode: 'SkuWareUpccode', type: 'ShopUpcCode', title: '商品条形码', props: { rule: { required: true } }, validate: [{ required: true }] };
 
 /**
  * 京麦的销售属性维度：在末尾空输入框里录入后，值被挪到新渲染的输入框里成为“临时”值（末尾框保持为空），
@@ -97,7 +115,7 @@ function saleDim(name, { commitOnBlur = true, windowFocused = true, commitAfterB
   return { inputs, modelValue };
 }
 
-function loadPage(rows, extraInputs = () => []) {
+function loadPage(rows, extraInputs = () => [], { columns } = {}) {
   const batchPrice = input('京东价(元)');
   const batchStock = input('库存');
   // 批量应用：把批量框里“已提交”的值写到每一行
@@ -122,7 +140,8 @@ function loadPage(rows, extraInputs = () => []) {
     },
     buttonByText: (label) => (label === '批量应用' ? applyBtn : null),
   };
-  const backend = { __core: true, util };
+  const store = { saleAttrConfig: { skuTableColumn: columns ?? [] } };
+  const backend = { __core: true, util, ...(columns ? { pinia: () => ({ state: { value: { 'publish-product': store } } }) } : {}) };
   vm.runInNewContext(MEDIA_SRC, { window: { __JDMOVE__: { backend } }, Event, FocusEvent: Event });
   return { B: backend, batchPrice };
 }
@@ -142,6 +161,73 @@ test('setSkuRows: 写入后值没留住时报告缺失的行，而不是假装�
   const res = await B.setSkuRows([{ enabled: true, price: 45.9, stock: 100 }]);
   assert.equal(res.ok, false);
   assert.equal(JSON.stringify(res.missing), JSON.stringify([{ row: 0, price: '45.9', stock: '100' }]));
+});
+
+test('setSkuRows: 每行的商品条形码写进“商品条形码”列（按 shop-upc-code 组件找，不按位置）', async () => {
+  // 故意把条形码框排在最前：按位置取会把价格写进条形码框
+  const rows = [skuRow({ withUpc: true, order: ['upc', 'price', 'stock'] }), skuRow({ withUpc: true })];
+  const { B } = loadPage(rows, () => [], { columns: [UPC_COLUMN] });
+  const plan = [
+    { enabled: true, price: 45.9, stock: 100, upc: '6901845046120' },
+    { enabled: true, price: 45.9, stock: 100, upc: '6901845046120' },
+  ];
+  const res = await B.setSkuRows(plan);
+  assert.equal(res.ok, true, res.issues.join('；'));
+  assert.deepEqual(rows.map((r) => r.upc.committed), ['6901845046120', '6901845046120']);
+  assert.deepEqual(rows.map((r) => r.price.committed), ['45.9', '45.9']);
+  assert.deepEqual(rows.map((r) => r.stock.committed), ['100', '100']);
+  assert.deepEqual([...res.emptyUpc], []);
+});
+
+test('setSkuRows: 条形码没留住时报告该行，而不是假装成功', async () => {
+  const rows = [skuRow({ withUpc: true })];
+  rows[0].upc.dispatchEvent = function blurLoses(e) {
+    if (e.type === 'blur') this.value = '';
+    return true;
+  };
+  const { B } = loadPage(rows, () => [], { columns: [UPC_COLUMN] });
+  const res = await B.setSkuRows([{ enabled: true, price: 45.9, stock: 100, upc: '6901845046120' }]);
+  assert.equal(res.ok, false);
+  assert.equal(JSON.stringify(res.missing), JSON.stringify([{ row: 0, price: '45.9', stock: '100', upc: '6901845046120' }]));
+  assert.match(res.issues.join('；'), /商品条形码/);
+});
+
+test('setSkuRows: 计划里没有条形码、该列又必填时报告为空的行', async () => {
+  const rows = [skuRow({ withUpc: true }), skuRow({ withUpc: true })];
+  const { B } = loadPage(rows, () => [], { columns: [{ field: 'jdPrice' }, UPC_COLUMN] });
+  const res = await B.setSkuRows([
+    { enabled: true, price: 45.9, stock: 100, upc: '' },
+    { enabled: false, price: 45.9, stock: 100, upc: '' },
+  ]);
+  assert.equal(res.ok, false);
+  assert.deepEqual([...res.emptyUpc], [0, 1]);
+  assert.deepEqual([...res.missing], [], '价格/库存都写进去了');
+  assert.match(res.issues.join('；'), /第 1、2 行的商品条形码为空/);
+});
+
+test('setSkuRows: 没有条形码列的类目、或该列不是必填时不报条形码问题', async () => {
+  const plain = await loadPage([skuRow()], () => [], { columns: [] }).B.setSkuRows([{ enabled: true, price: 45.9, stock: 100, upc: '6901845046120' }]);
+  assert.equal(plain.ok, true, plain.issues.join('；'));
+  const optional = { ...UPC_COLUMN, props: { rule: { required: false } }, validate: [] };
+  const res = await loadPage([skuRow({ withUpc: true })], () => [], { columns: [optional] }).B.setSkuRows([{ enabled: true, price: 45.9, stock: 100, upc: '' }]);
+  assert.equal(res.ok, true, res.issues.join('；'));
+  // 读不到列配置（pinia 不可用）时也不当作必填
+  const noStore = await loadPage([skuRow({ withUpc: true })]).B.setSkuRows([{ enabled: true, price: 45.9, stock: 100, upc: '' }]);
+  assert.deepEqual([...noStore.emptyUpc], []);
+});
+
+test('checkSkuRows: 只读核对商品条形码，被清空时报告，不重新写入', async () => {
+  const rows = [skuRow({ withUpc: true })];
+  rows[0].price.value = '45.9';
+  rows[0].stock.value = '100';
+  rows[0].upc.value = '';
+  const { B } = loadPage(rows, () => [], { columns: [UPC_COLUMN] });
+  const res = B.checkSkuRows([{ enabled: true, price: 45.9, stock: 100, upc: '6901845046120' }]);
+  assert.deepEqual(JSON.parse(JSON.stringify(res)), {
+    missing: [{ row: 0, price: '45.9', stock: '100', upc: '6901845046120' }],
+    emptyUpc: [0],
+  });
+  assert.equal(rows[0].upc.value, '', '不应写入');
 });
 
 test('setSkuPrices: 编辑页改价只改已启用 SKU 的京东价，库存和未启用的行不动', async () => {

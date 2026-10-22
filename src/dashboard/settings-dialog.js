@@ -85,7 +85,7 @@ export async function editSettings(settings) {
           h('div', { class: 'row2' }, field('填写完成后', f.action), field('每条发布间隔（秒）', f.pubDelay)),
           h('div', { class: 'row2' }, field('主图最多', f.maxMain), field('详情图最多', f.maxDetail)),
           f.reupload.node, f.skuAttrs.node,
-          field('默认 UPC', f.defaultUpc, '源商品没有条形码、编辑里也没填 UPC 时，“最小可售单位UPC”填这个值；留空则不填，发布会停下提示')),
+          field('默认 UPC', f.defaultUpc, '源商品没有条形码、编辑里也没填 UPC 时，商品基本信息和 SKU 表的“商品条形码”、“最小可售单位UPC”填这个值；留空则不填，发布会停下提示')),
         h('fieldset', {}, h('legend', {}, '已发布商品：京东今日价检查与改价'),
           h('div', { class: 'row3' },
             field('检查最小间隔（秒）', f.pwMinDelay),

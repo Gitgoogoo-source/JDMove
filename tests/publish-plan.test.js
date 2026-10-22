@@ -157,14 +157,14 @@ test('buildPublishPlan: SKU attrs merge attribute defaults, overrides and the UP
   const settings = mergeSettings({ attrDefaultsText: '生产日期=2026-01-01\n原产地=默认' });
   const plan = buildPublishPlan({
     product,
-    edits: { upc: '6901234567890', attrOverrides: { 建议零售价: '66' } },
+    edits: { upc: '6901234567892', attrOverrides: { 建议零售价: '66' } },
     settings,
     schema,
   });
   assert.equal(plan.skuAttrValues['生产日期'], '2026-01-01');
   assert.equal(plan.skuAttrValues['原产地'], '中国大陆');
   assert.equal(plan.skuAttrValues['建议零售价'], '66');
-  assert.equal(plan.skuAttrValues['最小可售单位UPC'], '6901234567890');
+  assert.equal(plan.skuAttrValues['最小可售单位UPC'], '6901234567892');
   assert.ok(!plan.warnings.some((w) => w.includes('UPC')));
 });
 
@@ -213,8 +213,31 @@ test('buildPublishPlan warns (not blocks) when no UPC is available and the defau
 });
 
 test('buildPublishPlan: UPC given through 属性覆盖 counts as present', () => {
-  const plan = buildPublishPlan({ product, edits: { attrOverrides: { 最小可售单位UPC: '6901234567890' } }, settings: DEFAULT_SETTINGS, schema });
+  const plan = buildPublishPlan({ product, edits: { attrOverrides: { 最小可售单位UPC: '6901234567892' } }, settings: DEFAULT_SETTINGS, schema });
   assert.ok(!plan.warnings.some((w) => w.includes('UPC')));
+});
+
+test('buildPublishPlan: every SKU row carries the same UPC as the SKU属性 drawer (SKU 表“商品条形码”列)', () => {
+  const scraped = buildPublishPlan({ product: { ...product, upc: '6901845046120' }, edits: {}, settings: DEFAULT_SETTINGS, schema });
+  assert.ok(scraped.sale.rows.length > 0);
+  assert.deepEqual(scraped.sale.rows.map((r) => r.upc), scraped.sale.rows.map(() => '6901845046120'));
+  assert.equal(scraped.skuAttrValues['最小可售单位UPC'], '6901845046120');
+  assert.equal(scraped.upc, '6901845046120', '基本信息的商品条形码用同一个值');
+  const none = buildPublishPlan({ product, edits: {}, settings: mergeSettings({ publish: { defaultUpc: '' } }), schema });
+  assert.deepEqual(none.sale.rows.map((r) => r.upc), none.sale.rows.map(() => ''));
+});
+
+test('buildPublishPlan: a placeholder UPC 0000000000000 (collected before the fix) falls back to the default UPC', () => {
+  // 实例：item.jd.com/100027810038，旧版插件把 '0000000000000' 存成了 upc
+  const stale = { ...product, skuId: '100027810038', upc: '0000000000000' };
+  const settings = mergeSettings({ publish: { defaultUpc: '6914973039001' } });
+  const plan = buildPublishPlan({ product: stale, edits: {}, settings, schema });
+  assert.equal(plan.sale.rows[0].upc, '6914973039001');
+  assert.equal(plan.skuAttrValues['最小可售单位UPC'], '6914973039001');
+  assert.ok(plan.warnings.some((w) => w.includes('默认 UPC')));
+  const cleared = buildPublishPlan({ product: stale, edits: {}, settings: mergeSettings({ publish: { defaultUpc: '' } }), schema });
+  assert.equal(cleared.sale.rows[0].upc, '');
+  assert.ok(cleared.warnings.some((w) => w.includes('未填写商品条形码')));
 });
 
 test('buildPublishPlan warns when several SKUs would share one UPC', () => {
@@ -226,7 +249,7 @@ test('buildPublishPlan warns when several SKUs would share one UPC', () => {
       { skuId: '2', values: { 规格: 'b' } },
     ],
   };
-  const plan = buildPublishPlan({ product: multi, edits: { upc: '6901234567890' }, settings: DEFAULT_SETTINGS, schema });
+  const plan = buildPublishPlan({ product: multi, edits: { upc: '6901234567892' }, settings: DEFAULT_SETTINGS, schema });
   assert.ok(plan.sale.rows.filter((r) => r.enabled).length > 1, 'fixture should produce several enabled rows');
   assert.ok(plan.warnings.some((w) => w.includes('共用') && w.includes('UPC')));
 });

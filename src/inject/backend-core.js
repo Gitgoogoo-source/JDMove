@@ -11,18 +11,24 @@
   const textOf = (el) => (el ? (el.innerText || el.textContent || '').replace(/\s+/g, ' ').trim() : '');
   const norm = (s) => String(s == null ? '' : s).toLowerCase().replace(/[\s:：,，()（）\[\]【】*＊/、\-_.]/g, '');
 
+  function check(fn) {
+    try {
+      return fn() || null;
+    } catch {
+      return null; // 页面尚未就绪，继续轮询
+    }
+  }
+
+  // 超时后再检查一次：标签页在后台（窗口被遮挡、最小化）时 Chrome 把定时器限流到至少 1 秒，
+  // 一次 sleep 就可能越过时限；不补这一次，点击后页面已经渲染好的结果会被当成“没出现”
   async function waitFor(fn, { timeout = 15000, interval = 200 } = {}) {
     const end = Date.now() + timeout;
     while (Date.now() < end) {
-      try {
-        const v = fn();
-        if (v) return v;
-      } catch {
-        /* 页面尚未就绪，继续轮询 */
-      }
+      const v = check(fn);
+      if (v) return v;
       await sleep(interval);
     }
-    return null;
+    return check(fn);
   }
 
   function walkComponents(visit) {
@@ -222,20 +228,27 @@
     return { ok: !!report.title, report };
   }
 
-  // jd-select 的点击处理挂在内部 wrapper 上；逐个尝试直到下拉出现
+  const OPTIONS_WAIT_MS = 3000;
+
+  // jd-select 的点击处理挂在内部 wrapper 上；逐个尝试直到下拉出现。
+  // 点击是“开/关”切换：下拉层已经弹出（选项还没渲染出来）时再点别的元素会把它关上，所以只等选项、不再点
   async function openSelect(root) {
     const dropdownShown = () => qsa('.jd-select-dropdown__item').some(visible);
+    const popperShown = () => qsa('.jd-select__popper, .jd-select-dropdown').some(visible);
     if (dropdownShown()) return true;
+    let clicked = false;
     for (const sel of ['.jd-input__wrapper', '.select-trigger', '.jd-select__wrapper', '.jd-input', 'input']) {
       const target = root.querySelector(sel);
       if (!target) continue;
+      if (clicked && popperShown()) break;
       // 选择后输入框仍保持焦点，此时点击不会重新展开，需先失焦
       if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur();
       await sleep(200);
       click(target);
+      clicked = true;
       if (await waitFor(dropdownShown, { timeout: 800 })) return true;
     }
-    return false;
+    return clicked && popperShown() && !!(await waitFor(dropdownShown, { timeout: OPTIONS_WAIT_MS }));
   }
 
   async function selectBrand({ id, name }) {
@@ -290,6 +303,30 @@
     return { ok: failed.length === 0, failed };
   }
 
+  // “商品基本信息”里的商品条形码（字段 upcCode，组件 ShopGoodsCode）：部分类目才有，页面上标必填，空着提交会报“请输入商品条形码”
+  const UPC_FIELD = 'upcCode';
+  const UPC_TITLE = '商品条形码';
+
+  function upcField(api) {
+    const fields = api.fields();
+    if (fields.includes(UPC_FIELD)) return UPC_FIELD;
+    return fields.find((f) => (api.getRule(f) || {}).title === UPC_TITLE) || null;
+  }
+
+  /**
+   * 写入（code 非空时）并读回基本信息里的商品条形码
+   * @returns {{ok: boolean, present: boolean, value: string}} present：页面有没有这个字段
+   */
+  function setUpcCode(code) {
+    const api = getFApi();
+    if (!api) return { ok: false, present: false, value: '', error: '发布页表单未就绪' };
+    const field = upcField(api);
+    if (!field) return { ok: true, present: false, value: '' };
+    if (code && String(api.getValue(field) || '') !== code) api.setValue(field, code);
+    const value = String(api.getValue(field) || '').trim();
+    return { ok: code ? value === code : true, present: true, value };
+  }
+
   function collectErrors() {
     return qsa('.jd-form-item__error')
       .filter(visible)
@@ -311,6 +348,7 @@
     setBasics,
     selectBrand,
     setProps,
+    setUpcCode,
     collectErrors,
   });
 })();

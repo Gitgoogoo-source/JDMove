@@ -5,7 +5,7 @@ import { buildPropPlan, convertInputValue, findSourceValue } from './attr-mappin
 import { buildSalePlan } from './sale-plan.js';
 import { parseAttrDefaults } from './settings.js';
 import { toOriginalImageUrl } from './url-utils.js';
-import { UPC_LABEL, hasUpc, normalizeUpc, productUpc, skuAttrValueMap } from './sku-attrs.js';
+import { UPC_LABEL, normalizeUpc, productUpc, resolveUpc, skuAttrValueMap } from './sku-attrs.js';
 
 const escapeAttr = (s) =>
   String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -35,12 +35,13 @@ export function publishImagePlan({ product, edits = {}, settings }) {
   return { mainImageUrls, detailImageUrls: (product.detailImages ?? []).slice(0, settings.publish.maxDetailImages) };
 }
 
-// 京麦部分类目的 SKU属性抽屉要求必填 UPC；缺了抽屉点不了“确定”，建议零售价也跟着保存不上
+// 京麦部分类目在商品基本信息、SKU 表各有一个必填的“商品条形码”，SKU属性抽屉里还有必填的 UPC：
+// 缺了提交时报“请输入商品条形码”“条形码不能为空”，抽屉也点不了“确定”、建议零售价跟着保存不上
 function upcWarnings(present, enabledRows, defaultUpc) {
   if (!present) {
-    return [`未填写${UPC_LABEL}（商品条形码）：部分类目必填，缺少时 SKU属性面板无法保存、建议零售价也写不进去；源商品页没有条形码时请在「编辑 → UPC」中填写，或在设置里填写「默认 UPC」；之前采集的商品请重新采集`];
+    return [`未填写商品条形码（商品基本信息、SKU 表的“商品条形码”与 SKU属性“${UPC_LABEL}”）：部分类目必填，缺少时无法提交；源商品页没有条形码时请在「编辑 → UPC」中填写，或在设置里填写「默认 UPC」；之前采集的商品请重新采集`];
   }
-  const usedDefault = defaultUpc ? [`源商品没有条形码，${UPC_LABEL}使用设置里的默认 UPC ${defaultUpc}`] : [];
+  const usedDefault = defaultUpc ? [`源商品没有条形码，商品条形码使用设置里的默认 UPC ${defaultUpc}`] : [];
   const shared = enabledRows > 1 ? [`${enabledRows} 个规格将共用同一个 UPC，京东可能要求每个规格使用不同的条形码，请核对`] : [];
   return [...usedDefault, ...shared];
 }
@@ -77,11 +78,17 @@ export function buildPublishPlan({ product, edits = {}, settings, schema }) {
   const variantPrices = Object.fromEntries(
     Object.entries(product.variantPrices ?? {}).map(([sku, p]) => [sku, computePrice(p, settings.price)]),
   );
-  const sale = buildSalePlan(schema.saleDimNames ?? [], source, {
+  const salePlan = buildSalePlan(schema.saleDimNames ?? [], source, {
     defaultPrice: price,
     prices: Number(edits.price) > 0 ? {} : variantPrices,
     stock,
   });
+
+  // productUpc：修复前采集的商品可能把 SKU 编号或全零占位值存成了 upc，这里同样排除
+  const ownUpc = resolveUpc({ upc: edits.upc || productUpc(product), overrides: edits.attrOverrides ?? {} });
+  const upc = ownUpc || normalizeUpc(settings.publish.defaultUpc);
+  // SKU 表每行的“商品条形码”列，与 SKU属性的 UPC 用同一个值
+  const sale = { ...salePlan, rows: salePlan.rows.map((r) => ({ ...r, upc })) };
 
   // 建议零售价按售价（含倍率）算；多规格共用一个值，取最高的启用规格价，保证每个规格的售价都不高于它
   const topSalePrice = Math.max(price ?? 0, ...sale.rows.filter((r) => r.enabled).map((r) => r.price ?? 0));
@@ -90,13 +97,9 @@ export function buildPublishPlan({ product, edits = {}, settings, schema }) {
     defaults: attrDefaults,
     overrides: edits.attrOverrides ?? {},
     retailPrice: retailPrice(topSalePrice),
-    // productUpc：修复前采集的商品可能把 SKU 编号存成了 upc，这里同样排除
-    upc: edits.upc || productUpc(product),
-    fallbackUpc: settings.publish.defaultUpc,
+    upc,
   });
-  const ownUpc = skuAttrValueMap({ overrides: edits.attrOverrides ?? {}, upc: edits.upc || productUpc(product) });
-  const defaultUsed = hasUpc(ownUpc) ? '' : normalizeUpc(settings.publish.defaultUpc);
-  const skuAttrWarnings = upcWarnings(hasUpc(skuAttrValues), sale.rows.filter((r) => r.enabled).length, defaultUsed);
+  const skuAttrWarnings = upcWarnings(Boolean(upc), sale.rows.filter((r) => r.enabled).length, ownUpc ? '' : upc);
 
   const brand = edits.brandName ? { id: null, name: edits.brandName } : { id: product.brand?.id ?? null, name: product.brand?.name ?? '' };
   if (!brand.name && !brand.id) blockers.push('缺少品牌');
@@ -117,6 +120,8 @@ export function buildPublishPlan({ product, edits = {}, settings, schema }) {
     detailImageUrls,
     weightKg: weight ? convertInputValue(weight.value, 'kg') || null : null,
     packList: settings.packList || '',
+    // 基本信息里的“商品条形码”（upcCode），与 SKU 表每行的条形码、SKU属性的 UPC 是同一个值
+    upc,
     skuAttrValues,
     warnings: [...guessWarnings, ...sale.warnings, ...skuAttrWarnings],
     blockers,

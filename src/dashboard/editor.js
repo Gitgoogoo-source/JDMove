@@ -90,9 +90,9 @@ function shopIdField(item) {
 
 /** 商品条形码：与发布时同一套规则校验，无效时阻止保存 */
 function upcInput(value, scraped) {
-  const placeholder = scraped ? `${scraped}（采集到的，留空即使用）` : '如 6901234567890';
+  const placeholder = scraped ? `${scraped}（采集到的，留空即使用）` : '如 6901234567892';
   const input = h('input', { value: value ?? '', placeholder, inputmode: 'numeric' });
-  const check = () => input.setCustomValidity(input.value.trim() && !normalizeUpc(input.value) ? 'UPC 应为 8~14 位数字' : '');
+  const check = () => input.setCustomValidity(input.value.trim() && !normalizeUpc(input.value) ? 'UPC 应为 8~14 位数字的有效条形码（校验位正确，不能是 0000… 这类占位值）' : '');
   input.addEventListener('input', check);
   check();
   return input;
@@ -128,7 +128,7 @@ export async function editItem(item, { onLog }) {
         h('div', { class: 'row3' }, field('售价', price), field('库存', stock), field('品牌名', brand, '必须是店铺已授权品牌')),
         archived ? h('small', { class: 'muted' }, '这里的售价只影响“重新发布”；要改店铺里的售价，请用“已发布”页的“批量改价”。') : null,
         shopId.node,
-        field('UPC（商品条形码）', upc, '填到 SKU属性的“最小可售单位UPC”。留空=用采集到的条形码；采集不到时需手动填写，否则京麦 SKU属性面板保存不了'),
+        field('UPC（商品条形码）', upc, '填到商品基本信息和 SKU 表的“商品条形码”、SKU属性的“最小可售单位UPC”。留空=用采集到的条形码；采集不到时需手动填写，否则这些类目提交时会报“请输入商品条形码”“条形码不能为空”'),
         cat.node,
         field('属性覆盖', overrides, '优先级高于采集数据和默认值'),
         productInfo(item.product),

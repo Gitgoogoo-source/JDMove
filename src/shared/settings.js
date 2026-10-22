@@ -37,7 +37,7 @@ export const DEFAULT_SETTINGS = Object.freeze({
     maxDetailImages: 30,
     reuploadDetailImages: true,
     fillSkuAttrs: true,
-    // 源商品没有条形码（编辑里也没填）时填到“最小可售单位UPC”的默认值；留空则不填，由发布流程停下提示
+    // 源商品没有条形码（编辑里也没填）时填到商品基本信息和 SKU 表的“商品条形码”、“最小可售单位UPC”的默认值；留空则不填，由发布流程停下提示
     defaultUpc: '6914973039001',
   },
   // 已发布商品的京东今日价检查与批量改价；editUrlTemplate 为店铺商品编辑页地址，商品编号写成 {wareId}
@@ -140,12 +140,12 @@ export function validateSettings(input) {
   return { ok: errors.length === 0, errors, value };
 }
 
-/** 默认 UPC：留空表示不使用；填了但不是 8~14 位数字时恢复默认 */
+/** 默认 UPC：留空表示不使用；填了但不是有效条形码（8~14 位数字、校验位正确）时恢复默认 */
 function validDefaultUpc(input, errors) {
   if (String(input ?? '').trim() === '') return '';
   const code = normalizeUpc(input);
   if (code) return code;
-  errors.push('默认 UPC 应为 8~14 位数字，已恢复默认');
+  errors.push('默认 UPC 应为 8~14 位数字的有效条形码（校验位正确），已恢复默认');
   return DEFAULT_SETTINGS.publish.defaultUpc;
 }
 

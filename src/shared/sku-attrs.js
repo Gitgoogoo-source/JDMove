@@ -5,24 +5,35 @@ export const UPC_LABEL = '最小可售单位UPC';
 const UPC_LABELS = [UPC_LABEL, '商品条形码', 'UPC'];
 const PRICE_LABELS = ['建议零售价', '市场价'];
 const UPC_RE = /^\d{8,14}$/; // EAN-8 / UPC-A / EAN-13 / ITF-14
+// 京东主数据里没有登记条形码的商品会写 '0000000000000' 这类占位值，校验位也能算对，要单独排除
+const SAME_DIGITS_RE = /^(\d)\1+$/;
+
+/** GTIN 校验位：从右往左（不含校验位）奇数位乘 3、偶数位乘 1，补齐到 10 的倍数 */
+function gtinCheckDigitOk(code) {
+  const digits = [...code].map(Number);
+  const check = digits.pop();
+  const sum = digits.reverse().reduce((acc, d, i) => acc + d * (i % 2 === 0 ? 3 : 1), 0);
+  return (10 - (sum % 10)) % 10 === check;
+}
 
 /**
- * 商品条形码：去掉空格、全角转半角，只接受 8~14 位数字；无效时返回空串
+ * 商品条形码：去掉空格、全角转半角，只接受 8~14 位数字、校验位正确、不是全同数字的占位值；无效时返回空串
  * @param {unknown} input
  * @returns {string}
  */
 export function normalizeUpc(input) {
   const s = toHalfWidth(input).replace(/\s+/g, '');
-  return UPC_RE.test(s) ? s : '';
+  return UPC_RE.test(s) && !SAME_DIGITS_RE.test(s) && gtinCheckDigitOk(s) ? s : '';
 }
 
 const UPC_LIST_SEP = /[;；,，|、]/;
 
 /**
- * 采集到的商品条形码。京东主数据 wareInfoReadMap.upc_code 有三种写法：
+ * 采集到的商品条形码。京东主数据 wareInfoReadMap.upc_code 有这几种写法：
  * - 真条形码：'6914973039001'
  * - 多值：'100050587042;6914973600058'（SKU 编号 + 条形码，分号分隔）
  * - 只有 SKU 编号：'100229520979'（商品没有登记条形码）
+ * - 占位值：'0000000000000;100027810038'（没有登记条形码，normalizeUpc 会排除全零）
  * SKU 编号是 12 位数字能通过格式校验，但不是条形码，填进“最小可售单位UPC”会被京麦拒收；
  * 所以按分隔符拆开，跳过等于本商品或同款任一规格 SKU 编号的值，取第一个有效条形码
  * @param {{upc?: unknown, skuId?: unknown, variants?: {skuId?: unknown}[]} | undefined} product
@@ -37,8 +48,18 @@ export function productUpc(product) {
 const fill = (labels, value) => Object.fromEntries(labels.map((l) => [l, value]));
 
 /**
- * 按标签名给出 SKU属性抽屉的填写值。优先级：属性默认值 < 采集参数 < 建议零售价 < 属性覆盖 < 编辑里的 UPC
- * UPC 依次取：upc（编辑里的 / 采集到的）> 属性覆盖里的 UPC > fallbackUpc（设置里的默认 UPC）
+ * 发布时用的商品条形码（SKU 表“商品条形码”列与 SKU属性“最小可售单位UPC”共用）。
+ * 依次取：upc（编辑里的 / 采集到的）> 属性覆盖里的 UPC > fallbackUpc（设置里的默认 UPC）；都没有时返回空串
+ * @param {{upc?: unknown, overrides?: Record<string, string>, fallbackUpc?: unknown}} input
+ * @returns {string}
+ */
+export function resolveUpc({ upc, overrides = {}, fallbackUpc } = {}) {
+  const overrideUpc = UPC_LABELS.map((l) => normalizeUpc(overrides[l])).find(Boolean);
+  return normalizeUpc(upc) || overrideUpc || normalizeUpc(fallbackUpc);
+}
+
+/**
+ * 按标签名给出 SKU属性抽屉的填写值。优先级：属性默认值 < 采集参数 < 建议零售价 < 属性覆盖 < UPC（resolveUpc）
  * @param {{params?: {name: string, value: string}[], defaults?: Record<string, string>, overrides?: Record<string, string>,
  *   retailPrice?: number|null, upc?: string, fallbackUpc?: string}} input
  * @returns {Record<string, string>}
@@ -46,13 +67,9 @@ const fill = (labels, value) => Object.fromEntries(labels.map((l) => [l, value])
 export function skuAttrValueMap({ params = [], defaults = {}, overrides = {}, retailPrice, upc, fallbackUpc } = {}) {
   const fromParams = Object.fromEntries(params.map((p) => [p.name, p.value]));
   const price = retailPrice > 0 ? fill(PRICE_LABELS, String(retailPrice)) : {};
-  const overrideUpc = UPC_LABELS.map((l) => normalizeUpc(overrides[l])).find(Boolean);
-  const code = normalizeUpc(upc) || overrideUpc || normalizeUpc(fallbackUpc);
+  const code = resolveUpc({ upc, overrides, fallbackUpc });
   return { ...defaults, ...fromParams, ...price, ...overrides, ...(code ? fill(UPC_LABELS, code) : {}) };
 }
-
-/** @param {Record<string, string>} map */
-export const hasUpc = (map) => Boolean(normalizeUpc(map?.[UPC_LABEL]));
 
 const rowList = (rows) => `第 ${rows.map((r) => r + 1).join('、')} 行`;
 

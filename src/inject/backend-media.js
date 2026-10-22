@@ -195,6 +195,15 @@
     return true;
   }
 
+  // SKU 表单元格的输入框按所属组件找（京东价 shop-jd-price、库存 ShopInventory、商品条形码 shop-upc-code），
+  // 找不到组件时退回按顺序取前两个“请输入”。条形码列也是“请输入”，排在库存后面，不能按顺序猜
+  const cellInputs = (tr) => Array.from(tr.querySelectorAll('input[placeholder="请输入"]'));
+  const inCell = (re) => (input) => componentChain(input, 3).some((name) => re.test(name));
+  const priceInputOf = (tr) => cellInputs(tr).find(inCell(/jd-?price/i)) || cellInputs(tr)[0];
+  const stockInputOf = (tr) => cellInputs(tr).find(inCell(/inventory/i)) || cellInputs(tr)[1];
+  /** 商品条形码列（只有部分类目有）；没有这一列时返回 null */
+  const upcInputOf = (tr) => cellInputs(tr).find(inCell(/upc/i)) || null;
+
   async function setSkuRows(rows) {
     const enabled = rows.filter((r) => r.enabled);
     if (enabled.length) await batchApply(enabled[0].price, enabled[0].stock);
@@ -205,20 +214,21 @@
       const tr = domRows[idx];
       if (!tr) return;
       tr.scrollIntoView({ block: 'center' });
-      const [priceInput, stockInput] = tr.querySelectorAll('input[placeholder="请输入"]');
-      if (row.enabled) commitInput(priceInput, String(row.price));
-      commitInput(stockInput, String(row.stock));
+      if (row.enabled) commitInput(priceInputOf(tr), String(row.price));
+      commitInput(stockInputOf(tr), String(row.stock));
+      const upcInput = upcInputOf(tr);
+      if (upcInput && row.upc && upcInput.value !== row.upc) commitInput(upcInput, row.upc);
       const sw = tr.querySelector('.jd-switch');
       const on = sw.classList.contains('is-checked');
       if (on !== row.enabled) click(sw);
     });
     await sleep(500);
     const missing = rowsNotWritten(rows);
-    if (missing.length) issues.push(`第 ${missing.map((m) => m.row + 1).join('、')} 行的京东价/库存没有写进去`);
-    return { ok: issues.length === 0, issues, missing, rows: domRows.length };
+    if (missing.length) issues.push(`第 ${missing.map((m) => m.row + 1).join('、')} 行的京东价/库存/商品条形码没有写进去`);
+    const emptyUpc = emptyUpcRows();
+    if (emptyUpc.length) issues.push(`第 ${emptyUpc.map((r) => r + 1).join('、')} 行的商品条形码为空`);
+    return { ok: issues.length === 0, issues, missing, emptyUpc, rows: domRows.length };
   }
-
-  const priceInputOf = (tr) => tr.querySelectorAll('input[placeholder="请输入"]')[0];
   const skuEnabled = (tr) => tr.querySelector('.jd-switch').classList.contains('is-checked');
 
   /**
@@ -256,22 +266,41 @@
     return { ok: failed.length === 0, error: failed.length ? `第 ${failed.join('、')} 个 SKU 的京东价没有写进去` : '', rows: targets.length, before };
   }
 
-  // 重新读取页面：京东价/库存与计划不一致（被页面清空或没写进去）的行
+  // 重新读取页面：京东价/库存/商品条形码与计划不一致（被页面清空或没写进去）的行；
+  // 页面没有条形码列或计划里没有条形码时不核对条形码
   function rowsNotWritten(rows) {
     const domRows = skuRows();
     const same = (input, want) => input.value !== '' && Number(input.value) === Number(want);
     return rows.flatMap((row, idx) => {
       const tr = domRows[idx];
       if (!tr) return [];
-      const [priceInput, stockInput] = tr.querySelectorAll('input[placeholder="请输入"]');
-      const ok = (!row.enabled || same(priceInput, row.price)) && same(stockInput, row.stock);
-      return ok ? [] : [{ row: idx, price: String(row.price), stock: String(row.stock) }];
+      const upcInput = row.upc ? upcInputOf(tr) : null;
+      const upcOk = !upcInput || upcInput.value === row.upc;
+      const ok = (!row.enabled || same(priceInputOf(tr), row.price)) && same(stockInputOf(tr), row.stock) && upcOk;
+      return ok ? [] : [{ row: idx, price: String(row.price), stock: String(row.stock), ...(upcInput ? { upc: row.upc } : {}) }];
     });
   }
 
-  /** 只读：京东价/库存与计划不一致的行（填完 SKU属性后、保存前最后核对一次） */
+  // 商品条形码列（field=plu）是否必填：按 SKU 表列配置判断，读不到配置时不当作必填
+  function upcColumnRequired() {
+    const store = B.pinia && B.pinia() && B.pinia().state.value['publish-product'];
+    const columns = (store && store.saleAttrConfig && store.saleAttrConfig.skuTableColumn) || [];
+    const column = columns.find((c) => c && (c.field === 'plu' || c.componentCode === 'SkuWareUpccode' || c.type === 'ShopUpcCode'));
+    return !!(column && ((column.props && column.props.rule && column.props.rule.required) || (column.validate || []).some((v) => v && v.required)));
+  }
+
+  /** 必填的商品条形码列仍为空的行号（从 0 开始）；计划里没有条形码可填时，用来在保存前停下 */
+  function emptyUpcRows() {
+    if (!upcColumnRequired()) return [];
+    return skuRows().flatMap((tr, idx) => {
+      const input = upcInputOf(tr);
+      return input && !String(input.value).trim() ? [idx] : [];
+    });
+  }
+
+  /** 只读：京东价/库存/商品条形码与计划不一致的行、必填条形码为空的行（填完 SKU属性后、保存前最后核对一次） */
   function checkSkuRows(rows) {
-    return { missing: rowsNotWritten(rows) };
+    return { missing: rowsNotWritten(rows), emptyUpc: emptyUpcRows() };
   }
 
   // SKU属性列（field=skuProps）里的必填项；字段 id 与表单 skus[i].skuProps 的键一致
