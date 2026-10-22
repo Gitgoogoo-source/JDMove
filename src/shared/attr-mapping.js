@@ -141,8 +141,9 @@ function deriveValue(title, product) {
   return { value: domestic ? '国产' : '进口', from: `产地(${origin.value})` };
 }
 
-// 包装/销售单位：源值或标题里的容器字（桶装、6袋装…）按相近程度依次尝试目标选项
+// 包装/销售单位：源值或标题里的容器词（桶装、6袋装、礼盒…）按相近程度依次尝试目标选项
 const CONTAINER_PREFS = {
+  礼盒: ['礼盒', '盒'],
   桶: ['桶', '罐', '瓶'],
   罐: ['罐', '桶', '瓶'],
   听: ['听', '罐', '瓶'],
@@ -158,18 +159,22 @@ const CONTAINER_PREFS = {
   支: ['支'],
   组: ['组'],
 };
-const CONTAINER_CHARS = Object.keys(CONTAINER_PREFS).join('');
-const PACKED_RE = new RegExp(`([${CONTAINER_CHARS}])装`);
-const COUNTED_RE = new RegExp(`\\d+\\s*([${CONTAINER_CHARS}])`);
-const ANY_CONTAINER_RE = new RegExp(`([${CONTAINER_CHARS}])`);
+// 长词在前，“礼盒装”认作礼盒而不是盒
+const CONTAINER_WORDS = Object.keys(CONTAINER_PREFS).sort((a, b) => b.length - a.length).join('|');
+const PACKED_RE = new RegExp(`(${CONTAINER_WORDS})装`);
+const COUNTED_RE = new RegExp(`\\d+\\s*(${CONTAINER_WORDS})`);
+const ANY_CONTAINER_RE = new RegExp(`(${CONTAINER_WORDS})`);
+// “礼盒”本身就是包装形式，标题里不带“装”字也算（“童趣礼盒330g”）
+const GIFT_BOX_RE = /(礼盒)/;
 const CONTAINER_ATTRS = new Set(['包装', '包装形式', '包装方式', '包装类型', '销售单位'].map(normalizeName));
 const OTHER_LABELS = new Set(['其它', '其他']);
 const IMPORT_HINT_RE = /进口|原装/;
 
-/** 找出文本里的容器字；标题只认“X装 / 数字+X”，包装字段本身可以宽松匹配 */
+/** 找出文本里的容器词；标题只认“X装 / 礼盒 / 数字+X”，包装字段本身可以宽松匹配 */
 function containerIn(text, loose = false) {
   const s = String(text ?? '');
-  const m = s.match(PACKED_RE) || s.match(COUNTED_RE) || (loose ? s.match(ANY_CONTAINER_RE) : null);
+  const m =
+    s.match(PACKED_RE) || s.match(GIFT_BOX_RE) || s.match(COUNTED_RE) || (loose ? s.match(ANY_CONTAINER_RE) : null);
   return m ? m[1] : null;
 }
 
@@ -183,7 +188,8 @@ function containerOption(options, container) {
 
 const otherOption = (options) => options.find((o) => OTHER_LABELS.has(normalizeName(o.label))) ?? null;
 
-function guessSaleUnit(product) {
+// 包装、销售单位共用：先看源参数里的包装形式，再看标题、规格值
+function guessContainer(product) {
   const pkg = findSourceValue('包装', product);
   const texts = [
     pkg && { text: pkg.value, loose: true, from: `${pkg.from}(${pkg.value})` },
@@ -210,7 +216,7 @@ function guessOrigin(attr, product) {
 // 兜底推断：只在源数据和用户默认值都没有时使用
 function guessValue(attr, product) {
   const key = normalizeName(attr.title);
-  if (key === normalizeName('销售单位')) return guessSaleUnit(product);
+  if (CONTAINER_ATTRS.has(key)) return guessContainer(product);
   if (groupOf(key)?.includes(normalizeName('产地'))) return guessOrigin(attr, product);
   return null;
 }
@@ -247,7 +253,7 @@ function optionLabel(attr, value) {
   return (attr.options ?? []).find((o) => o.value === value)?.label ?? null;
 }
 
-// 取值顺序：源参数 > 可靠推断（净含量、国产/进口）> 用户默认值 > 兜底推断（销售单位、产地）
+// 取值顺序：源参数 > 可靠推断（净含量、国产/进口）> 用户默认值 > 兜底推断（包装、销售单位、产地）
 function planAttr(attr, product, fallback) {
   const found = findSourceValue(attr.title, product);
   const derived = found ? null : deriveValue(attr.title, product);

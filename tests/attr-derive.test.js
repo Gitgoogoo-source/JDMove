@@ -51,6 +51,48 @@ test('销售单位：从包装形式/标题里的容器字推断', () => {
   assert.equal(labelOf(SALE_UNIT, plan), '袋');
 });
 
+// SKU 100012979704 实际采集到的数据：商品页参数只有保质期、饼干种类，没有包装、销售单位
+const glicoGiftBox = {
+  title: '格力高（Glico）儿童童趣礼盒330g 含贴纸 零食礼盒大礼包零食休闲小吃中秋送礼',
+  brand: { id: 25570, name: '格力高（Glico）' },
+  params: [
+    { name: '保质期', value: '365天' },
+    { name: '饼干种类', value: '其他 夹心饼干 韧性饼干' },
+  ],
+  saleDims: [{ name: '规格', values: ['儿童童趣礼盒（含儿童贴纸）330g'] }],
+};
+
+test('格力高礼盒：源页面没有包装、销售单位时从标题里的“礼盒”推断', () => {
+  const plan = buildPropPlan([PACKAGE, SALE_UNIT], glicoGiftBox);
+  assert.deepEqual(plan.missingRequired, []);
+  assert.equal(labelOf(PACKAGE, plan), '礼盒装');
+  assert.equal(labelOf(SALE_UNIT, plan), '盒');
+  const pkg = plan.report.find((r) => r.field === 'pkg');
+  assert.equal(pkg.status, 'guessed');
+  assert.equal(pkg.source, '标题');
+});
+
+test('包装：没有“礼盒装”选项时，礼盒退到“盒装”', () => {
+  const plain = { ...PACKAGE, options: opts(['罐装', '盒装', '袋装', '其它']) };
+  const plan = buildPropPlan([plain], glicoGiftBox);
+  assert.equal(labelOf(plain, plan), '盒装');
+});
+
+test('包装：从标题里的“X装”推断', () => {
+  const plan = buildPropPlan([PACKAGE], { title: '某品牌曲奇饼干 罐装908g', params: [] });
+  assert.equal(labelOf(PACKAGE, plan), '罐装');
+});
+
+test('包装：标题和规格里都看不出容器时不乱填“其它”，仍提示必填', () => {
+  const plan = buildPropPlan([PACKAGE, SALE_UNIT], { title: '某品牌苏打饼干 400g', params: [], saleDims: [{ name: '规格', values: ['400g'] }] });
+  assert.deepEqual(plan.missingRequired, ['包装', '销售单位']);
+});
+
+test('用户设置的包装默认值优先于标题推断', () => {
+  const plan = buildPropPlan([PACKAGE], glicoGiftBox, { defaults: { 包装: '组合装' } });
+  assert.equal(labelOf(PACKAGE, plan), '组合装');
+});
+
 test('产地：标题里出现选项中的国家时用该国家', () => {
   const plan = buildPropPlan([ORIGIN], { title: '瑞士莲 Lindt 瑞士进口 特醇排装黑巧克力', params: [] });
   assert.equal(labelOf(ORIGIN, plan), '瑞士');
