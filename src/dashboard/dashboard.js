@@ -8,16 +8,19 @@ import { createStorageController } from './storage-ui.js';
 import { openRepriceDialog } from './reprice-dialog.js';
 import { extractSkuIds } from '../shared/url-utils.js';
 import { parseShopInput } from '../shared/shop-url.js';
-import { itemRepo, settingsRepo } from '../lib/chrome-env.js';
-import { EDITED_NOTE, editsEqual, pickRecollect } from '../shared/store.js';
+import { itemRepo, settingsRepo, throttleRepo } from '../lib/chrome-env.js';
+import { EDITED_NOTE, THROTTLE_KEY, editsEqual, pickRecollect } from '../shared/store.js';
 import { PUBLISH_ACTIONS, REPRICE_ACTIONS, validateSettings } from '../shared/settings.js';
 import { ALERT_FOLDER_KEY, alertItems, priceStatus, checkedToday } from '../shared/price-watch.js';
 import { groupPublishedByBrand, filterFolders, isArchived, taskItems } from '../shared/brand-folders.js';
 import { createQueueRunner } from '../lib/queue.js';
+import { cooldownNotice } from '../shared/publish-throttle.js';
 
 const MAX_LOG = 400;
 let items = [];
 let settings = null;
+// 最近一次京麦提交接口限流的记录（冷却期内发布前提醒）
+let throttle = null;
 let selected = new Set();
 let logLines = [];
 let lastShopUrl = '';
@@ -30,6 +33,7 @@ const RESUME_HINTS = {
   shop: '处理完成后重新点击“抓取店铺”即可（已加入的商品不会重复添加）。',
   pricecheck: '处理完成后重新点击“检查京东今日价”即可继续（今天已检查过的商品会自动跳过）。',
   reprice: '在工作窗口重新登录商家后台后，重新点击“批量改价”即可继续。',
+  publish: '没有提交成功的商品仍在任务列表里，等京麦恢复后重新点击“发布选中”即可继续。',
 };
 const ALERT_FOLDER_NAME = '价格倒挂';
 const ALERT_EMPTY_TEXT = '没有价格倒挂的商品。每天点击“检查京东今日价”更新价格后，京东今日价高于店铺售价的商品会列在这里。';
@@ -37,6 +41,8 @@ const ALERT_EMPTY_TEXT = '没有价格倒挂的商品。每天点击“检查京
 const BIG_CHANGE_RATIO = 0.3;
 // 检查一个商品大约需要的打开页面时间（秒），用于估算总耗时
 const PRICE_CHECK_PAGE_SEC = 4;
+// 限流冷却横幅的刷新间隔：冷却结束后自动消失
+const COOLDOWN_REFRESH_MS = 60e3;
 
 function appendLog(line) {
   logLines = [...logLines, `${new Date().toLocaleTimeString()} ${line}`].slice(-MAX_LOG);
@@ -97,8 +103,17 @@ function renderState() {
   $('#btnStorage').title = storage.title();
   $('#btnStop').disabled = !st.running;
   const banner = $('#pauseBanner');
-  banner.hidden = !st.pauseReason;
-  banner.textContent = st.pauseReason ? `任务已暂停：${st.pauseReason}。${RESUME_HINTS[st.pausedMode] ?? RESUME_HINTS.collect}` : '';
+  const cooling = st.running ? '' : cooldownNotice(throttle, Date.now());
+  banner.hidden = !st.pauseReason && !cooling;
+  banner.textContent = st.pauseReason ? `任务已暂停：${st.pauseReason}。${RESUME_HINTS[st.pausedMode] ?? RESUME_HINTS.collect}` : cooling;
+}
+
+/** 冷却期内发布前确认；不在冷却期或用户确认继续时返回 true，取消时写日志 */
+function confirmPublishDuringCooldown() {
+  const notice = cooldownNotice(throttle, Date.now());
+  if (!notice || confirm(`${notice}\n\n冷却期内京麦多半仍会拒绝提交。仍要现在发布吗？`)) return true;
+  appendLog('已取消发布：京麦限流冷却中');
+  return false;
 }
 
 function renderArchive() {
@@ -154,7 +169,8 @@ function render() {
         onRemove: (id) => deleteItems([id]),
         onRetry: (id) => {
           const item = items.find((i) => i.id === id);
-          return item?.product ? runner.publish([id]) : runner.collect([id]);
+          if (!item?.product) return runner.collect([id]);
+          return confirmPublishDuringCooldown() && runner.publish([id]);
         },
         onRecollect: handleRecollect,
       }),
@@ -199,7 +215,7 @@ async function handleRecollectSelected() {
 }
 
 async function reload() {
-  [items, settings] = await Promise.all([itemRepo.findAll(), settingsRepo.get()]);
+  [items, settings, throttle] = await Promise.all([itemRepo.findAll(), settingsRepo.get(), throttleRepo.get()]);
   // 发布成功的商品会移出任务列表：同时取消它的勾选，避免“删除选中”等操作作用到看不见的条目
   const visible = new Set(visibleItems().map((i) => i.id));
   selected = new Set([...selected].filter((id) => visible.has(id)));
@@ -493,6 +509,7 @@ function bind() {
   $('#btnPublish').addEventListener('click', () => {
     const ids = targetIds((i) => i.product && ['collected', 'failed', 'need_action'].includes(i.status));
     if (!ids.length) return appendLog('没有可发布的条目（需先采集；已发布的商品在“已发布”页，需要时可用行内“重新发布”）');
+    if (!confirmPublishDuringCooldown()) return;
     appendLog(`开始发布 ${ids.length} 条（填写完成后：${PUBLISH_ACTIONS[settings.publish.action] ?? settings.publish.action}）`);
     runner.publish(ids);
   });
@@ -501,7 +518,7 @@ function bind() {
     await deleteItems([...selected]);
   });
   chrome.storage.onChanged.addListener((changes, area) => {
-    if (area === 'local' && (changes.items || changes.settings)) reload();
+    if (area === 'local' && (changes.items || changes.settings || changes[THROTTLE_KEY])) reload();
   });
   window.addEventListener('beforeunload', (e) => {
     if (runner.getState().running) e.preventDefault();
@@ -511,3 +528,4 @@ function bind() {
 bind();
 reload();
 storage.init();
+setInterval(renderState, COOLDOWN_REFRESH_MS);

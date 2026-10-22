@@ -559,17 +559,36 @@
   const SAVE_API_RE = /saveproduct/i;
   // 返回了编号但同时标着失败（success:false、4xx/5xx 错误码）不算提交成功
   const FAILED_BODY_RE = /"success"\s*:\s*false|"code"\s*:\s*"?[45]\d\d\b/;
+  // 提交接口的原始返回带回扩展侧判断（如限流 bCode 10003）；只带回前 2000 个字符
+  const SAVE_RESPONSE_MAX = 2000;
+  // 提交接口已返回失败时，再等这么久让页面弹出提示，然后结束（不等满超时）
+  const FAILED_SAVE_GRACE_MS = 1000;
+  // 提交接口明确失败（有失败标记或业务错误码 bCode，如限流的 bCode 10003）时的错误文字；看不出失败时为 null。
+  // 成功返回的写法不止一种（code 200、success:true……），所以只认明确的失败，按完整返回判断
+  function saveFailure(text) {
+    let data = null;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      /* 非 JSON 返回只看失败标记 */
+    }
+    const obj = data && typeof data === 'object' ? data : {};
+    const failed = FAILED_BODY_RE.test(text) || (obj.bCode != null && obj.bCode !== '');
+    return failed ? String(obj.msg || obj.message || '') : null;
+  }
 
   // 提交接口的返回里带店铺商品编号：点击期间临时拦截 XHR/fetch 的返回，记下其中的编号；
   // productId 只认提交接口的（其他接口里的 productId 可能是标准产品编号）。
   // “提交并上架”成功后京麦不弹提示，100ms 后直接整页跳到成功页，所以提交接口返回编号就算提交成功（saved）。
-  // 结束后 restore() 恢复原来的 XHR/fetch，不长期改动页面
+  // 结束后 restore() 恢复原来的 XHR/fetch，不长期改动页面。responses：提交接口的每次原始返回
   function installWareIdCapture() {
     const captured = [];
     const saved = [];
+    const responses = [];
     const restores = [];
     const record = (text, url) => {
       const isSave = SAVE_API_RE.test(String(url || ''));
+      if (isSave) responses.push({ text: String(text).slice(0, SAVE_RESPONSE_MAX), at: Date.now(), failure: saveFailure(String(text)) });
       const id = idField(text, 'wareId') || (isSave ? idField(text, 'productId') : '');
       if (id) captured.push({ id, at: Date.now() });
       if (id && isSave && !FAILED_BODY_RE.test(String(text))) saved.push({ id, at: Date.now() });
@@ -598,7 +617,7 @@
         });
       };
     }
-    return { captured, saved, restore: () => [...restores].reverse().forEach((fn) => fn()) };
+    return { captured, saved, responses, restore: () => [...restores].reverse().forEach((fn) => fn()) };
   }
 
   async function runAction(action, opts) {
@@ -612,7 +631,7 @@
 
   // 只认点击之后新出现的提示：页面上可能还留着“批量设置成功”之类的提示，
   // 之前把它当成保存结果，误报成功并立刻关掉标签页，保存请求根本没发出去
-  async function clickAndWatch(action, { timeoutMs = 20000 } = {}, capture = { captured: [], saved: [] }) {
+  async function clickAndWatch(action, { timeoutMs = 20000 } = {}, capture = { captured: [], saved: [], responses: [] }) {
     const labels = ACTION_BUTTONS[action];
     if (!labels) return { ok: true, skipped: true };
     const btn = labels.map((l) => buttonByText(l)).find(Boolean);
@@ -658,13 +677,18 @@
       }
       if (location.href !== startUrl) break;
       if ([...seen].some((m) => SUCCESS_POPUP_RE.test(m) || /失败|错误|请/.test(m))) break;
+      // 提交接口已经返回失败（如限流）：页面不一定弹提示，稍等一下就结束
+      const failedSave = action !== 'draft' && capture.responses.find((r) => r.at >= clickedAt && r.failure != null);
+      if (failedSave && Date.now() - failedSave.at >= FAILED_SAVE_GRACE_MS) break;
       await sleep(100);
     }
     const msgs = [...seen];
     if (submitted && !msgs.some((m) => SUCCESS_POPUP_RE.test(m))) msgs.push('商品提交成功');
     const errors = B.collectErrors();
     const success = submitted || popupSuccess || msgs.some((m) => SUCCESS_POPUP_RE.test(m)) || (location.href !== startUrl && !/popPublish/.test(location.href));
-    if (!success && !msgs.length && !errors.length) msgs.push(`点击“${label}”后没有看到保存结果`);
+    // 页面没弹提示时用提交接口返回的错误文字
+    const failure = capture.responses.filter((r) => r.at >= clickedAt && r.failure).map((r) => r.failure).pop();
+    if (!success && !msgs.length && !errors.length) msgs.push(failure || `点击“${label}”后没有看到保存结果`);
     const draftIds = new Set(action === 'draft' ? capture.saved.map((c) => c.id) : []);
     const wareIds = capture.captured.filter((c) => c.at >= clickedAt && !draftIds.has(c.id)).map((c) => c.id);
     return {
@@ -674,6 +698,7 @@
       confirmText: popupSuccess ? '' : confirmText,
       url: location.href,
       wareIds,
+      saveResponses: capture.responses.filter((r) => r.at >= clickedAt).map((r) => r.text),
     };
   }
 

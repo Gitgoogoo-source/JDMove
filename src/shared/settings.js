@@ -39,6 +39,8 @@ export const DEFAULT_SETTINGS = Object.freeze({
     fillSkuAttrs: true,
     // 源商品没有条形码（编辑里也没填）时填到商品基本信息和 SKU 表的“商品条形码”、“最小可售单位UPC”的默认值；留空则不填，由发布流程停下提示
     defaultUpc: '6914973039001',
+    // 京麦提交接口限流（操作过于频繁）后建议等待的分钟数：冷却期内点“发布选中”会先确认；0 = 不提醒
+    throttleCooldownMin: 60,
   },
   // 已发布商品的京东今日价检查与批量改价；editUrlTemplate 为店铺商品编辑页地址，商品编号写成 {wareId}
   priceWatch: { minDelaySec: 3, maxDelaySec: 6, alertMargin: 0, editUrlTemplate: '', repriceAction: 'auto' },
@@ -133,6 +135,7 @@ export function validateSettings(input) {
       reuploadDetailImages: Boolean(v.publish.reuploadDetailImages),
       fillSkuAttrs: Boolean(v.publish.fillSkuAttrs),
       defaultUpc: validDefaultUpc(v.publish.defaultUpc, errors),
+      throttleCooldownMin: num(v.publish.throttleCooldownMin, d.publish.throttleCooldownMin, { min: 0, max: 1440 }, '限流冷却时间'),
     },
     priceWatch,
     categoryMap: Array.isArray(v.categoryMap) ? v.categoryMap : [],

@@ -2,7 +2,8 @@
 import { validateSettings } from '../shared/settings.js';
 import { collectFailurePatch, publishResultPatch } from '../shared/store.js';
 import { priceCheckPatch, priceStatus, repricePatch } from '../shared/price-watch.js';
-import { itemRepo, settingsRepo, sleep, randomBetween } from './chrome-env.js';
+import { throttleRecord } from '../shared/publish-throttle.js';
+import { itemRepo, settingsRepo, throttleRepo, sleep, randomBetween } from './chrome-env.js';
 import { collectUrl, checkPriceUrl, closeCollectTab } from './collector.js';
 import { publishItem } from './publisher.js';
 import { repriceItem } from './repricer.js';
@@ -100,6 +101,13 @@ export function createQueueRunner({ onChange, onLog, saveLocal = async () => nul
     const patch = publishResultPatch(item, res);
     await itemRepo.update(item.id, patch);
     log(`结果：${res.message}${patch.publishedAt ? '（已移到“已发布”）' : ''}`);
+    // 京麦限流时店铺暂时不能提交任何新商品：整批暂停，记下建议的冷却时间
+    if (res.status === 'throttle') {
+      await throttleRepo.set(throttleRecord({ message: res.message, now: Date.now(), cooldownMin: settings.publish.throttleCooldownMin }));
+      setState({ pauseReason: res.message, pausedMode: 'publish' });
+      return 'pause';
+    }
+    if (res.status === 'published' && (await throttleRepo.get())) await throttleRepo.clear();
     return res.message?.includes('重新登录') ? 'pause' : 'ok';
   }
 

@@ -8,6 +8,7 @@ import { startImagePrep } from './image-prep.js';
 import { createStopwatch } from '../shared/stopwatch.js';
 import { parseWareId } from '../shared/price-watch.js';
 import { describeSkuAttrResults, formatMissingRows, missingSkuAttrs, skuAttrStop } from '../shared/sku-attrs.js';
+import { detectSaveThrottle } from '../shared/publish-throttle.js';
 
 const LOGIN_MSG = '商家后台需要重新登录';
 const DETAIL_CHUNK = 6;
@@ -211,8 +212,8 @@ async function submitAction(tabId, action, landTimeoutMs) {
  * 发布单个条目
  * @param {{imageMakers?: {main?: Function, detail?: Function}, landTimeoutMs?: number}} [deps]
  *   imageMakers：图片处理函数；landTimeoutMs：提交后等待跳到成功页的时间（测试时替换）
- * @returns {Promise<{status: 'published'|'filled'|'need_action'|'failed', message: string, target?: object, tabId?: number,
- *   price?: number, wareId?: string}>} price：发布的售价；wareId：店铺商品编号（拿得到时）
+ * @returns {Promise<{status: 'published'|'filled'|'need_action'|'failed'|'throttle', message: string, target?: object, tabId?: number,
+ *   price?: number, wareId?: string}>} price：发布的售价；wareId：店铺商品编号（拿得到时）；throttle：京麦提交接口限流
  */
 export async function publishItem(item, settings, log, { imageMakers, landTimeoutMs = LAND_TIMEOUT_MS } = {}) {
   if (!item.product) return { status: 'need_action', message: '尚未采集' };
@@ -296,6 +297,13 @@ async function publishInTab(tab, item, settings, log, preset, ctx) {
     if (action === 'none') return { status: 'filled', message: '已填写完成，请在工作窗口中检查后手动提交', target, tabId: tab.id };
     const result = await submitAction(tab.id, action, ctx.landTimeoutMs);
     timer.lap('保存');
+    // 京麦限流：页面上没有可处理的东西，不保留标签页（留着京麦会每 2 分钟自动存一份草稿）
+    const throttle =
+      !result?.ok && detectSaveThrottle({ responses: result?.saveResponses, messages: result?.messages, confirmText: result?.confirmText });
+    if (throttle) {
+      log(`${throttle.message}，已关闭发布页`);
+      return { status: 'throttle', message: throttle.message, target };
+    }
     if (result?.confirmText) return { status: 'need_action', message: `页面弹出确认：${result.confirmText}`, target, tabId: tab.id };
     if (!result?.ok) {
       const detail = [result?.error, ...(result?.errors ?? []), ...(result?.messages ?? [])].filter(Boolean).join('；');

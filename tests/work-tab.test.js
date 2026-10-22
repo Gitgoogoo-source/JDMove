@@ -604,3 +604,41 @@ test('publishItem: 提交时脚本出错且页面没有跳到成功页，按失�
   assert.match(res.message, /removed/);
   assert.ok(res.tabId);
 });
+
+const THROTTLED_SAVE =
+  '{"msg":"操作过于频繁，请稍后再试 2026-10-23 00:21:36","code":201,"dsm-trace-id":"5513108.41661.17926860967607905","bCode":"10003"}';
+
+test('publishItem: 京麦提交接口限流（bCode 10003）时返回 throttle 并关闭发布页，不留着自动存草稿', async () => {
+  const { backend } = publishBackend([skuOk, skuOk], {
+    runAction: { ok: false, messages: ['操作过于频繁，请稍后再试 2026-10-23 00:21:36'], errors: [], wareIds: [], saveResponses: [THROTTLED_SAVE] },
+  });
+  const fake = installFakeChrome({ backend });
+  const lines = [];
+  const res = await publishItem(fullItem, SETTINGS, (l) => lines.push(l));
+  assert.equal(res.status, 'throttle');
+  assert.match(res.message, /bCode 10003/);
+  assert.match(res.message, /5513108\.41661\.17926860967607905/);
+  assert.equal(res.tabId, undefined, '不保留标签页');
+  assert.ok(fake.ops().includes('tabs.remove'), '关闭发布页');
+  assert.ok(lines.some((l) => /限流/.test(l) && /关闭/.test(l)), lines.join('\n'));
+});
+
+test('publishItem: 只有页面提示“操作过于频繁”、没拿到接口返回时也按限流处理', async () => {
+  const { backend } = publishBackend([skuOk, skuOk], {
+    runAction: { ok: false, messages: ['操作过于频繁，请稍后再试 2026-10-22 23:49:54'], errors: [], wareIds: [] },
+  });
+  const fake = installFakeChrome({ backend });
+  const res = await publishItem(fullItem, SETTINGS, () => {});
+  assert.equal(res.status, 'throttle');
+  assert.ok(fake.ops().includes('tabs.remove'));
+});
+
+test('publishItem: 其他提交失败仍按失败处理并保留页面', async () => {
+  const { backend } = publishBackend([skuOk, skuOk], {
+    runAction: { ok: false, messages: ['类目需缴纳保证金'], errors: [], wareIds: [], saveResponses: ['{"code":500,"msg":"类目需缴纳保证金"}'] },
+  });
+  installFakeChrome({ backend });
+  const res = await publishItem(fullItem, SETTINGS, () => {});
+  assert.equal(res.status, 'failed');
+  assert.ok(res.tabId);
+});

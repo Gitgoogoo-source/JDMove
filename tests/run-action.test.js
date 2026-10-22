@@ -194,3 +194,85 @@ test('runAction: 保存草稿时提交接口返回的编号不当作店铺编号
   assert.equal(buttons[0].clicks, 1, '仍点掉保存成功弹窗');
   assert.deepEqual([...res.wareIds], []);
 });
+
+const THROTTLED_BODY =
+  '{"msg":"操作过于频繁，请稍后再试 2026-10-23 00:21:36","code":201,"dsm-trace-id":"5513108.41661.17926860967607905","bCode":"10003"}';
+const SAVE_NEW_URL = 'https://sff.jd.com/api?v=1.0&api=dsm.productbff.product.warePublishPageSaveProductService.saveProductNew';
+
+test('runAction: 带回点击后提交接口的原始返回（限流时 bCode 10003），不算成功', async () => {
+  const Xhr = fakeXhrClass(THROTTLED_BODY, SAVE_NEW_URL);
+  const { B } = loadPage('', [], '提交并上架', {
+    showPopup: false,
+    globals: { XMLHttpRequest: Xhr },
+    afterClick: () => new Xhr().send(),
+  });
+  const res = await B.runAction('submit_on', { timeoutMs: 50 });
+  assert.equal(res.ok, false);
+  assert.deepEqual([...res.saveResponses], [THROTTLED_BODY]);
+});
+
+test('runAction: 提交接口已返回失败、页面没有弹提示时，不再等满超时', async () => {
+  const Xhr = fakeXhrClass(THROTTLED_BODY, SAVE_NEW_URL);
+  const { B } = loadPage('', [], '提交并上架', {
+    showPopup: false,
+    globals: { XMLHttpRequest: Xhr },
+    afterClick: () => new Xhr().send(),
+  });
+  const started = Date.now();
+  const res = await B.runAction('submit_on', { timeoutMs: 8000 });
+  assert.equal(res.ok, false);
+  assert.ok(Date.now() - started < 4000, `等了 ${Date.now() - started}ms`);
+});
+
+test('runAction: 其他接口的返回不算提交接口的返回', async () => {
+  const Xhr = fakeXhrClass('{"code":200,"msg":"成功"}');
+  const { B } = loadPage('', [], '提交并上架', {
+    showPopup: false,
+    globals: { XMLHttpRequest: Xhr },
+    afterClick: () => new Xhr().send(),
+  });
+  const res = await B.runAction('submit_on', { timeoutMs: 50 });
+  assert.deepEqual([...res.saveResponses], []);
+});
+
+test('runAction: 提交接口返回成功但没带编号时，仍等页面的“保存成功”提示（改价编辑页）', async () => {
+  const Xhr = fakeXhrClass('{"code":200,"msg":"成功","data":true}', SAVE_NEW_URL);
+  let page;
+  page = loadPage('', [], '保存', {
+    showPopup: false,
+    globals: { XMLHttpRequest: Xhr },
+    afterClick: () => {
+      new Xhr().send();
+      setTimeout(() => page.state.toasts.push('保存成功'), 1500);
+    },
+  });
+  const res = await page.B.runAction('auto', { timeoutMs: 5000 });
+  assert.equal(res.ok, true);
+});
+
+test('runAction: 提交接口的成功返回不带 code 200 时（如 success:true），仍等页面提示，不提前结束', async () => {
+  const Xhr = fakeXhrClass('{"success":true,"msg":"成功","data":true}', SAVE_NEW_URL);
+  let page;
+  page = loadPage('', [], '保存', {
+    showPopup: false,
+    globals: { XMLHttpRequest: Xhr },
+    afterClick: () => {
+      new Xhr().send();
+      setTimeout(() => page.state.toasts.push('保存成功'), 1500);
+    },
+  });
+  const res = await page.B.runAction('auto', { timeoutMs: 5000 });
+  assert.equal(res.ok, true);
+});
+
+test('runAction: 提交接口返回失败、页面没弹提示时，把接口返回的错误文字带回来', async () => {
+  const Xhr = fakeXhrClass('{"code":500,"msg":"类目需缴纳保证金"}', SAVE_NEW_URL);
+  const { B } = loadPage('', [], '提交并上架', {
+    showPopup: false,
+    globals: { XMLHttpRequest: Xhr },
+    afterClick: () => new Xhr().send(),
+  });
+  const res = await B.runAction('submit_on', { timeoutMs: 5000 });
+  assert.equal(res.ok, false);
+  assert.ok(res.messages.includes('类目需缴纳保证金'), res.messages.join());
+});

@@ -8,6 +8,8 @@ const ITEMS_KEY = 'items';
 const SETTINGS_KEY = 'settings';
 // 发布成功过的 SKU（skuId → 发布时间）：任务删除后仍保留，重新添加链接/抓取店铺时据此去重
 const PUBLISHED_KEY = 'publishedSkus';
+// 最近一次京麦提交接口限流（被拒时间、建议冷却到的时间）
+export const THROTTLE_KEY = 'publishThrottle';
 
 /**
  * @typedef {'pending'|'collecting'|'collected'|'publishing'|'published'|'failed'|'need_action'} ItemStatus
@@ -81,7 +83,10 @@ export const editsEqual = (a, b) => JSON.stringify(canonical(a ?? {}) ?? {}) ===
  * @param {{status: string, message: string, target?: object, price?: number, wareId?: string}} res publishItem 的结果
  */
 export function publishResultPatch(item, res, now = Date.now()) {
-  const status = res.status === 'filled' ? 'need_action' : res.status;
+  // 京麦限流时没有提交成功：回到“已采集”，冷却后点“发布选中”会重新发布；
+  // “已发布”页里重新发布的商品按失败处理，仍留在“已发布”页
+  const throttled = isArchived(item) ? 'failed' : 'collected';
+  const status = { filled: 'need_action', throttle: throttled }[res.status] ?? res.status;
   const patch = { status, message: res.message, target: res.target ?? item.target };
   if (status !== 'published') return patch;
   const price = res.price > 0 ? { salePrice: res.price } : {};
@@ -296,5 +301,18 @@ export function createSettingsRepository(storage) {
       await storage.set(SETTINGS_KEY, merged);
       return merged;
     },
+  };
+}
+
+/**
+ * 京麦提交接口限流的记录（throttleRecord）：冷却期内发布前提醒，之后发布成功时清除
+ * @returns {{get: () => Promise<{at: number, until: number, message: string} | null>, set: (record: object) => Promise<void>,
+ *   clear: () => Promise<void>}}
+ */
+export function createThrottleRepository(storage) {
+  return {
+    get: async () => (await storage.get(THROTTLE_KEY)) ?? null,
+    set: (record) => storage.set(THROTTLE_KEY, record),
+    clear: () => storage.set(THROTTLE_KEY, null),
   };
 }

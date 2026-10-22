@@ -14,6 +14,7 @@ export function installFakeChrome({ resolveUrl = (u) => u, backend = () => undef
   const tabs = new Map();
   const calls = [];
   const sessionStore = {};
+  const localStore = {};
   const windows = new Map([[currentWindowId, { id: currentWindowId, type: 'normal', incognito: false, state: 'normal' }]]);
   let nextTabId = 100;
   let nextWindowId = 500;
@@ -44,7 +45,10 @@ export function installFakeChrome({ resolveUrl = (u) => u, backend = () => undef
           delete sessionStore[key];
         },
       },
-      local: { get: async () => ({}), set: async () => {} },
+      local: {
+        get: async (key) => (key in localStore ? { [key]: structuredClone(localStore[key]) } : {}),
+        set: async (obj) => Object.assign(localStore, structuredClone(obj)),
+      },
     },
     extension: { isAllowedIncognitoAccess: async () => true },
     windows: {
@@ -116,6 +120,8 @@ export function installFakeChrome({ resolveUrl = (u) => u, backend = () => undef
     tabs,
     ops: () => calls.map((c) => c.op),
     windows,
+    /** chrome.storage.local 的内容（可直接预置任务条目、设置） */
+    localStore,
     /** 把已有标签页设为某个地址且已加载完成（模拟停留在某页） */
     seedTab: (tab) => tabs.set(tab.id, { status: 'complete', incognito: false, windowId: currentWindowId, ...tab }),
     /** 模拟一个已存在的窗口（如被最小化的无痕采集窗口） */
