@@ -141,9 +141,12 @@ function deriveValue(title, product) {
   return { value: domestic ? '国产' : '进口', from: `产地(${origin.value})` };
 }
 
-// 包装/销售单位：源值或标题里的容器词（桶装、6袋装、礼盒…）按相近程度依次尝试目标选项
+// 包装/销售单位：源值或标题里的容器词（桶装、6袋装、礼盒、组合装…）按相近程度依次尝试目标选项
 const CONTAINER_PREFS = {
   礼盒: ['礼盒', '盒'],
+  礼包: ['礼包', '袋', '包', '礼盒', '盒'],
+  组合: ['组合', '组', '套'],
+  混合: ['组合', '混合', '组', '套'],
   桶: ['桶', '罐', '瓶'],
   罐: ['罐', '桶', '瓶'],
   听: ['听', '罐', '瓶'],
@@ -159,24 +162,25 @@ const CONTAINER_PREFS = {
   支: ['支'],
   组: ['组'],
 };
-// 长词在前，“礼盒装”认作礼盒而不是盒
+// 长词在前，“礼盒装”认作礼盒而不是盒，“组合装”认作组合而不是组
 const CONTAINER_WORDS = Object.keys(CONTAINER_PREFS).sort((a, b) => b.length - a.length).join('|');
-const PACKED_RE = new RegExp(`(${CONTAINER_WORDS})装`);
-const COUNTED_RE = new RegExp(`\\d+\\s*(${CONTAINER_WORDS})`);
-const ANY_CONTAINER_RE = new RegExp(`(${CONTAINER_WORDS})`);
-// “礼盒”本身就是包装形式，标题里不带“装”字也算（“童趣礼盒330g”）
-const GIFT_BOX_RE = /(礼盒)/;
+const PACKED_RE = new RegExp(`(${CONTAINER_WORDS})装`, 'g');
+const COUNTED_RE = new RegExp(`\\d+\\s*(${CONTAINER_WORDS})`, 'g');
+const ANY_CONTAINER_RE = new RegExp(`(${CONTAINER_WORDS})`, 'g');
+// “礼盒/礼包”本身就是包装形式，标题里不带“装”字也算（“童趣礼盒330g”“零食大礼包”）
+const GIFT_RE = /(礼盒|礼包)/g;
 const CONTAINER_ATTRS = new Set(['包装', '包装形式', '包装方式', '包装类型', '销售单位'].map(normalizeName));
 const OTHER_LABELS = new Set(['其它', '其他']);
 const IMPORT_HINT_RE = /进口|原装/;
 
-/** 找出文本里的容器词；标题只认“X装 / 礼盒 / 数字+X”，包装字段本身可以宽松匹配 */
-function containerIn(text, loose = false) {
+/** 找出文本里的全部容器词，“X装” > 礼盒/礼包 > “数字+X”；标题只认这几种写法，包装字段本身可以宽松匹配 */
+function containersIn(text, loose = false) {
   const s = String(text ?? '');
-  const m =
-    s.match(PACKED_RE) || s.match(GIFT_BOX_RE) || s.match(COUNTED_RE) || (loose ? s.match(ANY_CONTAINER_RE) : null);
-  return m ? m[1] : null;
+  const patterns = [PACKED_RE, GIFT_RE, COUNTED_RE, ...(loose ? [ANY_CONTAINER_RE] : [])];
+  return [...new Set(patterns.flatMap((re) => [...s.matchAll(re)].map((m) => m[1])))];
 }
+
+const containerIn = (text, loose = false) => containersIn(text, loose)[0] ?? null;
 
 function containerOption(options, container) {
   for (const c of CONTAINER_PREFS[container] ?? []) {
@@ -188,19 +192,19 @@ function containerOption(options, container) {
 
 const otherOption = (options) => options.find((o) => OTHER_LABELS.has(normalizeName(o.label))) ?? null;
 
-// 包装、销售单位共用：先看源参数里的包装形式，再看标题、规格值
-function guessContainer(product) {
+// 包装、销售单位共用：先看源参数里的包装形式，再看标题、规格值，最后看类目名（“饼干礼盒/礼包”）。
+// 返回全部候选，第一个在目标选项里找不到对应项时（类目没有“组合装”）再试下一个
+function guessContainers(product) {
   const pkg = findSourceValue('包装', product);
   const texts = [
     pkg && { text: pkg.value, loose: true, from: `${pkg.from}(${pkg.value})` },
     { text: product?.title, loose: false, from: '标题' },
     ...(product?.saleDims ?? []).flatMap((d) => d.values ?? []).map((v) => ({ text: v, loose: false, from: `规格(${v})` })),
+    product?.leafCategory && { text: product.leafCategory, loose: false, from: `类目(${product.leafCategory})` },
   ].filter(Boolean);
-  for (const { text, loose, from } of texts) {
-    const c = containerIn(text, loose);
-    if (c) return { value: c, from };
-  }
-  return null;
+  return texts
+    .flatMap(({ text, loose, from }) => containersIn(text, loose).map((value) => ({ value, from })))
+    .filter((c, i, all) => all.findIndex((x) => x.value === c.value) === i);
 }
 
 /** 源页面没有产地时：标题/参数里出现选项中的国家就用它；有“进口”字样但看不出国家则不填；否则按国产处理 */
@@ -213,12 +217,12 @@ function guessOrigin(attr, product) {
   return { value: '中国大陆', from: '源页面无产地，按国产处理' };
 }
 
-// 兜底推断：只在源数据和用户默认值都没有时使用
-function guessValue(attr, product) {
+// 兜底推断：只在源数据和用户默认值都没有时使用；按可信度排好的候选列表
+function guessValues(attr, product) {
   const key = normalizeName(attr.title);
-  if (CONTAINER_ATTRS.has(key)) return guessContainer(product);
-  if (groupOf(key)?.includes(normalizeName('产地'))) return guessOrigin(attr, product);
-  return null;
+  if (CONTAINER_ATTRS.has(key)) return guessContainers(product);
+  if (groupOf(key)?.includes(normalizeName('产地'))) return [guessOrigin(attr, product)].filter(Boolean);
+  return [];
 }
 
 function convertSelect(attr, raw, lenient) {
@@ -257,12 +261,12 @@ function optionLabel(attr, value) {
 function planAttr(attr, product, fallback) {
   const found = findSourceValue(attr.title, product);
   const derived = found ? null : deriveValue(attr.title, product);
-  const guessed = found ? null : guessValue(attr, product);
+  const guessed = found ? [] : guessValues(attr, product);
   const steps = [
     found && { ...found, status: 'matched', lenient: true },
     derived && { ...derived, status: 'derived' },
     fallback != null && fallback !== '' && { value: fallback, from: '属性默认值', status: 'default' },
-    guessed && { ...guessed, status: 'guessed' },
+    ...guessed.map((g) => ({ ...g, status: 'guessed' })),
   ].filter(Boolean);
   for (const step of steps) {
     const value = convertForAttr(attr, step.value, step);

@@ -78,6 +78,49 @@ test('包装：没有“礼盒装”选项时，礼盒退到“盒装”', () =>
   assert.equal(labelOf(plain, plan), '盒装');
 });
 
+// SKU 100064560914 实际采集到的数据：标题写“组合装…大礼包”、规格写“混合装”，参数里没有包装、销售单位
+const glicoCombo = {
+  title: '格力高（Glico）(glico)百醇百奇百力滋系列组合装237g 休闲零食大礼包儿童送礼',
+  brand: { id: 25570, name: '格力高（Glico）' },
+  leafCategory: '饼干礼盒/礼包',
+  params: [
+    { name: '保质期', value: '365天' },
+    { name: '饼干种类', value: '夹心饼干 韧性饼干' },
+  ],
+  saleDims: [{ name: '规格', values: ['混合系列混合装237g'] }],
+};
+
+test('格力高组合装：从标题里的“组合装”推断包装、销售单位，不再阻塞发布', () => {
+  const plan = buildPropPlan([PACKAGE, SALE_UNIT], glicoCombo);
+  assert.deepEqual(plan.missingRequired, []);
+  assert.equal(labelOf(PACKAGE, plan), '组合装');
+  assert.equal(labelOf(SALE_UNIT, plan), '组');
+  const pkg = plan.report.find((r) => r.field === 'pkg');
+  assert.equal(pkg.status, 'guessed');
+  assert.equal(pkg.source, '标题');
+});
+
+test('包装：第一个容器词没有对应选项时，试标题里的下一个（组合装 → 大礼包）', () => {
+  const plain = { ...PACKAGE, options: opts(['罐装', '盒装', '袋装', '其它']) };
+  const unit = { ...SALE_UNIT, options: opts(['块', '板', '条', '瓶', '盒', '袋']) };
+  const plan = buildPropPlan([plain, unit], glicoCombo);
+  assert.deepEqual(plan.missingRequired, []);
+  assert.equal(labelOf(plain, plan), '袋装');
+  assert.equal(labelOf(unit, plan), '袋');
+});
+
+test('销售单位：规格里的“混合装”按组合装处理', () => {
+  const plan = buildPropPlan([SALE_UNIT], { title: '某品牌饼干 237g', params: [], saleDims: [{ name: '规格', values: ['混合装237g'] }] });
+  assert.equal(labelOf(SALE_UNIT, plan), '组');
+});
+
+test('包装：标题、规格看不出容器时，用类目名里的“礼盒/礼包”', () => {
+  const plan = buildPropPlan([PACKAGE, SALE_UNIT], { title: '某品牌饼干 400g', params: [], leafCategory: '饼干礼盒/礼包' });
+  assert.deepEqual(plan.missingRequired, []);
+  assert.equal(labelOf(PACKAGE, plan), '礼盒装');
+  assert.equal(plan.report.find((r) => r.field === 'pkg').source, '类目(饼干礼盒/礼包)');
+});
+
 test('包装：从标题里的“X装”推断', () => {
   const plan = buildPropPlan([PACKAGE], { title: '某品牌曲奇饼干 罐装908g', params: [] });
   assert.equal(labelOf(PACKAGE, plan), '罐装');
