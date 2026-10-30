@@ -1,11 +1,23 @@
 // 组装一次发布所需的完整填写计划（纯函数）
 import { cleanTitle } from './title.js';
-import { computePrice, retailPrice } from './pricing.js';
+import { computePrice, parsePrice, retailPrice } from './pricing.js';
 import { buildPropPlan, convertInputValue, findSourceValue } from './attr-mapping.js';
 import { buildSalePlan } from './sale-plan.js';
 import { parseAttrDefaults } from './settings.js';
 import { toOriginalImageUrl } from './url-utils.js';
 import { UPC_LABEL, normalizeUpc, productUpc, resolveUpc, skuAttrValueMap } from './sku-attrs.js';
+
+const RETAIL_PARAM = '建议零售价';
+
+/**
+ * 建议零售价：源页面写了（京东万商有）就用它；比售价低时京麦会提示售价过高，改用公式
+ * @param {object} product
+ * @param {number} topSalePrice 启用规格里最高的售价
+ */
+function listPrice(product, topSalePrice) {
+  const source = parsePrice((product.params ?? []).find((p) => p.name === RETAIL_PARAM)?.value);
+  return source >= topSalePrice && source > 0 ? source : retailPrice(topSalePrice);
+}
 
 const escapeAttr = (s) =>
   String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -96,7 +108,7 @@ export function buildPublishPlan({ product, edits = {}, settings, schema }) {
     params: product.params ?? [],
     defaults: attrDefaults,
     overrides: edits.attrOverrides ?? {},
-    retailPrice: retailPrice(topSalePrice),
+    retailPrice: listPrice(product, topSalePrice),
     upc,
   });
   const skuAttrWarnings = upcWarnings(Boolean(upc), sale.rows.filter((r) => r.enabled).length, ownUpc ? '' : upc);
@@ -119,7 +131,7 @@ export function buildPublishPlan({ product, edits = {}, settings, schema }) {
     mainImageUrls,
     detailImageUrls,
     weightKg: weight ? convertInputValue(weight.value, 'kg') || null : null,
-    packList: settings.packList || '',
+    packList: settings.packList || product.packList || '',
     // 基本信息里的“商品条形码”（upcCode），与 SKU 表每行的条形码、SKU属性的 UPC 是同一个值
     upc,
     skuAttrValues,

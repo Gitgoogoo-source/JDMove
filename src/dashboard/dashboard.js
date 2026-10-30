@@ -6,7 +6,7 @@ import { editItem } from './editor.js';
 import { editSettings } from './settings-dialog.js';
 import { createStorageController } from './storage-ui.js';
 import { openRepriceDialog } from './reprice-dialog.js';
-import { extractSkuIds } from '../shared/url-utils.js';
+import { extractSkuIds, b2bItemUrls } from '../shared/url-utils.js';
 import { parseShopInput } from '../shared/shop-url.js';
 import { itemRepo, settingsRepo, throttleRepo } from '../lib/chrome-env.js';
 import { EDITED_NOTE, THROTTLE_KEY, editsEqual, pickRecollect } from '../shared/store.js';
@@ -260,7 +260,7 @@ async function handleAdd() {
   );
   if ((await openDialog(dialog)) !== 'ok') return;
   const skus = extractSkuIds(area.value);
-  const res = await itemRepo.addTasks(skus, { includePublished: include.box.checked });
+  const res = await itemRepo.addTasks(skus, { includePublished: include.box.checked, urls: b2bItemUrls(area.value) });
   appendLog(addSummary(skus.length, res));
   await reload();
 }

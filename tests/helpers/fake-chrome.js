@@ -76,7 +76,7 @@ export function installFakeChrome({ resolveUrl = (u) => u, backend = () => undef
       create: async ({ windowId, url, active }) => {
         const id = nextTabId++;
         calls.push({ op: 'tabs.create', windowId, url, active });
-        tabs.set(id, { id, windowId, url: 'about:blank', status: 'loading', incognito: false });
+        tabs.set(id, { id, windowId, url: 'about:blank', status: 'loading', incognito: !!windows.get(windowId)?.incognito });
         startNavigation(id, url);
         return { ...tabs.get(id) };
       },
@@ -103,7 +103,7 @@ export function installFakeChrome({ resolveUrl = (u) => u, backend = () => undef
     scripting: {
       executeScript: async ({ target, func, files, args = [] }) => {
         if (files) {
-          calls.push({ op: 'inject.files', tabId: target.tabId });
+          calls.push({ op: 'inject.files', tabId: target.tabId, files });
           return [{ result: undefined }];
         }
         calls.push({ op: 'inject.func', tabId: target.tabId, name: func.name, func, args });

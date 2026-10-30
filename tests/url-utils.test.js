@@ -7,6 +7,8 @@ import {
   toOriginalImageUrl,
   jfsPathOf,
   classifyPageUrl,
+  isB2bItemUrl,
+  b2bItemUrls,
   buildPublishUrl,
   imgzoneUrl,
 } from '../src/shared/url-utils.js';
@@ -139,4 +141,33 @@ test('buildPublishUrl rejects empty category path', () => {
 
 test('imgzoneUrl prefixes jfs path', () => {
   assert.equal(imgzoneUrl('jfs/t1/a.jpg'), 'https://img10.360buyimg.com/imgzone/jfs/t1/a.jpg');
+});
+
+const B2B_LINK = 'https://b2b.jd.com/goods/goods-detail/100289450311?sourceurl=/trade/goods-detail/100289450311&bMallTag=1&buId=456';
+
+test('京东万商链接：路径里的数字是 SKU，只认一次', () => {
+  assert.equal(skuFromLink(B2B_LINK), '100289450311');
+  assert.equal(skuFromLink('https://b2b.jd.com/trade/goods-detail/100289450311'), '100289450311');
+  assert.deepEqual(extractSkuIds(`看这个 ${B2B_LINK} 还有 b2b.jd.com/goods/goods-detail/10159832951369`), ['100289450311', '10159832951369']);
+});
+
+test('京东万商链接：非商品页不算商品；其他域名的同名路径不算', () => {
+  assert.equal(skuFromLink('https://b2b.jd.com/index/search?keyword=100289450311'), null);
+  assert.equal(skuFromLink('https://mall.jd.com/goods/goods-detail/100289450311'), null);
+});
+
+test('isB2bItemUrl / b2bItemUrls: 保留万商链接原样（含 buId 等参数），补全协议', () => {
+  assert.equal(isB2bItemUrl(B2B_LINK), true);
+  assert.equal(isB2bItemUrl('https://item.jd.com/100289450311.html'), false);
+  assert.equal(isB2bItemUrl(''), false);
+  assert.deepEqual(b2bItemUrls(`${B2B_LINK} b2b.jd.com/goods/goods-detail/10159832951369 https://item.jd.com/100012043978.html`), {
+    100289450311: B2B_LINK,
+    10159832951369: 'https://b2b.jd.com/goods/goods-detail/10159832951369',
+  });
+});
+
+test('classifyPageUrl: 万商商品页 / 登录页', () => {
+  assert.equal(classifyPageUrl(B2B_LINK), 'item');
+  assert.equal(classifyPageUrl('https://b2b.jd.com/account/login'), 'b2b_login');
+  assert.equal(classifyPageUrl('https://b2b.jd.com/index/search?keyword=x'), 'other');
 });

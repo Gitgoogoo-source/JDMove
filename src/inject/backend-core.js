@@ -134,14 +134,26 @@
     return { items, key: items.length ? items.join('\n') : empty ? '<empty>' : '' };
   }
 
+  const isCategoryInput = (el) => /类目名称/.test(el.placeholder || '');
+
+  // 发布只走“普通发品”，不使用“智能发品”。类目页可能默认停在“智能发品”（没有类目搜索框），这里切到“普通发品”；
+  // 页面可能较晚才渲染出标签，放在轮询里调用
+  function findCategoryInput() {
+    const input = qsa('input').find(isCategoryInput);
+    if (input) return input;
+    const tab = qsa('.jd-tabs__item').find((el) => visible(el) && /^普通发品/.test(textOf(el)));
+    if (tab) click(tab);
+    return null;
+  }
+
   /**
    * 输入关键词后，下拉框在接口返回前仍显示上一次的内容：
    * 与上一次相同的内容、“暂无数据”都要在输入后至少 settleMs 且连续两次读取一致才认定
    */
   async function searchCategory(keyword, opts = {}) {
     const { timeout = 8000, settleMs = 1500, interval = 200 } = opts;
-    const input = await waitFor(() => qsa('input').find((i) => /类目名称/.test(i.placeholder || '')));
-    if (!input) return { ok: false, error: '找不到类目搜索框', results: [] };
+    const input = await waitFor(findCategoryInput);
+    if (!input) return { ok: false, error: '找不到“普通发品”的类目搜索框', results: [] };
     const stale = categoryDropdown().key;
     setNativeValue(input, '');
     await sleep(Math.min(settleMs, 300));

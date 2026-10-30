@@ -124,6 +124,7 @@ export function normalizeProduct(raw = {}, opts = {}) {
     saleDims: dims.saleDims,
     variants: dims.variants,
     isSelf: raw.isSelf ?? null,
+    packList: str(raw.packList),
     // 当前 SKU 的条形码（wareInfoReadMap.upc_code），发布时填到 SKU属性的“最小可售单位UPC”；
     // 没有条形码的商品 upc_code 是 SKU 编号本身，不能当条形码用
     upc: productUpc({ upc: raw.wareInfo?.upc_code, skuId, variants: allDims.variants }),

@@ -1,6 +1,6 @@
 // 采集结果落地到本地文件夹的目录规划（纯函数）：<存储位置>/<品牌>/<SKU>/{主图,详情图,商品信息.*}
 import { itemBrand, brandKey } from './brand-folders.js';
-import { toOriginalImageUrl } from './url-utils.js';
+import { toOriginalImageUrl, isB2bItemUrl } from './url-utils.js';
 
 export const IMAGE_DIRS = { main: '主图', detail: '详情图' };
 export const INFO_JSON = '商品信息.json';
@@ -40,7 +40,7 @@ function infoText(item, product, now) {
     `SKU：${item.skuId}`,
     `链接：${product.url || item.url || ''}`,
     `品牌：${itemBrand(item)}`,
-    `京东价：${product.price ?? ''}`,
+    `${isB2bItemUrl(product.url) ? '万商采购价' : '京东价'}：${product.price ?? ''}`,
     `类目：${(product.crumbs ?? []).join(' > ')}`,
     ...(product.saleDims ?? []).map((d) => `${d.name}：${d.values.join('、')}`),
     '',

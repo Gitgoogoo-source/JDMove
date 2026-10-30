@@ -253,3 +253,33 @@ test('buildPublishPlan warns when several SKUs would share one UPC', () => {
   assert.ok(plan.sale.rows.filter((r) => r.enabled).length > 1, 'fixture should produce several enabled rows');
   assert.ok(plan.warnings.some((w) => w.includes('共用') && w.includes('UPC')));
 });
+
+test('buildPublishPlan: 源页面有建议零售价时用它，不用公式估算', () => {
+  const withRetail = { ...product, price: 7.1, params: [...product.params, { name: '建议零售价', value: '9.9元/盒' }] };
+  const settings = mergeSettings({ price: { multiplier: 1.05, add: 0, rounding: 'nine' } });
+  const plan = buildPublishPlan({ product: withRetail, edits: {}, settings, schema });
+  assert.equal(plan.sale.rows[0].price, 7.9);
+  assert.equal(plan.skuAttrValues['建议零售价'], '9.9');
+  assert.equal(plan.skuAttrValues['市场价'], '9.9');
+});
+
+test('buildPublishPlan: 售价高于源页面的建议零售价时改用公式，避免京麦提示售价过高', () => {
+  const withRetail = { ...product, params: [...product.params, { name: '建议零售价', value: '9.9元/盒' }] };
+  const plan = buildPublishPlan({ product: withRetail, edits: {}, settings: DEFAULT_SETTINGS, schema });
+  assert.equal(plan.skuAttrValues['建议零售价'], '55.9');
+});
+
+test('buildPublishPlan: 设置里的包装清单优先，留空时用采集到的包装清单', () => {
+  const withPack = { ...product, packList: '魔芋爽麻辣味165g+15g' };
+  assert.equal(buildPublishPlan({ product: withPack, edits: {}, settings: DEFAULT_SETTINGS, schema }).packList, '魔芋爽麻辣味165g+15g');
+  const settings = mergeSettings({ packList: '商品×1' });
+  assert.equal(buildPublishPlan({ product: withPack, edits: {}, settings, schema }).packList, '商品×1');
+});
+
+test('buildPublishPlan: 源页面的建议零售价没有数字时用公式，属性覆盖仍然优先', () => {
+  const noNumber = { ...product, params: [...product.params, { name: '建议零售价', value: '详见页面' }] };
+  assert.equal(buildPublishPlan({ product: noNumber, edits: {}, settings: DEFAULT_SETTINGS, schema }).skuAttrValues['建议零售价'], '55.9');
+  const withRetail = { ...product, params: [...product.params, { name: '建议零售价', value: '99' }] };
+  const edits = { attrOverrides: { 建议零售价: '88' } };
+  assert.equal(buildPublishPlan({ product: withRetail, edits, settings: DEFAULT_SETTINGS, schema }).skuAttrValues['建议零售价'], '88');
+});

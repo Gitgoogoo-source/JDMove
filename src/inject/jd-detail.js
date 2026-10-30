@@ -1,4 +1,4 @@
-// 注入到 item.jd.com 页面（MAIN world），在 jd-item-extract.js 之前加载；纯函数，也可在 Node 中测试。
+// 注入到商品页（MAIN world），在 jd-item-extract.js / b2b-item-extract.js 之前加载；除 fetchExternalCss 外都是纯函数，也可在 Node 中测试。
 // 京东新版商品页的“商品详情”楼层先渲染骨架 .imgtext-ske，骨架进入视口（IntersectionObserver）后
 // 才请求 pc_item_getWareGraphic 并渲染 #detail-main。窗口被遮挡/最小化时 Chrome 不渲染页面，
 // 观察回调不会触发，骨架会一直留着，详情图就采不到。
@@ -80,5 +80,62 @@
       if (!out.includes(url.href)) out.push(url.href);
     }
     return out;
+  };
+
+  /** 京东图片地址里的 jfs 路径，去掉 .avif/.webp 等派生后缀和参数；没有时返回空串 */
+  NS.jfsOf = (u) => (String(u || '').match(/(jfs\/[^?#!]+?)(?:\.(?:avif|webp|dpg))*(?:$|[?#!])/) || [])[1] || '';
+
+  /**
+   * 详情区图片：<img> 与 ssd-module 背景图（CSS 中按模块 class 定义，如 .ssd-module-wrap .M1786...）按 DOM 顺序收集
+   * @param {ParentNode} root
+   * @param {string} [externalCss] 详情区引用的外部样式表内容（见 fetchExternalCss）
+   * @returns {string[]}
+   */
+  NS.detailFromRoot = function detailFromRoot(root, externalCss = '') {
+    const urls = [];
+    const inlineCss = Array.from(root.querySelectorAll('style'))
+      .map((s) => s.textContent || '')
+      .join('\n');
+    const bgByClass = NS.cssBackgrounds(`${inlineCss}\n${externalCss}`);
+    for (const el of root.querySelectorAll('img, [class*="ssd-module"], [style*="background"]')) {
+      if (el.tagName === 'IMG') {
+        const u = el.getAttribute('data-lazyload') || el.getAttribute('data-src') || el.getAttribute('data-original') || el.getAttribute('src');
+        if (u) urls.push(u);
+        continue;
+      }
+      const cls = Array.from(el.classList).find((c) => bgByClass[c]);
+      if (cls) urls.push(bgByClass[cls]);
+      const inline = (el.getAttribute('style') || '').match(/url\(\s*['"]?([^'")]+)['"]?\s*\)/);
+      if (inline) urls.push(inline[1]);
+    }
+    return urls.filter((u) => /360buyimg\.com|^\/\/|^https?:/.test(u));
+  };
+
+  const CSS_FETCH_TIMEOUT_MS = 5000;
+
+  /**
+   * 详情区引用的外部样式表（<div cssurl="//sku-market-gw.jd.com/css/pc/xxx.css">）：新版页面不会加载它，
+   * 背景图只写在这里。下载失败的样式表跳过，没解析出图片时由 classifyDetail 记为 parse_failed
+   * @param {ParentNode} root
+   * @returns {Promise<string>}
+   */
+  NS.fetchExternalCss = async function fetchExternalCss(root) {
+    const attrs = (sel, name) => Array.from(root.querySelectorAll(sel)).map((el) => el.getAttribute(name));
+    const refs = attrs('[cssurl]', 'cssurl').concat(attrs('link[rel~="stylesheet"][href]', 'href'));
+    const texts = await Promise.all(
+      NS.externalCssUrls(refs).map(async (url) => {
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), CSS_FETCH_TIMEOUT_MS);
+        try {
+          const res = await fetch(url, { credentials: 'omit', signal: ctrl.signal });
+          return res.ok ? await res.text() : '';
+        } catch {
+          return '';
+        } finally {
+          clearTimeout(timer);
+        }
+      }),
+    );
+    return texts.join('\n');
   };
 })();

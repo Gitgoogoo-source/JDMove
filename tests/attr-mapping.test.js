@@ -129,3 +129,43 @@ test('buildPropPlan does not derive net content without a unit', () => {
   const plan = buildPropPlan([{ field: 'n', title: '净含量', kind: 'input', options: [] }], { title: '德芙 礼盒 6 块', params: [] }, {});
   assert.deepEqual(plan.values, {});
 });
+
+const NET_RANGES = [opt('0-200g', 'a'), opt('201-500g', 'b'), opt('1kg以上', 'c')];
+const rangeAttr = { field: '149463', title: '净含量', kind: 'select', required: false, options: NET_RANGES };
+const rangeValue = (value, attr = rangeAttr) => buildPropPlan([attr], { params: [{ name: '净含量', value }] }).values[attr.field];
+
+test('buildPropPlan: 选项是数量区间时按数值落到对应区间', () => {
+  assert.equal(rangeValue('180g'), 'a');
+  assert.equal(rangeValue('200克'), 'a');
+  assert.equal(rangeValue('350g'), 'b');
+  assert.equal(rangeValue('1.5kg'), 'c');
+  assert.equal(rangeValue('0.3kg'), 'b');
+});
+
+test('buildPropPlan: 不在任何区间内、单位不同或没有数字时不填', () => {
+  assert.equal(rangeValue('700g'), undefined);
+  assert.equal(rangeValue('500ml'), undefined);
+  assert.equal(rangeValue('散装称重'), undefined);
+});
+
+test('buildPropPlan: 支持“以下”写法，非区间选项不受影响', () => {
+  const below = { ...rangeAttr, options: [opt('100g以下', 'x'), opt('100g及以上', 'y')] };
+  assert.equal(rangeValue('80g', below), 'x');
+  assert.equal(rangeValue('120g', below), 'y');
+  const plain = { ...rangeAttr, options: [opt('180g', 'p'), opt('250g', 'q')] };
+  assert.equal(rangeValue('180g', plain), 'p');
+});
+
+test('buildPropPlan: 区间选项里有完全相同的选项时用它，“其它”兜底仍然有效', () => {
+  const mixed = { ...rangeAttr, options: [opt('100g', 'e'), opt('200g', 'f'), opt('100g以下', 'x'), opt('500g以上', 'y')] };
+  assert.equal(rangeValue('100g', mixed), 'e');
+  const withOther = { ...rangeAttr, required: true, options: [...NET_RANGES, opt('其它', 'o')] };
+  assert.equal(rangeValue('散装称重', withOther), 'o');
+  assert.equal(rangeValue('700g', withOther), 'o');
+  assert.equal(rangeValue('180g', withOther), 'a');
+});
+
+test('buildPropPlan: 区间按“斤”换算', () => {
+  assert.equal(rangeValue('2.5斤'), 'c');
+  assert.equal(rangeValue('0.5斤'), 'b');
+});

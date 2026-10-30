@@ -64,3 +64,9 @@ test('buildLocalPlan uses the edited brand and falls back to the unknown-brand f
   assert.equal(buildLocalPlan({ ...item, product: { ...product, brand: null } }).brand, UNKNOWN_BRAND);
   assert.throws(() => buildLocalPlan({ ...item, product: null }), /尚未采集/);
 });
+
+test('buildLocalPlan: 万商商品的价格写成“万商采购价”', () => {
+  const product = { title: 't', price: 7.1, url: 'https://b2b.jd.com/goods/goods-detail/100289450311' };
+  const plan = buildLocalPlan({ skuId: '100289450311', product });
+  assert.match(plan.files.find((f) => f.name === INFO_TXT).text, /万商采购价：7\.1/);
+});

@@ -1,0 +1,80 @@
+{
+  "viewTitleDTO": {
+    "productTag": [
+      { "tagProperty": "hitDelivery", "iconUrl": "jd_codistribution", "tagText": "true" },
+      { "tagProperty": "isSelf", "iconUrl": "goods_selfSupport_f", "tagText": "true" }
+    ],
+    "title": "【整盒】卫龙魔芋爽165g+15g（加量装）麻辣味休闲解馋零食素毛肚（内约14小包/盒）"
+  },
+  "viewMasterMapDTO": {
+    "wareImage": [
+      { "big": "http://m.360buyimg.com/n1/s800x800_jfs/t1/457108/6/11543/39778/6a3906e7F9e2929f6/008332032012282c.jpg!q70.jpg" },
+      { "big": "http://m.360buyimg.com/n1/s800x800_jfs/t1/462758/19/5565/83658/6a39ed4eFa5838cf0/0083320320e8740b.jpg!q70.jpg" },
+      { "big": "http://m.360buyimg.com/n1/s800x800_jfs/t1/454179/37/17853/108361/6a39ed45F50ceac9a/0083320320e9755d.jpg!q70.jpg" },
+      { "big": "http://m.360buyimg.com/n1/s800x800_jfs/t1/457602/29/13454/187348/6a39ed45F75a39266/0083320320552225.jpg!q70.jpg" },
+      { "big": "http://m.360buyimg.com/n1/s800x800_jfs/t1/459728/25/8801/123812/6a39ed44Fd64ef9eb/00833203209f275f.jpg!q70.jpg" },
+      { "big": "http://m.360buyimg.com/n1/s800x800_jfs/t1/459054/37/10506/171111/6a39ebd4Fb93c8959/0083320320bb5faf.jpg!q70.jpg" },
+      { "big": "http://m.360buyimg.com/n1/s800x800_jfs/t1/462055/39/5069/98672/6a39ebd2F5f6c0881/008332032088f48d.jpg!q70.jpg" }
+    ]
+  },
+  "viewPriceDTO": {
+    "priceInfo": {
+      "mainJdPrice": { "display": true, "name": "建议零售价", "value": "9.9" },
+      "singleMainJdPrice": { "display": true, "name": "单规格建议零售价", "value": "0.7" }
+    },
+    "unit": "盒",
+    "mainPositionPrice": { "value": "7.1" },
+    "secondPositionPrice": { "value": "9" }
+  },
+  "viewCommonDTO": {
+    "skuId": "100289450311",
+    "spuId": "100289450311",
+    "brandName": "卫龙（WEI-LONG）",
+    "venderId": "0",
+    "unit": "盒",
+    "manufacturingDate": "2026年08月",
+    "shelfLife": "240天"
+  },
+  "viewBrandDTO": { "brandName": "卫龙（WEI-LONG）", "brandId": 177127, "brandEnName": "WEI-LONG" },
+  "viewBreadCrumbDTO": {
+    "category1Id": "17991",
+    "category1Name": "（京喜通）休闲零食",
+    "category2Id": "17996",
+    "category2Name": "素食肉脯",
+    "category3Id": "18142",
+    "category3Name": "素类小食"
+  },
+  "viewSelectedDTO": { "unit": "盒", "mainPrice": "7.1", "skuNum": 1 },
+  "viewGraphicDetailDTO": {
+    "cssStyle": "<style>.ssd-module-wrap .M17821812190111{width:750px;height:8604px;background-image:url(//img30.360buyimg.com/sku/jfs/t1/462930/26/4379/862852/6a39ed60Ff45d1821/00d6239000251809.jpg)}</style>",
+    "wareTextIntroduction": "<div id=\"zbViewWeChatMiniImages\" style=\"display: none;\" value=\"/sku/jfs/t1/460566/5/7901/68499/6a39ed6fF943beeb1/00d62ee3bc46c5e9.jpg,/sku/jfs/t1/463873/28/2973/118967/6a39ed6fF6c745a61/00d62ee3bc99763a.jpg,/sku/jfs/t1/459006/15/11021/114852/6a39ed6fF4a249c21/00d62ee3bc80a9d8.jpg,/sku/jfs/t1/464418/5/2013/120524/6a39ed6fFe3889d5b/00d62ee3bc3fdbea.jpg,/sku/jfs/t1/465226/34/663/82416/6a39ed6fF000ebba0/00d62ee3bca7ce1c.jpg,/sku/jfs/t1/465355/11/249/94059/6a39ed6fF5d07d873/00d62ee3bce2e76e.jpg,/sku/jfs/t1/457964/30/11040/81725/6a39ed6fF14a20f88/00d62ee3bc147bc5.jpg,/sku/jfs/t1/464025/29/2743/81477/6a39ed6fF479efd60/00d62ee3bc5e53eb.jpg,/sku/jfs/t1/462805/4/4388/144812/6a39ed6fF4d6a9bd6/00d62ee3bc1bee4f.jpg\"></div><div cssurl=\"//sku-market-gw.jd.com/css/pc/100289450311.css\"></div><div class=\"ssd-module-wrap\"><div class=\"ssd-module M17821812190111 animate-M17821812190111\"></div></div>",
+    "specification": {
+      "specificationList": [
+        {
+          "specificationGroupName": "主体",
+          "AttributeList": [
+            { "attributeName": "净含量", "attributes": "180g" },
+            { "attributeName": "本品与最小可售单位数量关系", "attributes": "1" },
+            { "attributeName": "规格", "attributes": "165g" },
+            { "attributeName": "保质期", "attributes": "240天" },
+            { "attributeName": "销售单位", "attributes": "盒" },
+            { "attributeName": "最小可售单位UPC", "attributes": "6935284401752" }
+          ]
+        }
+      ],
+      "expandInfoList": [{ "AttributeList": [{ "attributeName": "包装", "attributes": "盒装" }] }],
+      "specificationDetailList": [
+        { "attributeName": "生产日期", "attributes": "2026年08月" },
+        { "attributeName": "保质期", "attributes": "240天" },
+        { "attributeName": "建议零售价", "attributes": "9.9元/盒" },
+        { "attributeName": "单规格建议零售价", "attributes": "0.7元" },
+        { "attributeName": "69码/upc", "attributes": "6935284401752" },
+        { "attributeName": "包装", "attributes": "盒装" },
+        { "attributeName": "净含量", "attributes": "180g" },
+        { "attributeName": "本品与最小可售单位数量关系", "attributes": "1" },
+        { "attributeName": "规格", "attributes": "165g" },
+        { "attributeName": "销售单位", "attributes": "盒" }
+      ]
+    }
+  }
+}

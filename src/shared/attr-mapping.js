@@ -90,6 +90,48 @@ export function matchOption(options, value) {
   return best;
 }
 
+const NUM_PATTERN = '(\\d+(?:\\.\\d+)?)';
+const AMOUNT_UNIT_PATTERN = '(mg|毫克|kg|千克|公斤|g|克|斤|ml|毫升|l|升)';
+const BETWEEN_RE = new RegExp(`^${NUM_PATTERN}${AMOUNT_UNIT_PATTERN}?[-~～至到]${NUM_PATTERN}${AMOUNT_UNIT_PATTERN}$`);
+const OPEN_ENDED_RE = new RegExp(`^${NUM_PATTERN}${AMOUNT_UNIT_PATTERN}及?(以上|以下)$`);
+const AMOUNT_RE = new RegExp(`${NUM_PATTERN}\\s*${AMOUNT_UNIT_PATTERN}(?![a-z])`);
+// 少于这么多个区间选项时不当成区间属性，按普通选项匹配
+const MIN_RANGE_OPTIONS = 2;
+
+function amountOf(num, unit) {
+  const group = UNIT_GROUPS.find((g) => unit in g);
+  return { group, amount: Number(num) * group[unit] };
+}
+
+/** 选项文字表示的数量区间（0-200g、1kg以上、100g以下）；不是区间时返回 null */
+function optionRange(label) {
+  const text = toHalfWidth(label).toLowerCase().replace(/\s+/g, '');
+  const between = text.match(BETWEEN_RE);
+  if (between) {
+    const [, low, lowUnit, high, highUnit] = between;
+    const top = amountOf(high, highUnit);
+    return { group: top.group, min: amountOf(low, lowUnit ?? highUnit).amount, max: top.amount };
+  }
+  const open = text.match(OPEN_ENDED_RE);
+  if (!open) return null;
+  const { group, amount } = amountOf(open[1], open[2]);
+  return open[3] === '以上' ? { group, min: amount, max: Infinity } : { group, min: 0, max: amount };
+}
+
+/**
+ * 选项是数量区间时，按数值找 raw 所在的区间。不用相似度匹配：700g 和 201-500g 文字相近，但数量不对
+ * @returns {{label: string, value: string}|null|undefined} 选项不是区间时为 undefined；是区间但落不进任何一个时为 null
+ */
+function rangeOption(options, raw) {
+  const ranged = options.map((option) => ({ option, range: optionRange(option.label) })).filter((x) => x.range);
+  if (ranged.length < MIN_RANGE_OPTIONS) return undefined;
+  const m = toHalfWidth(raw ?? '').toLowerCase().match(AMOUNT_RE);
+  if (!m) return null;
+  const { group, amount } = amountOf(m[1], m[2]);
+  const hit = ranged.find(({ range }) => range.group === group && amount >= range.min && amount <= range.max);
+  return hit ? hit.option : null;
+}
+
 function sourcePairs(product) {
   const pairs = (product?.params ?? []).map((p) => ({ name: p.name, value: p.value }));
   if (product?.brand?.name) pairs.push({ name: '品牌', value: product.brand.name });
@@ -227,6 +269,12 @@ function guessValues(attr, product) {
 
 function convertSelect(attr, raw, lenient) {
   const options = attr.options ?? [];
+  const range = rangeOption(options, raw);
+  if (range !== undefined) {
+    const exact = options.find((o) => normalizeName(o.label) === normalizeName(raw));
+    const picked = exact ?? range ?? (lenient ? otherOption(options) : null);
+    return picked ? picked.value : null;
+  }
   const hit =
     matchOption(options, raw) ??
     (CONTAINER_ATTRS.has(normalizeName(attr.title)) ? containerOption(options, containerIn(raw, true)) : null) ??

@@ -442,3 +442,41 @@ test('collectFailurePatch: 重新采集失败/暂停时保留原状态和上次�
   }
   assert.equal(collectFailurePatch({ ...item, status: 'collecting' }, { status: 'error', message: 'x' }).status, 'collected');
 });
+
+const B2B_URL = 'https://b2b.jd.com/goods/goods-detail/100289450311?buId=456';
+
+test('addTasks: 万商链接按原链接采集，普通 SKU 仍是 item.jd.com', async () => {
+  const repo = createItemRepository(memoryStorage());
+  const { added } = await repo.addTasks(['100289450311', '100012043978'], { urls: { 100289450311: B2B_URL } });
+  assert.equal(added[0].url, B2B_URL);
+  assert.equal(added[1].url, 'https://item.jd.com/100012043978.html');
+});
+
+test('addTasks: 已在列表里的商品再贴万商链接时改用万商链接', async () => {
+  const repo = createItemRepository(memoryStorage());
+  await repo.addSkus(['100289450311']);
+  const res = await repo.addTasks(['100289450311'], { urls: { 100289450311: B2B_URL } });
+  assert.deepEqual(res.existing, ['100289450311']);
+  assert.equal((await repo.findById('100289450311')).url, B2B_URL);
+});
+
+test('saveCollected / importItems: 在万商页采集的商品，以后也回万商页', async () => {
+  const repo = createItemRepository(memoryStorage());
+  const saved = await repo.saveCollected({ skuId: '100289450311', url: B2B_URL, title: 'x' });
+  assert.equal(saved.url, B2B_URL);
+  await repo.importItems([{ skuId: '10159832951369', product: { url: 'https://b2b.jd.com/goods/goods-detail/10159832951369' } }]);
+  assert.equal((await repo.findById('10159832951369')).url, 'https://b2b.jd.com/goods/goods-detail/10159832951369');
+});
+
+test('saveCollected: 普通京东商品的任务链接不变', async () => {
+  const repo = createItemRepository(memoryStorage());
+  const saved = await repo.saveCollected({ skuId: '100012043978', url: 'https://item.jd.com/100012043978.html?x=1', title: 'x' });
+  assert.equal(saved.url, 'https://item.jd.com/100012043978.html');
+});
+
+test('saveCollected: 万商任务改从京东商品页采集时，任务链接跟着回到京东', async () => {
+  const repo = createItemRepository(memoryStorage());
+  await repo.addTasks(['100289450311'], { urls: { 100289450311: B2B_URL } });
+  const saved = await repo.saveCollected({ skuId: '100289450311', url: 'https://item.jd.com/100289450311.html', title: 'x' });
+  assert.equal(saved.url, 'https://item.jd.com/100289450311.html');
+});

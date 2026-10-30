@@ -1,5 +1,5 @@
 // 数据仓储：任务条目 + 设置。存储后端通过 adapter 注入，方便测试。
-import { buildItemUrl } from './url-utils.js';
+import { buildItemUrl, isB2bItemUrl } from './url-utils.js';
 import { mergeSettings } from './settings.js';
 import { isArchived } from './brand-folders.js';
 import { normalizeWareId } from './price-watch.js';
@@ -21,11 +21,11 @@ export const THROTTLE_KEY = 'publishThrottle';
  */
 
 /** @returns {Item} */
-export function newItem(skuId, now = Date.now()) {
+export function newItem(skuId, now = Date.now(), url = buildItemUrl(skuId)) {
   return {
     id: String(skuId),
     skuId: String(skuId),
-    url: buildItemUrl(skuId),
+    url,
     status: 'pending',
     product: null,
     edits: {},
@@ -35,6 +35,12 @@ export function newItem(skuId, now = Date.now()) {
     createdAt: now,
     updatedAt: now,
   };
+}
+
+// 任务链接跟着实际采集的页面走（价格检查、重新采集都打开它）：万商和 item.jd.com 是两个价格体系
+function sourceUrlPatch(skuId, product) {
+  if (!product?.url) return {};
+  return { url: isB2bItemUrl(product.url) ? product.url : buildItemUrl(skuId) };
 }
 
 export const EDITED_NOTE = '已修改，尚未重新发布';
@@ -200,15 +206,18 @@ export function createItemRepository(storage) {
   };
 
   /**
-   * 批量加入任务：已在列表里的不重复添加，已发布过的商品默认跳过
+   * 批量加入任务：已在列表里的不重复添加，已发布过的商品默认跳过。
+   * opts.urls（SKU → 链接）指定采集用的链接（京东万商），已在列表里的商品也改用这个链接
    * @returns {Promise<{added: Item[], published: string[], existing: string[]}>}
    */
   const addTasks = (skuIds, opts = {}) =>
     serial(async () => {
       const [items, registry] = await Promise.all([load(), loadPublished()]);
       const plan = planNewSkus(skuIds, items, publishedSkuSet(items, registry), opts);
-      const added = plan.fresh.map((id) => newItem(id));
-      if (added.length) await persist([...items, ...added]);
+      const { urls = {} } = opts;
+      const added = plan.fresh.map((id) => newItem(id, Date.now(), urls[id]));
+      const retargeted = items.map((i) => (plan.existing.includes(i.id) && urls[i.id] ? { ...i, url: urls[i.id] } : i));
+      if (added.length || plan.existing.some((id) => urls[id])) await persist([...retargeted, ...added]);
       return { added, published: plan.published, existing: plan.existing };
     });
 
@@ -246,7 +255,7 @@ export function createItemRepository(storage) {
         const items = await load();
         const id = String(taskId);
         const existing = items.find((i) => i.id === id);
-        const next = { ...(existing ?? newItem(id)), product, status: 'collected', message: '', updatedAt: Date.now() };
+        const next = { ...(existing ?? newItem(id)), ...sourceUrlPatch(id, product), product, status: 'collected', message: '', updatedAt: Date.now() };
         await persist(existing ? items.map((i) => (i.id === id ? next : i)) : [...items, next]);
         return next;
       }),
@@ -261,7 +270,7 @@ export function createItemRepository(storage) {
         for (const x of valid) {
           const id = String(x.skuId);
           const base = byId.get(id) ?? newItem(id);
-          byId.set(id, { ...base, product: x.product, edits: x.edits ?? base.edits, status: 'collected', message: '导入', updatedAt: Date.now() });
+          byId.set(id, { ...base, ...sourceUrlPatch(id, x.product), product: x.product, edits: x.edits ?? base.edits, status: 'collected', message: '导入', updatedAt: Date.now() });
         }
         await persist([...byId.values()]);
         return { imported: valid.length, skipped: (Array.isArray(list) ? list.length : 0) - valid.length };

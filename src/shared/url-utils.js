@@ -4,6 +4,9 @@
 const JD_LINK_RE = /(?:https?:)?(?:\/\/)?(?:[\w-]+\.)*(?:jd\.com|jd\.hk)(?:[/?#][^\s<>"'，。；！？、（）【】]*)?/gi;
 // 商品页路径：/100197331139.html、/product/100197331139.html
 const ITEM_PATH_RE = /^\/(?:product\/)?(\d{6,})\.html$/;
+// 京东万商（B2B 商城）商品页：/goods/goods-detail/100289450311；/trade/ 路径会跳转到这里
+const B2B_HOST = 'b2b.jd.com';
+const B2B_ITEM_PATH_RE = /^\/(?:goods|trade)\/goods-detail\/(\d{6,})\/?$/;
 // 链接参数里直接带 SKU 的写法：ware/view.action?wareId=…、…?skuId=…
 const SKU_PARAMS = ['wareId', 'skuId', 'sku'];
 // 不在链接里的纯数字编码
@@ -15,18 +18,31 @@ const ORIGINAL_PREFIX = `${IMG_HOST}/sku/`;
 const IMGZONE_PREFIX = 'https://img10.360buyimg.com/imgzone/';
 const PUBLISH_BASE = 'https://wares-jdm.jd.com/popPublish/';
 
+const withScheme = (link) => (/^https?:/i.test(link) ? link : `https://${link.replace(/^\/\//, '')}`);
+
+function parseLink(link) {
+  try {
+    return new URL(withScheme(link));
+  } catch {
+    return null;
+  }
+}
+
+const b2bSkuOf = (u) => (u?.hostname === B2B_HOST ? (u.pathname.match(B2B_ITEM_PATH_RE)?.[1] ?? null) : null);
+
+/** 是否京东万商商品页 */
+export const isB2bItemUrl = (url) => Boolean(b2bSkuOf(parseLink(String(url ?? ''))));
+
 /**
  * 京东链接对应的商品 SKU：只看商品页路径和 wareId/skuId 参数，后缀里的其他参数（spmTag、pvid、时间戳等）一律忽略
  * @param {string} link
  * @returns {string|null} 不是商品链接时返回 null
  */
 export function skuFromLink(link) {
-  let u;
-  try {
-    u = new URL(/^https?:/i.test(link) ? link : `https://${link.replace(/^\/\//, '')}`);
-  } catch {
-    return null;
-  }
+  const u = parseLink(link);
+  if (!u) return null;
+  const b2b = b2bSkuOf(u);
+  if (b2b) return b2b;
   const inPath = u.pathname.match(ITEM_PATH_RE)?.[1];
   if (inPath) return inPath;
   const inParam = SKU_PARAMS.map((k) => u.searchParams.get(k)).find((v) => /^\d{6,}$/.test(v ?? ''));
@@ -48,6 +64,16 @@ export function extractSkuIds(text) {
   const bare = [...rest.matchAll(BARE_SKU_RE)].map((m) => ({ id: m[1], at: m.index }));
   const hits = [...fromLinks, ...bare].sort((a, b) => a.at - b.at);
   return [...new Set(hits.map((h) => h.id))];
+}
+
+/**
+ * 文本里的京东万商商品链接（SKU → 链接）：万商的商品只能在万商页采集，链接原样保留（buId 等参数决定业务线）
+ * @param {string} text
+ * @returns {Record<string, string>}
+ */
+export function b2bItemUrls(text) {
+  const links = [...String(text ?? '').matchAll(JD_LINK_RE)].map((m) => withScheme(m[0])).filter(isB2bItemUrl);
+  return Object.fromEntries(links.map((url) => [skuFromLink(url), url]));
 }
 
 export function buildItemUrl(skuId) {
@@ -93,7 +119,7 @@ export function imgzoneUrl(jfsPath) {
 }
 
 /**
- * 页面类型识别：item / merchant_block / throttle / login / publish / category / other
+ * 页面类型识别：item / merchant_block / throttle / login / b2b_login / publish / category / other
  * @param {string} url
  */
 export function classifyPageUrl(url) {
@@ -109,6 +135,8 @@ export function classifyPageUrl(url) {
   if (/pc-frequent|risk_handler|safe\.jd\.com/.test(host + u.pathname)) return 'throttle';
   if (/passport\.jd\.com|plogin\.m\.jd\.com/.test(host)) return 'login';
   if (/^item(\.m)?\.jd\.com$/.test(host)) return 'item';
+  if (host === B2B_HOST && u.pathname.startsWith('/account/login')) return 'b2b_login';
+  if (b2bSkuOf(u)) return 'item';
   if (host === 'wares-jdm.jd.com' && u.pathname.startsWith('/popPublish')) return 'publish';
   if (host === 'wares-jdm.jd.com' && /categorySelect/.test(u.pathname)) return 'category';
   return 'other';
