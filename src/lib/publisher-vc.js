@@ -75,6 +75,21 @@ async function fillImages(tabId, log, { timer, images }) {
   return {};
 }
 
+/**
+ * 图片信息识别：图片放好后点“开始识别”并选“补充数据”（已填的不动，只补空白字段）。
+ * 不识别的话点“发布商品”会被页面拦下（请先进行图片识别）。放在详情和 SKU 之前：识别会补填 SKU 行的空白列，后面的步骤再按计划覆盖
+ */
+async function recognizeImages(tabId, plan, log, timer) {
+  const rec = await callVcBackend(tabId, 'vcRecognize', { text: plan.title });
+  timer.lap('图片识别');
+  if (!rec?.ok) {
+    const why = (rec?.errors ?? []).join('；') || '页面没有返回结果';
+    return stop('need_action', `图片信息识别没有完成（${why}），请在发布页点“开始识别”→“补充数据”后再发布`);
+  }
+  if (!rec.already) log('图片信息识别：已识别（补充数据，已填内容不变，请核对页面自动补上的字段）');
+  return {};
+}
+
 const drawerNote = (r) => [r?.missing?.length ? `必填项没填：${r.missing.join('、')}` : '', ...(r?.errors ?? [])].filter(Boolean).join('；');
 
 /** SKU 表（单行）：规格（选填，填不好跳过）→ 商品名称、条形码 → SKU属性（必填） */
@@ -109,6 +124,7 @@ async function fillVcForm(tabId, plan, settings, log, ctx) {
   for (const step of [
     () => fillFields(tabId, plan, log, ctx.timer),
     () => fillImages(tabId, log, ctx),
+    () => recognizeImages(tabId, plan, log, ctx.timer),
     () => fillDescription(tabId, { detailImageUrls: plan.images.detailImageUrls }, settings, log, ctx).then(() => ({})),
     () => fillSku(tabId, plan, settings, log, ctx.timer),
   ]) {

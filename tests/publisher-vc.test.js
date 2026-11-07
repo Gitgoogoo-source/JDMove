@@ -52,6 +52,7 @@ function vcPage(overrides = {}) {
     vcSetErp: { ok: true, people: ['采购员 徐德志(xudezhi.6)', '销售员 徐德志(xudezhi.6)'], errors: [] },
     setProps: { ok: true, failed: [] },
     vcPutImages: (args) => ({ ok: true, count: (args[0].images ?? []).length + (args[0].names ?? []).length, urls: [], errors: [] }),
+    vcRecognize: { ok: true, textFilled: true, errors: [] },
     setDescriptionHtml: { ok: true, length: 100 },
     vcFillSpec: { opened: true, confirmed: true, filled: ['产品描述', '层数', '规格'], missing: [], errors: [] },
     vcSetSkuRow: { ok: true, errors: [], upcNotice: '检测到条形码重复，可正常发品但入仓需贴码，重码商品有' },
@@ -93,7 +94,7 @@ test('publishVcItem: 直接打开带品牌和末级类目的 VC 发布页，按�
   assert.equal(opened, 'https://wares-jdm.jd.com/vcProductPublish/?bId=17519&publishPageType=1&locType=0&categoryId=31403');
   const order = [...new Set(page.methods())];
   assert.deepEqual(order, [
-    'vcStatus', 'getFormSchema', 'vcSetFields', 'vcSetErp', 'setProps', 'vcPutImages', 'setDescriptionHtml',
+    'vcStatus', 'getFormSchema', 'vcSetFields', 'vcSetErp', 'setProps', 'vcPutImages', 'vcRecognize', 'setDescriptionHtml',
     'vcFillSpec', 'vcSetSkuRow', 'vcFillSkuAttrs', 'vcSkuRowState', 'vcValidate',
   ]);
   assert.ok(!page.methods().includes('runAction'), '只填写不保存');
@@ -103,6 +104,9 @@ test('publishVcItem: 直接打开带品牌和末级类目的 VC 发布页，按�
   const main = page.calls.find((c) => c.method === 'vcPutImages' && c.args[0].field === 'imageList').args[0];
   assert.deepEqual(rec.names, [main.images[0].name], '图片信息识别勾选刚传的第一张主图');
   assert.match(main.images[0].name, /^jdmove_vc_100114866451_\d+_m0\.jpg$/);
+  const recognize = page.calls.find((c) => c.method === 'vcRecognize').args[0];
+  assert.ok(recognize.text && !/维达/.test(recognize.text), '识别文案用发布标题（不带品牌）');
+  assert.ok(page.methods().indexOf('vcRecognize') > page.methods().lastIndexOf('vcPutImages'), '图片都放好之后再识别');
   const erp = page.calls.find((c) => c.method === 'vcSetErp');
   assert.deepEqual(erp.args, ['xudezhi.6']);
   assert.ok(lines.some((l) => /入仓需贴码/.test(l)), '重码提示写进日志');
@@ -142,6 +146,27 @@ test('publishVcItem: 页面本地校验没通过时不提交，保留页面并�
   assert.match(res.message, /图片信息识别：请先上传图片/);
   assert.ok(res.tabId);
   assert.ok(!page.methods().includes('runAction'));
+});
+
+test('publishVcItem: 图片信息识别没完成时标为需处理，不再往下填，保留页面', async () => {
+  const page = vcPage({ vcRecognize: { ok: false, errors: ['识别没有成功', '系统繁忙'] } });
+  installFakeChrome({ backend: page.backend });
+  const res = await publishVcItem(vcItem(), settings({ action: 'submit_on' }), () => {}, { imageMakers: makers });
+  assert.equal(res.status, 'need_action');
+  assert.match(res.message, /图片信息识别没有完成（识别没有成功；系统繁忙）/);
+  assert.match(res.message, /开始识别/);
+  assert.ok(res.tabId);
+  assert.ok(!page.methods().includes('setDescriptionHtml'));
+  assert.ok(!page.methods().includes('runAction'));
+});
+
+test('publishVcItem: 页面已经识别过时不写日志、继续往下填', async () => {
+  const page = vcPage({ vcRecognize: { ok: true, already: true, errors: [] } });
+  installFakeChrome({ backend: page.backend });
+  const lines = [];
+  const res = await publishVcItem(vcItem(), settings(), (l) => lines.push(l), { imageMakers: makers });
+  assert.equal(res.status, 'filled', res.message);
+  assert.ok(!lines.some((l) => /图片信息识别：已识别/.test(l)));
 });
 
 test('publishVcItem: 价格没写进去时停止，不再往下填', async () => {

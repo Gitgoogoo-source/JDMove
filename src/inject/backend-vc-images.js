@@ -1,12 +1,14 @@
 // VC 发布页的三处图片：方图 imageList（≤10 张）、透图 transparentImageList（1 张 PNG）、图片信息识别 aiRecImages（≥1 张）。
 // 都要经过“图片空间”弹窗：本地上传的图片会自动勾选，已有的图片按文件名点卡片勾选，最后点“确定”写进表单。
+// 图片信息识别放好图片后还要点“开始识别”（vcRecognize），否则点“发布商品”会报“请先进行图片识别”。
 // 依赖 backend-vc.js 先注入。
 (() => {
   const NS = window.__JDMOVE__;
   if (!NS || !NS.backend || !NS.backend.__vc || NS.backend.__vcImages) return;
   const B = NS.backend;
-  const { sleep, qsa, visible, textOf, waitFor, click, buttonByText, messages } = B.util;
+  const { sleep, qsa, visible, textOf, waitFor, click, buttonByText, messages, setNativeValue } = B.util;
   const { componentChain, putFiles, b64ToFile, installUploadCapture } = B.mediaUtil;
+  const { aiRecState } = B.vcUtil;
 
   const UPLOAD_TIMEOUT_MS = 30000;
   const isImageSpace = (d) => visible(d) && /图片空间/.test(textOf(d).slice(0, 40));
@@ -136,5 +138,78 @@
     return { ok: !!count && errors.length === 0, count: valueCount(api, field), urls, errors };
   }
 
-  Object.assign(B, { __vcImages: true, vcPutImages });
+  // ---------- 图片信息识别：点“开始识别” ----------
+  // 点按钮先弹“请注意”（.ai-fill-msg）：覆盖数据（整页用识别结果覆盖）/ 补充数据（已填的不动，只补空白字段）/ 取消。
+  // 这里选“补充数据”，插件已经写好的标题、价格、图片等不会被改。识别失败页面不提示，标记保持未识别
+  const RECOGNIZE_TIMEOUT_MS = 60000;
+  const CONFIRM_TIMEOUT_MS = 5000;
+  const KEEP_FILLED = '补充数据';
+  // 识别文案的长度限制（页面规则：汉字和全角符号算 2 个字符；为空可以识别）
+  const REC_TEXT_MIN = 8;
+  const REC_TEXT_MAX = 200;
+  const WIDE_CHAR_RE = /[一-龥　-〿＀-￯]/;
+  const recTextLength = (s) => Array.from(s).reduce((n, ch) => n + (WIDE_CHAR_RE.test(ch) ? 2 : 1), 0);
+
+  function fillRecText(root, text) {
+    const input = root.querySelector('.recognize-input input, .recognize-input textarea');
+    const len = recTextLength(text || '');
+    if (!input || len < REC_TEXT_MIN || len > REC_TEXT_MAX) return false;
+    setNativeValue(input, text);
+    return true;
+  }
+
+  /** 识别结束：成功（已识别）；或者见过“识别中”、现在结束了却还没识别 → 失败 */
+  async function waitRecognized(api) {
+    let sawReload = false;
+    const outcome = await waitFor(
+      () => {
+        const s = aiRecState(api);
+        if (!s) return 'gone';
+        if (s.reloading) sawReload = true;
+        else if (s.recognized) return 'ok';
+        else if (sawReload) return 'failed';
+        return null;
+      },
+      { timeout: RECOGNIZE_TIMEOUT_MS, interval: 500 },
+    );
+    return outcome || 'timeout';
+  }
+
+  /**
+   * 图片信息识别：填识别文案，点“开始识别”，选“补充数据”，等页面标记为已识别
+   * @param {{text?: string}} input text：识别文案（推荐填商品标题；长度不在 8~200 时留空）
+   * @returns {Promise<{ok: boolean, already?: boolean, textFilled?: boolean, errors: string[]}>}
+   */
+  async function vcRecognize({ text = '' } = {}) {
+    const api = B.getFApi();
+    const state = aiRecState(api);
+    if (!state) return { ok: false, errors: ['页面上找不到图片信息识别'] };
+    if (state.recognized) return { ok: true, already: true, errors: [] };
+    if (!state.images) return { ok: false, errors: ['图片信息识别里还没有图片'] };
+    const root = api.el(AI_REC_FIELD).$el;
+    const textFilled = fillRecText(root, text);
+    await sleep(300);
+    const btn = root.querySelector('.recognize-button');
+    if (!btn || btn.disabled) return { ok: false, errors: ['“开始识别”按钮不可点'] };
+    btn.scrollIntoView({ block: 'center' });
+    click(btn);
+    const box = await waitFor(() => qsa('.ai-fill-msg').find(visible), { timeout: CONFIRM_TIMEOUT_MS });
+    if (!box) return { ok: false, errors: ['点“开始识别”后没有弹出“覆盖/补充数据”的确认', ...messages()] };
+    const keep = buttonByText(KEEP_FILLED, box);
+    if (!keep) {
+      const cancel = buttonByText('取消', box);
+      if (cancel) click(cancel);
+      return { ok: false, errors: [`确认框里找不到“${KEEP_FILLED}”`] };
+    }
+    click(keep);
+    const outcome = await waitRecognized(api);
+    if (outcome === 'ok') {
+      await sleep(500); // 等补充的字段渲染完
+      return { ok: true, textFilled, errors: [] };
+    }
+    const reason = { failed: '识别没有成功', timeout: `识别 ${RECOGNIZE_TIMEOUT_MS / 1000} 秒内没有完成`, gone: '识别后页面上找不到图片信息识别' }[outcome];
+    return { ok: false, textFilled, errors: [reason, ...messages()] };
+  }
+
+  Object.assign(B, { __vcImages: true, vcPutImages, vcRecognize });
 })();

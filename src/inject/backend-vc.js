@@ -164,26 +164,57 @@
     return { ok: errors.length === 0, people, errors };
   }
 
+  // ---------- 图片信息识别的状态 ----------
+  // 放好图片还不够，要点“开始识别”且识别成功；页面只在点“发布商品”时才查这一项（没识别报“请先进行图片识别”）。
+  // 识别组件 AIPublishNew 的 recognizeDisabled 就是页面的“已识别”标记（成功后按钮置灰，换图会重置）；
+  // intelligentPublish（从智能发品进来的页面）不需要识别；识别进行中 PublishProduct.isAIReload 为 true
+  const AI_REC_FIELD = 'aiRecImages';
+  const NOT_RECOGNIZED_MSG = '请先进行图片识别';
+
+  /** @returns {{recognized: boolean, reloading: boolean, images: number} | null} null：页面没有这个组件 */
+  function aiRecState(api) {
+    const inst = api && api.fields().includes(AI_REC_FIELD) ? api.el(AI_REC_FIELD) : null;
+    const box = inst && inst.$el && inst.$el.querySelector('.ai-publish');
+    const comp = box && box.__vueParentComponent;
+    if (!comp || !comp.props || !('recognizeDisabled' in comp.props)) return null;
+    let page = comp.parent;
+    while (page && (page.type.name || page.type.__name) !== 'PublishProduct') page = page.parent;
+    return {
+      recognized: !!(comp.props.recognizeDisabled || comp.props.intelligentPublish),
+      reloading: !!(page && page.setupState && page.setupState.isAIReload),
+      images: qsa('.sortable-list img', inst.$el).filter(visible).length,
+    };
+  }
+
   // ---------- 本地校验 ----------
   // 校验结果里的键不一定是字段名（图片信息识别报在 recProduct 上）
   const ERROR_TITLES = { recProduct: '图片信息识别' };
 
-  /** 只跑页面表单的本地校验（不提交），返回每个字段的错误 */
+  function formErrors(api, e) {
+    const entries = e && typeof e === 'object' ? Object.entries(e) : [['表单', e]];
+    return entries.map(([key, list]) => {
+      const rule = api.getRule(key);
+      const title = ERROR_TITLES[key] || (rule && typeof rule.title === 'string' ? rule.title : key);
+      const msgs = Array.isArray(list) ? list.map((x) => (x && x.message) || String(x)) : [String((list && list.message) || list)];
+      return `${title}：${[...new Set(msgs)].join('/')}`;
+    });
+  }
+
+  /** 只跑页面表单的本地校验（不提交），返回每个字段的错误；“图片识别过没有”本地校验查不到，单独补上 */
   async function vcValidate() {
     const api = B.getFApi();
+    let errors = [];
     try {
       await api.validate();
-      return { ok: true, errors: [] };
     } catch (e) {
-      const entries = e && typeof e === 'object' ? Object.entries(e) : [['表单', e]];
-      const errors = entries.map(([key, list]) => {
-        const rule = api.getRule(key);
-        const title = ERROR_TITLES[key] || (rule && typeof rule.title === 'string' ? rule.title : key);
-        const msgs = Array.isArray(list) ? list.map((x) => (x && x.message) || String(x)) : [String((list && list.message) || list)];
-        return `${title}：${[...new Set(msgs)].join('/')}`;
-      });
-      return { ok: false, errors };
+      errors = formErrors(api, e);
     }
+    const rec = aiRecState(api);
+    const recTitle = ERROR_TITLES.recProduct;
+    if (rec && rec.images && !rec.recognized && !errors.some((x) => x.startsWith(`${recTitle}：`))) {
+      errors = [...errors, `${recTitle}：${NOT_RECOGNIZED_MSG}`];
+    }
+    return { ok: errors.length === 0, errors };
   }
 
   // ---------- SKU 表 ----------
@@ -255,7 +286,7 @@
 
   Object.assign(B, {
     __vc: true,
-    vcUtil: { optionsOf, vcSkuRows, cellOf },
+    vcUtil: { optionsOf, vcSkuRows, cellOf, aiRecState },
     vcStatus,
     vcSetFields,
     vcSetErp,
