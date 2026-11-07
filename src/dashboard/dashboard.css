@@ -211,3 +211,12 @@ table.plan input:invalid { border-color: var(--red); }
 .url-preview { color: #1e7b34; word-break: break-all; }
 .url-preview.bad { color: var(--red); }
 .clamp { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+/* 表格导入价格/ERP 弹窗 */
+.import-step { display: grid; gap: 6px; justify-items: start; }
+.import-summary { margin: 0; font-weight: 600; }
+.import-error { margin: 0; color: var(--red); }
+.import-problems { margin: 4px 0 0; padding-left: 18px; max-height: 240px; overflow: auto; }
+.import-problems li.error { color: var(--red); }
+.import-problems li.warn { color: #8a4b00; }
+table.plan caption { caption-side: bottom; padding-top: 4px; text-align: left; }

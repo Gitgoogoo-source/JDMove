@@ -9,6 +9,7 @@ import { publishImagePlan } from './publish-plan.js';
 import { normalizeUpc, productUpc, skuAttrValueMap } from './sku-attrs.js';
 import { parseSpecText, quantitiesByUnit } from './vc-spec.js';
 import { vcFormEntries, vcWeightKg } from './vc-form-values.js';
+import { ERP_LABELS, vcErpCodes } from './vc-erp.js';
 
 export { vcWeightKg };
 
@@ -203,13 +204,20 @@ function saleUnitWarning(unit) {
   return [`销售单位按推断填写：${unit.unit}（依据：${unit.from}），请核对`];
 }
 
-function planWarnings({ props, erpCode, prices, unit, upc, dangerGoods }) {
+/** 没填的 ERP：两个都没填 / 只缺一个时分别提醒 */
+function erpWarning(erp) {
+  if (!erp.buyer && !erp.saler) return ['采购员/销售员 ERP 没有填写，沿用页面上的默认值，请核对'];
+  const missing = Object.entries(ERP_LABELS).filter(([k]) => !erp[k]).map(([, label]) => label);
+  return missing.length ? [`${missing.join('、')} 没有填写，沿用页面上的默认值，请核对`] : [];
+}
+
+function planWarnings({ props, erp, prices, unit, upc, dangerGoods }) {
   const guessed = props.report
     .filter((r) => r.status === 'guessed')
     .map((r) => `属性按推断填写，请核对：${r.title}=${r.label ?? r.raw}（依据：${r.source}）`);
   return [
     ...guessed,
-    ...(erpCode ? [] : ['采购员/销售员 ERP 没有填写，沿用页面上的默认值，请核对']),
+    ...erpWarning(erp),
     ...(prices.costPrice && prices.jdPrice && prices.costPrice >= prices.jdPrice
       ? [`采购价 ¥${prices.costPrice} 不低于京东价 ¥${prices.jdPrice}，毛利为负，请核对`]
       : []),
@@ -236,7 +244,8 @@ export function buildVcPublishPlan({ product, edits = {}, settings, schema }) {
   const title = planTitle(product, edits, settings);
   const spec = parseSpecText(specTextOf(product));
   const unit = settings.vc.saleUnit ? { unit: settings.vc.saleUnit, fromSettings: true } : inferSaleUnit(product, spec);
-  const erpCode = String(edits.vc?.erpCode ?? '').trim() || settings.vc.erpCode;
+  // 采购员 / 销售员 ERP：编辑里单独填的 > 编辑里共用的 > 设置里的默认 ERP
+  const erp = vcErpCodes(edits.vc, settings.vc.erpCode);
   const prices = vcPrices(edits);
   // VC 不用默认 UPC：同一个条码填到所有商品上会被判重码，入仓还要贴码
   const upc = normalizeUpc(edits.upc) || productUpc(product);
@@ -250,7 +259,7 @@ export function buildVcPublishPlan({ product, edits = {}, settings, schema }) {
   return {
     title,
     model,
-    erpCode,
+    erp,
     prices,
     logistics,
     // 按页面格式转好的字符串，页面脚本原样写入（不写数字：数字会被保存接口拒收）
@@ -262,7 +271,7 @@ export function buildVcPublishPlan({ product, edits = {}, settings, schema }) {
     skuAttrUnits: quantitiesByUnit(spec.quantities),
     // 源商品的危险品标记（true/false/null）：页面选项结构没走查过，只提醒不填写
     dangerGoods: product.vc?.dangerGoods ?? null,
-    warnings: [...planWarnings({ props, erpCode, prices, unit, upc, dangerGoods: product.vc?.dangerGoods }), ...form.warnings],
+    warnings: [...planWarnings({ props, erp, prices, unit, upc, dangerGoods: product.vc?.dangerGoods }), ...form.warnings],
     blockers: [...blockers, ...formBlockers],
   };
 }

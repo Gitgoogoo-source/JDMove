@@ -249,6 +249,29 @@ export function createItemRepository(storage) {
         return next;
       }),
 
+    /**
+     * 批量修改编辑内容（表格导入）：每条用 edit(当前编辑内容) 算出新的编辑内容，以存储里的最新条目为准，只写一次。
+     * 编辑内容没有变化的条目不动
+     * @param {{id: string, edit: (edits: object, item: Item) => object}[]} changes edit 返回原编辑内容（或相同内容）表示不改
+     * @returns {Promise<string[]>} 实际修改了的条目 id
+     */
+    saveEditsMany: (changes) =>
+      serial(async () => {
+        const byId = new Map(changes.map((c) => [String(c.id), c.edit]));
+        const items = await load();
+        const changed = [];
+        const next = items.map((item) => {
+          const edit = byId.get(item.id);
+          if (!edit) return item;
+          const edits = edit(item.edits ?? {}, item);
+          if (editsEqual(item.edits, edits)) return item;
+          changed.push(item.id);
+          return applyEdits(item, edits);
+        });
+        if (changed.length) await persist(next);
+        return changed;
+      }),
+
     // taskId：任务自己的 SKU（链接里的编码）；页面报告的 SKU 不同时也写回原任务，不会多出一条
     saveCollected: (product, taskId = product.skuId) =>
       serial(async () => {

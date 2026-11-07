@@ -117,7 +117,7 @@ test('buildVcPublishPlan: 样本商品生成完整计划', () => {
   assert.deepEqual(plan.blockers, []);
   assert.equal(plan.title, '抽纸 棉韧3层100抽*36包S码 亲肤无刺激纸巾 AB混发');
   assert.equal(plan.model, 'V2833-D');
-  assert.equal(plan.erpCode, 'xudezhi.6');
+  assert.deepEqual(plan.erp, { buyer: 'xudezhi.6', saler: 'xudezhi.6' });
   assert.deepEqual(plan.prices, PRICES);
   assert.deepEqual(plan.logistics, {
     length: 408,
@@ -150,9 +150,20 @@ test('buildVcPublishPlan: SKU 商品名称 = 标题 + 标题里没有的规格�
 
 test('buildVcPublishPlan: 没填 ERP 时沿用页面默认值并提醒；采购价不低于京东价时提醒毛利为负', () => {
   const plan = buildVcPublishPlan({ product: product(), edits: { vc: { ...PRICES, costPrice: 70 } }, settings: settings(), schema: SCHEMA });
-  assert.equal(plan.erpCode, '');
-  assert.ok(plan.warnings.some((w) => /ERP/.test(w)));
+  assert.deepEqual(plan.erp, { buyer: '', saler: '' });
+  assert.ok(plan.warnings.some((w) => /采购员\/销售员 ERP 没有填写/.test(w)));
   assert.ok(plan.warnings.some((w) => /毛利/.test(w)));
+});
+
+test('buildVcPublishPlan: 采购员和销售员 ERP 可以不同；只填一个时另一个用设置里的默认 ERP，都没有时提醒缺的那个', () => {
+  const own = buildVcPublishPlan({ product: product(), edits: { vc: { ...PRICES, buyerErp: 'caigou.1', salerErp: 'xiaoshou.2' } }, settings: settings(), schema: SCHEMA });
+  assert.deepEqual(own.erp, { buyer: 'caigou.1', saler: 'xiaoshou.2' });
+  assert.ok(!own.warnings.some((w) => /ERP/.test(w)));
+  const withDefault = buildVcPublishPlan({ product: product(), edits: { vc: { ...PRICES, buyerErp: 'caigou.1' } }, settings: settings({ vc: { erpCode: 'moren' } }), schema: SCHEMA });
+  assert.deepEqual(withDefault.erp, { buyer: 'caigou.1', saler: 'moren' });
+  const half = buildVcPublishPlan({ product: product(), edits: { vc: { ...PRICES, salerErp: 'xiaoshou.2' } }, settings: settings(), schema: SCHEMA });
+  assert.deepEqual(half.erp, { buyer: '', saler: 'xiaoshou.2' });
+  assert.ok(half.warnings.some((w) => /^采购员ERP 没有填写/.test(w)), half.warnings.join('\n'));
 });
 
 test('buildVcPublishPlan: VC 不使用默认 UPC；没有条形码时只提醒（入仓需要）', () => {
@@ -167,7 +178,7 @@ test('buildVcPublishPlan: 设置里的 ERP、销售单位、包装清单生效�
   const s = settings({ vc: { erpCode: 'zhangsan', saleUnit: '提' }, packList: '抽纸*36' });
   const schema = { ...SCHEMA, attrs: [...SCHEMA.attrs, { field: '9', title: '执行标准', kind: 'input', required: true, options: [] }] };
   const plan = buildVcPublishPlan({ product: product(), edits: { vc: PRICES }, settings: s, schema });
-  assert.equal(plan.erpCode, 'zhangsan');
+  assert.deepEqual(plan.erp, { buyer: 'zhangsan', saler: 'zhangsan' });
   assert.equal(plan.logistics.unit, '提');
   assert.equal(plan.logistics.packListing, '抽纸*36');
   assert.ok(plan.blockers.some((b) => /执行标准/.test(b)));

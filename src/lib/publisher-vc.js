@@ -48,8 +48,8 @@ async function fillFields(tabId, plan, log, timer) {
   log(`物流：长 ${valueOf(plan, 'length')} × 宽 ${valueOf(plan, 'wide')} × 高 ${valueOf(plan, 'height')} mm，毛重 ${valueOf(plan, 'weight')} kg`);
   log(`标题：${plan.title}`);
   log(`价格：市场价 ¥${plan.prices.marketPrice} / 京东价 ¥${plan.prices.jdPrice} / 采购价 ¥${plan.prices.costPrice}`);
-  if (plan.erpCode) {
-    const erp = await callVcBackend(tabId, 'vcSetErp', plan.erpCode);
+  if (plan.erp.buyer || plan.erp.saler) {
+    const erp = await callVcBackend(tabId, 'vcSetErp', plan.erp);
     timer.lap('采购员/销售员');
     if (!erp?.ok) return stop('need_action', `采购员/销售员 ERP 填写失败：${(erp?.errors ?? ['页面没有返回结果']).join('；')}`);
     log(erp.people.join('，'));

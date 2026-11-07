@@ -35,6 +35,9 @@ const NUMBER_RULES = [
   { key: 'packSpecification', from: 'logistics', label: '包装规格', decimals: 0, min: 1, max: 100000, critical: false },
 ];
 
+/** 数字字段的页面规则（小数位数、范围）：表格导入价格时按同一套规则校验 */
+export const vcNumberRule = (key) => NUMBER_RULES.find((r) => r.key === key) ?? null;
+
 /** 文本 / 下拉字段（下拉在页面里按选项文字换成选项值） */
 const TEXT_RULES = [
   { key: 'model', field: 'features.model', from: 'root', label: '型号', critical: true },

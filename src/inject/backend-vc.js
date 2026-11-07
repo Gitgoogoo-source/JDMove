@@ -161,8 +161,8 @@
 
   // ---------- 采购员 / 销售员 ERP ----------
   const ERP_FIELDS = [
-    ['buyerInfo', /采购员ERP/, '采购员'],
-    ['salerInfo', /销售员ERP/, '销售员'],
+    ['buyerInfo', /采购员ERP/, '采购员', 'buyer'],
+    ['salerInfo', /销售员ERP/, '销售员', 'saler'],
   ];
 
   /** 在自动完成输入框里输入 ERP，选中完全一致的候选，页面随之查出姓名 */
@@ -189,14 +189,19 @@
   }
 
   /**
-   * 采购员和销售员填同一个 ERP（用户的 5 个手动字段之二）
+   * 采购员 / 销售员 ERP（用户的 5 个手动字段之二）。codes 为字符串时两个字段填同一个（旧调用方式）；
+   * 对象里没给的字段不动，沿用页面默认值
+   * @param {string | {buyer?: string, saler?: string}} codes
    * @returns {Promise<{ok: boolean, people: string[], errors: string[]}>} people：页面上最终的“姓名(ERP)”
    */
-  async function vcSetErp(code) {
+  async function vcSetErp(codes) {
     const api = B.getFApi();
     if (!api) return { ok: false, people: [], errors: ['表单未就绪'] };
+    const want = typeof codes === 'string' ? { buyer: codes, saler: codes } : codes || {};
     const errors = [];
-    for (const [field, re, label] of ERP_FIELDS) {
+    for (const [field, re, label, key] of ERP_FIELDS) {
+      const code = String(want[key] || '').trim();
+      if (!code) continue;
       const current = api.getValue(field) || {};
       if (current.erpCode === code && current.erpName) continue;
       const err = await pickErp(api, field, re, code);

@@ -6,6 +6,8 @@ import { editItem } from './editor.js';
 import { editSettings } from './settings-dialog.js';
 import { createStorageController } from './storage-ui.js';
 import { openRepriceDialog } from './reprice-dialog.js';
+import { openVcImportDialog } from './vc-import-dialog.js';
+import { importEdit } from '../shared/vc-import.js';
 import { extractSkuIds, b2bItemUrls } from '../shared/url-utils.js';
 import { parseShopInput } from '../shared/shop-url.js';
 import { itemRepo, settingsRepo, throttleRepo } from '../lib/chrome-env.js';
@@ -43,6 +45,8 @@ const BIG_CHANGE_RATIO = 0.3;
 const PRICE_CHECK_PAGE_SEC = 4;
 // 限流冷却横幅的刷新间隔：冷却结束后自动消失
 const COOLDOWN_REFRESH_MS = 60e3;
+// 表格导入后写进日志的问题行数（全部问题在导入弹窗里看）
+const IMPORT_LOG_PROBLEMS = 30;
 
 function appendLog(line) {
   logLines = [...logLines, `${new Date().toLocaleTimeString()} ${line}`].slice(-MAX_LOG);
@@ -96,7 +100,7 @@ function renderState() {
   const el = $('#runState');
   el.textContent = st.running ? `${MODE_LABELS[st.mode] ?? ''}中：${st.currentId ?? ''}${st.stopRequested ? '（正在停止）' : ''}` : '空闲';
   el.classList.toggle('busy', st.running);
-  for (const id of ['btnCollect', 'btnRecollect', 'btnPublish', 'btnDelete', 'btnAdd', 'btnShop', 'btnSettings', 'btnImport', 'btnSaveLocal', 'btnStorage', 'btnPriceCheck', 'btnReprice', 'btnReturn']) {
+  for (const id of ['btnCollect', 'btnRecollect', 'btnPublish', 'btnDelete', 'btnAdd', 'btnShop', 'btnSettings', 'btnImport', 'btnSaveLocal', 'btnStorage', 'btnPriceCheck', 'btnReprice', 'btnReturn', 'btnVcImport']) {
     $(`#${id}`).disabled = st.running;
   }
   $('#btnStorage').textContent = storage.label();
@@ -185,6 +189,8 @@ function render() {
     `任务 ${tasks.length} · 待采集 ${count('pending')} · 已采集 ${count('collected')} · 需处理 ${count('need_action')} · 失败 ${count('failed')} · 已发布 ${archived}` +
     (inverted ? `（价格倒挂 ${inverted}）` : '');
   $('#btnArchive').textContent = archived ? `已发布（${archived}）` : '已发布';
+  // 这 5 项只在发布到 VC 自营时用到
+  $('#btnVcImport').hidden = settings?.publish?.platform !== 'vc';
   $('#checkAll').checked = list.length > 0 && list.every((i) => selected.has(i.id));
   renderState();
 }
@@ -318,6 +324,23 @@ async function handleEdit(id) {
     await settingsRepo.save({ ...settings, categoryMap: [...others, res.mapping] });
     appendLog(`已记住类目映射：${res.mapping.source} => ${res.mapping.name}`);
   }
+  await reload();
+}
+
+/**
+ * 表格批量填写 VC 的市场价/京东价/采购价/采购员ERP/销售员ERP。模板列出任务列表里的商品（勾选了就只列勾选的），
+ * 导入按商品链接对应，一次保存
+ */
+async function handleVcImport() {
+  const tasks = view.mode === 'tasks' ? visibleItems() : taskItems(items);
+  const chosen = view.mode === 'tasks' ? tasks.filter((i) => selected.has(i.id)) : [];
+  const res = await openVcImportDialog({ items, templateItems: chosen.length ? chosen : tasks, onLog: appendLog });
+  if (!res) return;
+  const changed = await itemRepo.saveEditsMany(res.updates.map((u) => ({ id: u.id, edit: importEdit(u.values) })));
+  const notes = res.notes.length ? `；${res.notes.join('，')}` : '';
+  appendLog(`表格导入：已修改 ${changed.length} 个商品的市场价/京东价/采购价/ERP${notes}`);
+  res.problems.slice(0, IMPORT_LOG_PROBLEMS).forEach((p) => appendLog(`表格导入 第 ${p.row} 行：${p.text}`));
+  if (res.problems.length > IMPORT_LOG_PROBLEMS) appendLog(`表格导入：还有 ${res.problems.length - IMPORT_LOG_PROBLEMS} 行问题没写进日志，请重新打开导入弹窗选择这个表格查看`);
   await reload();
 }
 
@@ -497,6 +520,7 @@ function bind() {
     runner.collect(ids);
   });
   $('#btnRecollect').addEventListener('click', handleRecollectSelected);
+  $('#btnVcImport').addEventListener('click', handleVcImport);
   $('#btnStorage').addEventListener('click', () => storage.choose());
   $('#btnSaveLocal').addEventListener('click', async () => {
     // 勾选了就按勾选的保存（可重新保存）；没勾选时只保存还没存到本地的

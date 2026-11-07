@@ -109,7 +109,7 @@ test('publishVcItem: 直接打开带品牌和末级类目的 VC 发布页，按�
   assert.ok(recognize.text && !/维达/.test(recognize.text), '识别文案用发布标题（不带品牌）');
   assert.ok(page.methods().indexOf('vcRecognize') > page.methods().lastIndexOf('vcPutImages'), '图片都放好之后再识别');
   const erp = page.calls.find((c) => c.method === 'vcSetErp');
-  assert.deepEqual(erp.args, ['xudezhi.6']);
+  assert.deepEqual(erp.args, [{ buyer: 'xudezhi.6', saler: 'xudezhi.6' }]);
   assert.ok(lines.some((l) => /入仓需贴码/.test(l)), '重码提示写进日志');
 });
 
@@ -221,6 +221,14 @@ test('publishVcItem: 价格没写进去时停止，不再往下填', async () =>
   assert.equal(res.status, 'failed');
   assert.match(res.message, /京东价/);
   assert.ok(!page.methods().includes('vcPutImages'));
+});
+
+test('publishVcItem: 采购员和销售员 ERP 不同时分别传给页面', async () => {
+  const page = vcPage();
+  installFakeChrome({ backend: page.backend });
+  const res = await publishVcItem(vcItem({ vc: { ...PRICES, buyerErp: 'caigou.1', salerErp: 'xiaoshou.2' } }), settings(), () => {}, { imageMakers: makers });
+  assert.equal(res.status, 'filled');
+  assert.deepEqual(page.calls.find((c) => c.method === 'vcSetErp').args, [{ buyer: 'caigou.1', saler: 'xiaoshou.2' }]);
 });
 
 test('publishVcItem: ERP 找不到时标为需处理并保留页面', async () => {

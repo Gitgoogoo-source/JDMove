@@ -21,7 +21,7 @@ const DEFAULT_PLATFORM = 'vc';
 // VC 发布页“商品包装”的选项
 export const VC_PACK_TYPES = ['普通商品', '易碎品', '裸瓶液体', '带包装液体'];
 // 京东员工 ERP 账号：字母、数字、点、下划线、横线
-const ERP_RE = /^[\w.-]{1,50}$/;
+export const ERP_RE = /^[\w.-]{1,50}$/;
 const MAX_UNIT_LENGTH = 10;
 
 export const EDIT_URL_RULE =
