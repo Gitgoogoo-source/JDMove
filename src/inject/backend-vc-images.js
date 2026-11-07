@@ -34,25 +34,66 @@
     return root ? root.querySelector('.vc-image-upload-button') : null;
   }
 
-  /** 图片信息识别：悬停“+”出现“本地上传 / 图片空间 / 截图上传”，点“图片空间” */
+  // ---------- 图片信息识别的“+”菜单 ----------
+  // “+”是悬停提示（JdTooltip）的触发器，菜单“本地上传 / 图片空间 / 截图上传”在传送到 body 下的 .jd-popper 里。
+  // 菜单渲染一次后常驻 DOM，没悬停时只是隐藏，点隐藏的菜单项照样打开图片空间。
+  // 发布页不在前台（切到别的标签页、窗口被遮挡）时合成的悬停不一定能把菜单显示出来，
+  // 所以菜单项只等一会儿“显示”，等不到就直接点隐藏的那个
+  const AI_MENU_ENTRY = '图片空间';
+  const MENU_SHOW_WAIT_MS = 1500;
+  const MAX_COMPONENT_HOPS = 12;
+  const MAX_VNODES = 3000;
+
+  /** “+”对应的菜单弹层：沿 Vue 组件链找到 JdTooltip，再在它的渲染树里找 .jd-popper；找不到为 null */
+  function tooltipPopper(trigger) {
+    let comp = trigger && trigger.__vueParentComponent;
+    for (let i = 0; comp && i < MAX_COMPONENT_HOPS && !(comp.type && comp.type.name === 'JdTooltip'); i += 1) comp = comp.parent;
+    if (!comp) return null;
+    const stack = [comp.subTree];
+    for (let seen = 0; stack.length && seen < MAX_VNODES; seen += 1) {
+      const v = stack.pop();
+      if (!v) continue;
+      if (v.el && v.el.classList && v.el.classList.contains('jd-popper')) return v.el;
+      if (v.component) stack.push(v.component.subTree);
+      if (Array.isArray(v.children)) stack.push(...v.children);
+    }
+    return null;
+  }
+
+  /**
+   * “+”菜单里的“图片空间”：优先在“+”自己的弹层里找，找不到弹层时在页面所有弹层里找
+   * @returns {{entry: Element, shown: boolean} | null} shown：菜单项当前是否显示
+   */
+  function aiRecMenuEntry(plus) {
+    const popper = tooltipPopper(plus);
+    const nodes = popper ? qsa('*', popper) : qsa('.jd-popper *');
+    const entries = nodes.filter((e) => !e.children.length && textOf(e) === AI_MENU_ENTRY);
+    const shown = entries.find(visible);
+    if (shown) return { entry: shown, shown: true };
+    return entries.length ? { entry: entries[0], shown: false } : null;
+  }
+
+  /**
+   * 图片信息识别：悬停“+”，点菜单里的“图片空间”
+   * @returns {Promise<string|null>} 失败原因；null 表示已经点了
+   */
   async function openAiRecSpace(api) {
     const inst = api.el(AI_REC_FIELD);
     const root = inst && inst.$el;
-    if (!root) return false;
-    // “+”是悬停提示的触发器（JdTooltipTrigger），菜单项“图片空间”在弹出的 .jd-popper 里
+    if (!root) return '页面上找不到图片信息识别';
     const plus = root.querySelector('.shop-img-upload__upload-logo');
-    if (!plus) return false;
+    if (!plus) return '图片信息识别里找不到“+”（可能已经放满图片）';
     plus.scrollIntoView({ block: 'center' });
     hover(plus);
-    const entry = await waitFor(
-      () => qsa('.jd-popper *').find((e) => visible(e) && !e.children.length && textOf(e) === '图片空间'),
-      { timeout: 3000 },
-    );
-    if (!entry) return false;
-    click(entry.parentElement || entry);
-    return true;
+    const found = (await waitFor(() => (aiRecMenuEntry(plus) || {}).shown && aiRecMenuEntry(plus), { timeout: MENU_SHOW_WAIT_MS })) || aiRecMenuEntry(plus);
+    if (!found) return '悬停“+”后没有出现“图片空间”菜单（请让发布页保持在前台）';
+    click(found.entry.parentElement || found.entry);
+    return null;
   }
 
+  const DIALOG_OPEN_TIMEOUT_MS = 8000;
+
+  /** @returns {Promise<{dialog: Element|null, error?: string}>} error：图片空间为什么没打开 */
   async function openImageSpace(api, field) {
     if (imageSpaceDialog()) {
       const cancel = buttonByText('取消', imageSpaceDialog());
@@ -60,14 +101,16 @@
       await sleep(500);
     }
     if (field === AI_REC_FIELD) {
-      if (!(await openAiRecSpace(api))) return null;
+      const error = await openAiRecSpace(api);
+      if (error) return { dialog: null, error };
     } else {
       const btn = uploadButton(api, field);
-      if (!btn) return null;
+      if (!btn) return { dialog: null, error: '找不到“上传图片”按钮' };
       btn.scrollIntoView({ block: 'center' });
       click(btn);
     }
-    return waitFor(imageSpaceDialog, { timeout: 8000 });
+    const dialog = await waitFor(imageSpaceDialog, { timeout: DIALOG_OPEN_TIMEOUT_MS });
+    return dialog ? { dialog } : { dialog: null, error: `点了之后 ${DIALOG_OPEN_TIMEOUT_MS / 1000} 秒内没有弹出图片空间` };
   }
 
   const cardByName = (dialog, name) =>
@@ -124,8 +167,8 @@
       await sleep(300);
     }
     const before = valueCount(api, field);
-    const dialog = await openImageSpace(api, field);
-    if (!dialog) return { ok: false, count: 0, urls: [], errors: ['图片空间没有打开'] };
+    const { dialog, error } = await openImageSpace(api, field);
+    if (!dialog) return { ok: false, count: 0, urls: [], errors: [`图片空间没有打开：${error}`] };
     const errors = [];
     const urls = images.length ? await uploadInto(dialog, images, errors) : [];
     if (names.length) await selectByName(dialog, names, errors);
@@ -211,5 +254,5 @@
     return { ok: false, textFilled, errors: [reason, ...messages()] };
   }
 
-  Object.assign(B, { __vcImages: true, vcPutImages, vcRecognize });
+  Object.assign(B, { __vcImages: true, vcPutImages, vcRecognize, vcImagesUtil: { aiRecMenuEntry, tooltipPopper } });
 })();

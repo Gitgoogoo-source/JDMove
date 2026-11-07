@@ -88,6 +88,7 @@ export function renderRow(item, ctx) {
       {},
       h('div', { class: 'title' }, item.edits?.title || p?.title || '（未采集）'),
       h('a', { class: 'sub', href: item.url, target: '_blank', rel: 'noreferrer' }, `SKU ${item.skuId}`),
+      p?.vc?.spuId && p.vc.spuId !== item.skuId ? h('div', { class: 'sub' }, `SPU ${p.vc.spuId}`) : null,
       shopIdLine(item),
       localCell(item.local),
     ),

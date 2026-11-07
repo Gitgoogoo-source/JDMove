@@ -90,7 +90,7 @@ export async function editSettings(settings) {
           field('删除词（逗号分隔）', f.removeWords)),
         h('fieldset', {}, h('legend', {}, '发布'),
           field('发布到', f.platform, 'VC 自营：直接打开 vcProductPublish 发布页（用采集到的类目和品牌ID），市场价/京东价/采购价/采购员/销售员需在「编辑」中填写'),
-          h('div', { class: 'row2' }, field('填写完成后', f.action, 'VC 自营只有“发布商品”（提交采销审核）和“保存草稿”：提交并上架、提交暂不上架都点“发布商品”'), field('每条发布间隔（秒）', f.pubDelay)),
+          h('div', { class: 'row2' }, field('填写完成后', f.action, 'VC 自营填写完成后一律点“保存草稿”（不点“发布商品”），请到草稿箱检查后再提交；选“只填写，不保存”时不点按钮'), field('每条发布间隔（秒）', f.pubDelay)),
           h('div', { class: 'row2' }, field('主图最多', f.maxMain), field('详情图最多', f.maxDetail)),
           f.reupload.node, f.skuAttrs.node,
           field('默认 UPC', f.defaultUpc, '源商品没有条形码、编辑里也没填 UPC 时，商品基本信息和 SKU 表的“商品条形码”、“最小可售单位UPC”填这个值；留空则不填，发布会停下提示'),

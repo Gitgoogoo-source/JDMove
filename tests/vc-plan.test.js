@@ -1,7 +1,7 @@
 // VC 自营发布的填写计划（纯函数）：用 2026-11 走查过的维达抽纸样本
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildVcPublishPlan, vcPreflight, vcTarget, vcTitle, vcActionLabel } from '../src/shared/vc-plan.js';
+import { buildVcPublishPlan, vcPreflight, vcTarget, vcTitle, vcActionLabel, vcWeightKg } from '../src/shared/vc-plan.js';
 import { mergeSettings } from '../src/shared/settings.js';
 import { weightedLength } from '../src/shared/title.js';
 
@@ -123,7 +123,7 @@ test('buildVcPublishPlan: 样本商品生成完整计划', () => {
     length: 408,
     wide: 310,
     height: 280,
-    weight: 4.33,
+    weight: 4.3,
     unit: '箱',
     packSpecification: 1,
     packType: '普通商品',
@@ -188,11 +188,27 @@ test('buildVcPublishPlan: 参数里有保质期时换算成天数', () => {
   assert.equal(plan.logistics.sldays, 1080);
 });
 
-test('vcActionLabel: VC 只有“发布商品”“保存草稿”两个按钮', () => {
-  assert.equal(vcActionLabel('submit_on'), 'vc_publish');
-  assert.equal(vcActionLabel('submit_off'), 'vc_publish');
+test('vcActionLabel: VC 一律点“保存草稿”，只填写不保存时不点按钮', () => {
+  assert.equal(vcActionLabel('submit_on'), 'vc_draft');
+  assert.equal(vcActionLabel('submit_off'), 'vc_draft');
   assert.equal(vcActionLabel('draft'), 'vc_draft');
   assert.equal(vcActionLabel('none'), null);
+});
+
+test('vcWeightKg: 毛重四舍五入到一位小数，不足 0.1 按 0.1，无效值为 null', () => {
+  assert.equal(vcWeightKg(4.33), 4.3);
+  assert.equal(vcWeightKg(4.35), 4.4);
+  assert.equal(vcWeightKg('2.06'), 2.1);
+  assert.equal(vcWeightKg(5), 5);
+  assert.equal(vcWeightKg(0.04), 0.1);
+  assert.equal(vcWeightKg(0), null);
+  assert.equal(vcWeightKg('abc'), null);
+});
+
+test('buildVcPublishPlan: 毛重填一位小数（编辑里的值同样处理）', () => {
+  assert.equal(buildVcPublishPlan({ product: product(), edits: { vc: PRICES }, settings: settings(), schema: SCHEMA }).logistics.weight, 4.3);
+  const edited = buildVcPublishPlan({ product: product(), edits: { vc: { ...PRICES, weightKg: 1.27 } }, settings: settings(), schema: SCHEMA });
+  assert.equal(edited.logistics.weight, 1.3);
 });
 
 test('vcTitle: 只删开头的品牌简称和任意位置的完整品牌，不误删标题中间同字的词', () => {
@@ -208,4 +224,39 @@ test('buildVcPublishPlan: 销售单位取包装形式里最先出现的容器词
   const p = { ...product(), params: [{ name: '包装形式', value: '盒装（含6瓶，整箱发货）' }] };
   const plan = buildVcPublishPlan({ product: p, edits: { vc: PRICES }, settings: settings(), schema: { attrs: [] } });
   assert.equal(plan.logistics.unit, '盒');
+});
+
+test('buildVcPublishPlan: 包装清单按 编辑 > 采集到的 > 设置 > 类目名*1', () => {
+  const pack = '维达（Vinda）抽纸 棉韧3层100抽*36包S码 亲肤无刺激 纸巾 整箱';
+  const withPack = { ...product(), packList: pack };
+  const s = settings({ packList: '抽纸*36' });
+  const plan = (p, edits = {}) => buildVcPublishPlan({ product: p, edits: { vc: { ...PRICES, ...edits } }, settings: s, schema: SCHEMA });
+  assert.equal(plan(withPack).logistics.packListing, pack);
+  assert.equal(plan(withPack, { packListing: '手填*1' }).logistics.packListing, '手填*1');
+  assert.equal(plan(product()).logistics.packListing, '抽纸*36');
+});
+
+test('buildVcPublishPlan: 有京东给的无品牌标题时用它生成标题', () => {
+  const p = { ...product(), title: '维达（Vinda）旧标题', vc: { ...product().vc, titleNoBrand: '抽纸【孙颖莎推荐】棉韧3层100抽*36包S码' } };
+  const plan = buildVcPublishPlan({ product: p, edits: { vc: PRICES }, settings: settings(), schema: SCHEMA });
+  assert.equal(plan.title, '抽纸 棉韧3层100抽*36包S码');
+  const edited = buildVcPublishPlan({ product: p, edits: { title: '手改标题', vc: PRICES }, settings: settings(), schema: SCHEMA });
+  assert.equal(edited.title, '手改标题');
+});
+
+test('buildVcPublishPlan: 源商品是危险品时提醒核对；不是时不提醒', () => {
+  const danger = { ...product(), vc: { ...product().vc, dangerGoods: true } };
+  const plan = buildVcPublishPlan({ product: danger, edits: { vc: PRICES }, settings: settings(), schema: SCHEMA });
+  assert.equal(plan.dangerGoods, true);
+  assert.ok(plan.warnings.some((w) => /危险品/.test(w)));
+  const normal = buildVcPublishPlan({ product: { ...product(), vc: { ...product().vc, dangerGoods: false } }, edits: { vc: PRICES }, settings: settings(), schema: SCHEMA });
+  assert.equal(normal.dangerGoods, false);
+  assert.ok(!normal.warnings.some((w) => /危险品/.test(w)));
+});
+
+test('buildVcPublishPlan: 规格按钮没采到时用主数据里的销售属性', () => {
+  const p = { ...product(), variants: [], vc: { ...product().vc, saleAttrs: [{ name: '规格', value: '【王牌囤货装】 3层 100抽*36包' }] } };
+  const plan = buildVcPublishPlan({ product: p, edits: { vc: PRICES }, settings: settings(), schema: SCHEMA });
+  assert.equal(plan.sku.spec.desc, '王牌囤货装');
+  assert.deepEqual(plan.skuAttrUnits, { 层: '3', 抽: '100', 包: '36' });
 });

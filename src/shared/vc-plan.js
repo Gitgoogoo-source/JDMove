@@ -19,11 +19,21 @@ const PROMO_RE = /【[^】]*】/g;
 const UNIT_WORDS = ['箱', '提', '包', '袋', '盒', '瓶', '罐', '桶', '支', '卷', '条', '片', '块', '套', '组', '件'];
 const DEFAULT_SALE_UNIT = '件';
 const PACK_PARAM_NAMES = ['包装形式', '包装', '包装方式'];
+// VC 发布页的“商品毛重”只接受一位小数：填 4.33 提交时报“无效的字符串，请核对后再试 [456]”，4.3 正常
+const WEIGHT_DECIMALS = 1;
+const WEIGHT_MIN_KG = 10 ** -WEIGHT_DECIMALS;
 
 const positive = (v) => {
   const n = Number(v);
   return Number.isFinite(n) && n > 0 ? n : null;
 };
+/** 毛重（kg）四舍五入到一位小数；不足 0.1 的按 0.1 填（0 会被当成没填） */
+export function vcWeightKg(kg) {
+  const n = positive(kg);
+  if (n == null) return null;
+  const factor = 10 ** WEIGHT_DECIMALS;
+  return Math.max(WEIGHT_MIN_KG, Math.round(n * factor) / factor);
+}
 const isId = (v) => /^\d+$/.test(String(v ?? '')) && Number(v) > 0;
 const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -108,12 +118,16 @@ function priceBlockers(prices) {
 
 const vcPrices = (edits) => Object.fromEntries(Object.keys(VC_PRICE_LABELS).map((k) => [k, positive(edits.vc?.[k])]));
 
+/** 标题：编辑里的优先；否则用京东给的无品牌商品名（没有时用完整标题）去品牌、清洗 */
+const planTitle = (product, edits, settings) =>
+  edits.title?.trim() || vcTitle(product?.vc?.titleNoBrand || product?.title, product?.brand?.name, settings.title);
+
 /**
  * 打开发布页之前就能判断的缺项（不需要表单结构），缺了就不打开页面
  * @returns {{blockers: string[]}}
  */
 export function vcPreflight({ product, edits = {}, settings }) {
-  const title = edits.title?.trim() || vcTitle(product?.title, product?.brand?.name, settings.title);
+  const title = planTitle(product, edits, settings);
   const missingDims = Object.entries(DIM_LABELS).filter(([k]) => !vcField(product, edits, k)).map(([, l]) => l);
   const { mainImageUrls } = publishImagePlan({ product, edits, settings });
   const blockers = [
@@ -127,8 +141,12 @@ export function vcPreflight({ product, edits = {}, settings }) {
   return { blockers };
 }
 
-/** 单规格商品的规格文本（采集时只保留了链接对应的规格） */
-const specTextOf = (product) => Object.values(product?.variants?.[0]?.values ?? {}).join(' ');
+/** 单规格商品的规格文本（采集时只保留了链接对应的规格）；规格按钮没采到时用主数据里的销售属性 */
+function specTextOf(product) {
+  const values = Object.values(product?.variants?.[0]?.values ?? {});
+  if (values.length) return values.join(' ');
+  return (product?.vc?.saleAttrs ?? []).map((a) => a.value).join(' ');
+}
 
 const squash = (s) => String(s).replace(/\s+/g, '');
 
@@ -163,12 +181,13 @@ function logisticsOf(product, edits, settings, source, saleUnit) {
     length: vcField(product, edits, 'lengthMm'),
     wide: vcField(product, edits, 'widthMm'),
     height: vcField(product, edits, 'heightMm'),
-    weight: vcField(product, edits, 'weightKg'),
+    weight: vcWeightKg(vcField(product, edits, 'weightKg')),
     unit: saleUnit,
     packSpecification: settings.vc.packSpecification,
     packType: settings.vc.packType,
     warranty: product?.vc?.warranty || settings.vc.warranty,
-    packListing: String(edits.vc?.packListing ?? '').trim() || settings.packList || product?.packList || `${product?.leafCategory || '商品'}*1`,
+    // 采集到的包装清单优先于设置：设置里的是所有商品共用的一句话
+    packListing: String(edits.vc?.packListing ?? '').trim() || product?.packList || settings.packList || `${product?.leafCategory || '商品'}*1`,
     sldays: shelfLifeDays(source),
   };
 }
@@ -179,7 +198,7 @@ function saleUnitWarning(unit) {
   return [`销售单位按推断填写：${unit.unit}（依据：${unit.from}），请核对`];
 }
 
-function planWarnings({ props, erpCode, prices, unit, upc }) {
+function planWarnings({ props, erpCode, prices, unit, upc, dangerGoods }) {
   const guessed = props.report
     .filter((r) => r.status === 'guessed')
     .map((r) => `属性按推断填写，请核对：${r.title}=${r.label ?? r.raw}（依据：${r.source}）`);
@@ -190,6 +209,7 @@ function planWarnings({ props, erpCode, prices, unit, upc }) {
       ? [`采购价 ¥${prices.costPrice} 不低于京东价 ¥${prices.jdPrice}，毛利为负，请核对`]
       : []),
     ...saleUnitWarning(unit),
+    ...(dangerGoods ? ['源商品是危险品：请在发布页核对“危险品”相关选项'] : []),
     ...(upc ? [] : ['没有商品条形码：自营商品入仓需要条形码，请在「编辑 → UPC」中填写']),
   ];
 }
@@ -208,7 +228,7 @@ export function buildVcPublishPlan({ product, edits = {}, settings, schema }) {
   if (props.missingRequired.length) {
     blockers.push(`必填属性未匹配：${props.missingRequired.join('、')}（源商品页没有这些信息，请在「编辑 → 属性覆盖」或设置的「属性默认值」中填写）`);
   }
-  const title = edits.title?.trim() || vcTitle(product.title, product.brand?.name, settings.title);
+  const title = planTitle(product, edits, settings);
   const spec = parseSpecText(specTextOf(product));
   const unit = settings.vc.saleUnit ? { unit: settings.vc.saleUnit, fromSettings: true } : inferSaleUnit(product, spec);
   const erpCode = String(edits.vc?.erpCode ?? '').trim() || settings.vc.erpCode;
@@ -228,17 +248,19 @@ export function buildVcPublishPlan({ product, edits = {}, settings, schema }) {
     sku: { name: skuName(title, spec), spec, upc },
     skuAttrValues: skuAttrValueMap({ params: product.params ?? [], defaults: attrDefaults, overrides }),
     skuAttrUnits: quantitiesByUnit(spec.quantities),
-    warnings: planWarnings({ props, erpCode, prices, unit, upc }),
+    // 源商品的危险品标记（true/false/null）：页面选项结构没走查过，只提醒不填写
+    dangerGoods: product.vc?.dangerGoods ?? null,
+    warnings: planWarnings({ props, erpCode, prices, unit, upc, dangerGoods: product.vc?.dangerGoods }),
     blockers,
   };
 }
 
 /**
- * 设置里的“填写完成后”对应 VC 页面上的按钮：VC 只有“发布商品”（提交采销审核）和“保存草稿”
- * @returns {'vc_publish'|'vc_draft'|null} null = 只填写不保存
+ * 设置里的“填写完成后”对应 VC 页面上的按钮：VC 只有“发布商品”（提交采销审核）和“保存草稿”。
+ * VC 自营一律点“保存草稿”，由人工在草稿箱里检查后再提交；只有“只填写，不保存”时不点按钮
+ * @returns {'vc_draft'|null} null = 只填写不保存
  */
 export function vcActionLabel(action) {
-  if (action === 'draft') return 'vc_draft';
   if (action === 'none') return null;
-  return 'vc_publish';
+  return 'vc_draft';
 }

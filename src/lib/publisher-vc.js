@@ -1,4 +1,4 @@
-// VC 自营发布：源商品的类目/品牌 → 直接打开 VC 发布页 → 按计划逐项填写 → 页面本地校验 → 发布商品 / 保存草稿。
+// VC 自营发布：源商品的类目/品牌 → 直接打开 VC 发布页 → 按计划逐项填写 → 页面本地校验 → 保存草稿（不点“发布商品”）。
 // POP 的流程在 publisher.js，两边只共用详情写入（同一个详情编辑器）
 import { buildVcPublishPlan, vcPreflight, vcTarget, vcActionLabel } from '../shared/vc-plan.js';
 import { buildVcPublishUrl } from '../shared/url-utils.js';
@@ -150,7 +150,7 @@ async function submitVc(tabId, action, landTimeoutMs) {
   return result;
 }
 
-function submitOutcome(result, plan, target, tabId, log) {
+function submitOutcome(result, plan, target, tabId, log, action) {
   const throttle = !result?.ok && detectSaveThrottle({ responses: result?.saveResponses, messages: result?.messages, confirmText: result?.confirmText });
   if (throttle) {
     log(`${throttle.message}，已关闭发布页`);
@@ -160,6 +160,10 @@ function submitOutcome(result, plan, target, tabId, log) {
   if (!result?.ok) {
     const detail = [result?.error, ...(result?.errors ?? []), ...(result?.messages ?? [])].filter(Boolean).join('；');
     return { status: 'failed', message: detail || '提交未成功', target, tabId };
+  }
+  if (action === 'vc_draft') {
+    log('已保存草稿：请到 VC 后台草稿箱检查后手动提交');
+    return { status: 'published', message: (result.messages ?? []).join('；') || '已保存草稿', target, price: plan.prices.jdPrice };
   }
   const wareId = parseWareId({ captured: result.wareIds, url: result.url, messages: result.messages });
   log(wareId ? `商品编号：${wareId}` : '没有拿到商品编号（VC 商品提交后进入采销审核）');
@@ -191,10 +195,10 @@ async function publishInVcTab(tab, item, settings, log, target, ctx) {
     if (!check?.ok) return { status: 'failed', message: `页面校验没通过：${(check?.errors ?? []).join('；')}`, target, tabId: tab.id };
 
     const action = vcActionLabel(settings.publish.action);
-    if (!action) return { status: 'filled', message: '已填写完成，请在工作窗口中检查后手动点“发布商品”', target, tabId: tab.id };
+    if (!action) return { status: 'filled', message: '已填写完成，请在工作窗口中检查后手动点“保存草稿”或“发布商品”', target, tabId: tab.id };
     const result = await submitVc(tab.id, action, ctx.landTimeoutMs);
     ctx.timer.lap(action === 'vc_draft' ? '保存草稿' : '发布商品');
-    return submitOutcome(result, plan, target, tab.id, log);
+    return submitOutcome(result, plan, target, tab.id, log, action);
   } catch (e) {
     return { status: 'failed', message: e.message, target, tabId: tab.id };
   }

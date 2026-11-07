@@ -13,15 +13,51 @@ function positive(v) {
 
 const isId = (v) => /^\d+$/.test(v) && Number(v) > 0;
 
+/** features2 是 “键:值;键:值” 的字符串，值里可能还有冒号 */
+function parseFeatures(text) {
+  const out = {};
+  for (const part of str(text).split(';')) {
+    const at = part.indexOf(':');
+    if (at > 0) out[part.slice(0, at).trim()] = part.slice(at + 1).trim();
+  }
+  return out;
+}
+
+/** sale_attributes 是 JSON 字符串：[{saleName, saleValue}]，解析失败时返回空数组 */
+function parseSaleAttrs(text) {
+  let list;
+  try {
+    list = JSON.parse(str(text) || '[]');
+  } catch {
+    return [];
+  }
+  if (!Array.isArray(list)) return [];
+  return list
+    .map((a) => ({ name: str(a?.saleName), value: str(a?.saleValue) }))
+    .filter((a) => a.name && a.value);
+}
+
+/** 危险品标记：1 是、0 否，其他（缺失）为 null */
+function dangerFlag(v) {
+  const s = str(v);
+  if (s === '1') return true;
+  if (s === '0') return false;
+  return null;
+}
+
 /**
  * @param {Record<string, unknown> | null | undefined} wareInfo 商品页 wareInfoReadMap 的节选
  * @returns {{cateIds: string[], brandId: number|null, model: string, weightKg: number|null,
- *   lengthMm: number|null, widthMm: number|null, heightMm: number|null, warranty: string}}
- *   cateIds：一级到末级类目 ID（三级类目的商品没有第四级）；长宽高单位 mm，毛重单位 kg
+ *   lengthMm: number|null, widthMm: number|null, heightMm: number|null, warranty: string,
+ *   spuId: string, seriesId: string, dangerGoods: boolean|null, shortTitle: string, titleNoBrand: string,
+ *   saleAttrs: {name: string, value: string}[]}}
+ *   cateIds：一级到末级类目 ID（三级类目的商品没有第四级）；长宽高单位 mm，毛重单位 kg；
+ *   spuId：realSpuId（没有时用 main_sku_id）；titleNoBrand：京东给的去掉品牌的商品名
  */
 export function vcSourceInfo(wareInfo) {
   const w = wareInfo ?? {};
   const ids = CATEGORY_KEYS.map((k) => str(w[k])).filter(isId);
+  const features = parseFeatures(w.features2);
   return {
     cateIds: [...new Set(ids)],
     brandId: positive(w.brand_id),
@@ -31,5 +67,11 @@ export function vcSourceInfo(wareInfo) {
     widthMm: positive(w.width),
     heightMm: positive(w.height),
     warranty: str(w.warranty),
+    spuId: [str(w.realSpuId), str(w.main_sku_id)].find(isId) ?? '',
+    seriesId: isId(str(w.seriesId)) ? str(w.seriesId) : '',
+    dangerGoods: dangerFlag(w.isdangergoods),
+    shortTitle: features.shortTitle ?? '',
+    titleNoBrand: features.skuNameWithoutBrand ?? '',
+    saleAttrs: parseSaleAttrs(w.sale_attributes),
   };
 }

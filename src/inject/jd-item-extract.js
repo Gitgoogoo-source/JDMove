@@ -59,11 +59,13 @@
   const { jfsOf } = NS;
 
   // 商品主数据里要带回扩展侧的字段：保质期（参数列表没有时兜底）、商品条形码（页面上不显示），
-  // 以及 VC 自营发布用的四级类目 ID、品牌 ID、型号、包装长宽高（mm）、毛重（kg）、质保
+  // 以及 VC 自营发布用的四级类目 ID、品牌 ID、型号、包装长宽高（mm）、毛重（kg）、质保、
+  // SPU、系列、危险品标记、features2（含 shortTitle / skuNameWithoutBrand）、销售属性
   const WARE_INFO_KEYS = [
     'shelf_life', 'upc_code',
     'category_id1', 'category_id2', 'category_id', 'category_id4',
     'brand_id', 'model', 'weight', 'length', 'width', 'height', 'warranty',
+    'realSpuId', 'main_sku_id', 'seriesId', 'isdangergoods', 'features2', 'sale_attributes',
   ];
   const pickWareInfo = (read) => Object.fromEntries(WARE_INFO_KEYS.map((k) => [k, read[k] == null ? '' : String(read[k])]));
 
@@ -202,6 +204,17 @@
     return dims;
   }
 
+  // 新版商品详情的参数区里，“包装清单”单独占一行（.item.exclusive-row，div.label + div.value），
+  // params() 认不出这种结构；旧版页面是 .package-list 段落
+  const PACK_LIST_LABEL = '包装清单';
+  function packListText() {
+    for (const row of qsa('.item.exclusive-row, [class*="attrs"] .item')) {
+      if (text(row.querySelector('.label')) === PACK_LIST_LABEL) return text(row.querySelector('.value'));
+    }
+    const old = document.querySelector('.package-list p, .package-list');
+    return old ? text(old).replace(/^包装清单[：:]?\s*/, '') : '';
+  }
+
   function detailRoot() {
     const sels = ['#detail-main', '#J-detail-content', '.detail-content', '#detail .detail-content', '[class*="detail-content"]', '[class*="goods-detail"]', '[class*="graphic"]'];
     for (const s of sels) {
@@ -303,6 +316,7 @@
       mainImages: mainImages(),
       priceText: price || priceText(),
       saleDims: saleDims(),
+      packList: packListText(),
       detailImages: detail.images,
       detailState: detail.state,
       isSelf: self || /自营/.test(shopName) ? true : null,

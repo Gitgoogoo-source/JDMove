@@ -122,13 +122,22 @@ test('publishVcItem: 没填 ERP 时不改采购员/销售员，沿用页面默�
   assert.ok(lines.some((l) => /ERP 没有填写/.test(l)));
 });
 
-test('publishVcItem: 提交并上架 → 点“发布商品”，成功后记下京东价', async () => {
+test('publishVcItem: 设置为提交并上架时也只点“保存草稿”，成功后记下京东价', async () => {
   const page = vcPage();
   installFakeChrome({ backend: page.backend });
-  const res = await publishVcItem(vcItem(), settings({ action: 'submit_on' }), () => {}, { imageMakers: makers });
+  const lines = [];
+  const res = await publishVcItem(vcItem(), settings({ action: 'submit_on' }), (l) => lines.push(l), { imageMakers: makers });
   assert.equal(res.status, 'published', res.message);
   assert.equal(res.price, 69.9);
-  assert.deepEqual(page.calls.find((c) => c.method === 'runAction').args, ['vc_publish']);
+  assert.deepEqual(page.calls.find((c) => c.method === 'runAction').args, ['vc_draft']);
+  assert.ok(lines.some((l) => /已保存草稿/.test(l)));
+});
+
+test('publishVcItem: 毛重按一位小数填写（4.33 → 4.3）', async () => {
+  const page = vcPage();
+  installFakeChrome({ backend: page.backend });
+  await publishVcItem(vcItem(), settings({ action: 'draft' }), () => {}, { imageMakers: makers });
+  assert.equal(page.calls.find((c) => c.method === 'vcSetFields').args[0].logistics.weight, 4.3);
 });
 
 test('publishVcItem: 保存草稿 → 点“保存草稿”', async () => {

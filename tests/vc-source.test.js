@@ -19,7 +19,16 @@ const VINDA = {
   warranty: '无质保',
   upc_code: '6901236326411',
   shelf_life: '0',
+  realSpuId: '100014512908',
+  main_sku_id: '100014512908',
+  isdangergoods: '0',
+  seriesId: '801106',
+  features2:
+    'bjxp:0;cxgm:1;shortTitle:维达 棉韧抽纸3层100抽36包;skuNameWithoutBrand:抽纸【孙颖莎推荐】棉韧3层100抽*36包S码 亲肤无刺激纸巾 AB混发;xxhf:1',
+  sale_attributes: '[{"dim":1,"saleName":"规格","saleValue":"【王牌囤货装】 3层 100抽*36包","sequenceNo":4}]',
 };
+
+const EMPTY_EXTRA = { spuId: '', seriesId: '', dangerGoods: null, shortTitle: '', titleNoBrand: '', saleAttrs: [] };
 
 test('vcSourceInfo: 取出四级类目、品牌、型号、长宽高、毛重、质保', () => {
   assert.deepEqual(vcSourceInfo(VINDA), {
@@ -31,7 +40,30 @@ test('vcSourceInfo: 取出四级类目、品牌、型号、长宽高、毛重、
     widthMm: 310,
     heightMm: 280,
     warranty: '无质保',
+    spuId: '100014512908',
+    seriesId: '801106',
+    dangerGoods: false,
+    shortTitle: '维达 棉韧抽纸3层100抽36包',
+    titleNoBrand: '抽纸【孙颖莎推荐】棉韧3层100抽*36包S码 亲肤无刺激纸巾 AB混发',
+    saleAttrs: [{ name: '规格', value: '【王牌囤货装】 3层 100抽*36包' }],
   });
+});
+
+test('vcSourceInfo: SPU 优先 realSpuId，没有时用 main_sku_id；危险品 1 为 true', () => {
+  assert.equal(vcSourceInfo({ main_sku_id: '100014512908' }).spuId, '100014512908');
+  assert.equal(vcSourceInfo({ realSpuId: '0', main_sku_id: 'x' }).spuId, '');
+  assert.equal(vcSourceInfo({ isdangergoods: '1' }).dangerGoods, true);
+  assert.equal(vcSourceInfo({ isdangergoods: '' }).dangerGoods, null);
+});
+
+test('vcSourceInfo: features2 / sale_attributes 格式不对时忽略，不报错', () => {
+  const info = vcSourceInfo({ features2: 'abc;;shortTitle:;x', sale_attributes: '{not json' });
+  assert.equal(info.shortTitle, '');
+  assert.equal(info.titleNoBrand, '');
+  assert.deepEqual(info.saleAttrs, []);
+  assert.deepEqual(vcSourceInfo({ sale_attributes: '[{"saleName":"","saleValue":"x"},null,{"saleName":"颜色","saleValue":" 红 "}]' }).saleAttrs, [
+    { name: '颜色', value: '红' },
+  ]);
 });
 
 test('vcSourceInfo: 三级类目的商品没有 category_id4（空串、0 或与三级相同都忽略）', () => {
@@ -50,6 +82,7 @@ test('vcSourceInfo: 缺字段或不是正数时为 null / 空串，不编造', (
     widthMm: null,
     heightMm: null,
     warranty: '',
+    ...EMPTY_EXTRA,
   });
   assert.equal(vcSourceInfo(undefined).brandId, null);
   assert.deepEqual(vcSourceInfo(null).cateIds, []);
