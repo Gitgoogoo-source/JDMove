@@ -562,6 +562,10 @@
   const SAVE_API_RE = /saveproduct/i;
   // VC 发布页走统一网关 sff.jd.com/api，接口名写在请求体里
   const VC_SAVE_BODY_RE = /warePublishPageSaveProductService\.saveProductNew/;
+  // VC 保存草稿的接口（地址里 api=dsm.productbff.product.draft.saveDraftNew）：成功返回 {code:200, data:{draftId}}，
+  // 网关拒收时 {code:455/456, msg:"无效的数字/字符串，请核对后再试 [456]"}
+  const VC_DRAFT_API_RE = /saveDraftNew/i;
+  const draftIdOf = (text) => idField(text, 'draftId');
   // 返回了编号但同时标着失败（success:false、4xx/5xx 错误码）不算提交成功
   const FAILED_BODY_RE = /"success"\s*:\s*false|"code"\s*:\s*"?[45]\d\d\b/;
   // 提交接口的原始返回带回扩展侧判断（如限流 bCode 10003）；只带回前 2000 个字符
@@ -590,8 +594,13 @@
     const captured = [];
     const saved = [];
     const responses = [];
+    const drafts = [];
     const restores = [];
     const record = (text, url, body) => {
+      if (VC_DRAFT_API_RE.test(String(url || ''))) {
+        const t = String(text);
+        drafts.push({ at: Date.now(), draftId: draftIdOf(t), failure: saveFailure(t), text: t.slice(0, SAVE_RESPONSE_MAX) });
+      }
       const isSave = SAVE_API_RE.test(String(url || '')) || (typeof body === 'string' && VC_SAVE_BODY_RE.test(body));
       if (isSave) responses.push({ text: String(text).slice(0, SAVE_RESPONSE_MAX), at: Date.now(), failure: saveFailure(String(text)) });
       const id = idField(text, 'wareId') || (isSave ? idField(text, 'productId') : '');
@@ -623,7 +632,23 @@
         });
       };
     }
-    return { captured, saved, responses, restore: () => [...restores].reverse().forEach((fn) => fn()) };
+    return { captured, saved, responses, drafts, restore: () => [...restores].reverse().forEach((fn) => fn()) };
+  }
+
+  /** VC 保存草稿接口的返回 → runAction 的结果 */
+  function vcDraftResult(draft, url) {
+    const ok = draft.failure == null && !!draft.draftId;
+    const why = draft.failure || (draft.draftId ? '' : '保存草稿接口没有返回草稿编号');
+    return {
+      ok,
+      messages: ok ? ['草稿已保存'] : [`保存草稿失败：${why}`],
+      errors: [],
+      confirmText: '',
+      url,
+      wareIds: [],
+      draftId: draft.draftId,
+      saveResponses: [draft.text],
+    };
   }
 
   async function runAction(action, opts) {
@@ -637,7 +662,7 @@
 
   // 只认点击之后新出现的提示：页面上可能还留着“批量设置成功”之类的提示，
   // 之前把它当成保存结果，误报成功并立刻关掉标签页，保存请求根本没发出去
-  async function clickAndWatch(action, { timeoutMs = 20000 } = {}, capture = { captured: [], saved: [], responses: [] }) {
+  async function clickAndWatch(action, { timeoutMs = 20000 } = {}, capture = { captured: [], saved: [], responses: [], drafts: [] }) {
     const labels = ACTION_BUTTONS[action];
     // 保存草稿不跳转、没有店铺编号，确认框自动点“确定”（POP 和 VC 发布页各有一个草稿按钮）
     const isDraft = action === 'draft' || action === 'vc_draft';
@@ -658,7 +683,11 @@
     let confirmText = '';
     let popupSuccess = false;
     let submitted = false;
+    let draft = null;
     while (Date.now() < end) {
+      // VC 草稿：按接口返回判断（成功后 100ms 页面就跳到草稿箱，不等弹窗）
+      draft = action === 'vc_draft' ? (capture.drafts || []).find((d) => d.at >= clickedAt) || null : null;
+      if (draft) break;
       // 页面马上会跳走，脚本随之结束：先把结果带回去
       // 保存草稿不跳转、草稿也没有店铺编号：只按弹窗判断
       if (!isDraft && capture.saved.some((c) => c.at >= clickedAt)) {
@@ -679,6 +708,7 @@
       if (box && !confirmText) {
         confirmText = textOf(box).slice(0, 200);
         if (isDraft) {
+          // VC 草稿箱满时弹“继续保存”（会删掉最早的一条草稿）：没有“确定”按钮，不点，交给人工
           const ok = buttonByText('确定', box);
           if (ok) click(ok);
         } else break; // 提交前的确认框交给人工判断
@@ -690,6 +720,7 @@
       if (failedSave && Date.now() - failedSave.at >= FAILED_SAVE_GRACE_MS) break;
       await sleep(100);
     }
+    if (draft) return vcDraftResult(draft, location.href);
     const msgs = [...seen];
     if (submitted && !msgs.some((m) => SUCCESS_POPUP_RE.test(m))) msgs.push('商品提交成功');
     const errors = B.collectErrors();

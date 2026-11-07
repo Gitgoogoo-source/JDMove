@@ -123,7 +123,7 @@ test('buildVcPublishPlan: 样本商品生成完整计划', () => {
     length: 408,
     wide: 310,
     height: 280,
-    weight: 4.3,
+    weight: 4.33,
     unit: '箱',
     packSpecification: 1,
     packType: '普通商品',
@@ -195,20 +195,28 @@ test('vcActionLabel: VC 一律点“保存草稿”，只填写不保存时不�
   assert.equal(vcActionLabel('none'), null);
 });
 
-test('vcWeightKg: 毛重四舍五入到一位小数，不足 0.1 按 0.1，无效值为 null', () => {
-  assert.equal(vcWeightKg(4.33), 4.3);
-  assert.equal(vcWeightKg(4.35), 4.4);
-  assert.equal(vcWeightKg('2.06'), 2.1);
+test('vcWeightKg: 毛重按页面规则最多 3 位小数，不足 0.01 按 0.01，无效值为 null', () => {
+  assert.equal(vcWeightKg(4.33), 4.33);
+  assert.equal(vcWeightKg(4.3336), 4.334);
+  assert.equal(vcWeightKg('2.06'), 2.06);
   assert.equal(vcWeightKg(5), 5);
-  assert.equal(vcWeightKg(0.04), 0.1);
+  assert.equal(vcWeightKg(0.004), 0.01);
   assert.equal(vcWeightKg(0), null);
   assert.equal(vcWeightKg('abc'), null);
 });
 
-test('buildVcPublishPlan: 毛重填一位小数（编辑里的值同样处理）', () => {
-  assert.equal(buildVcPublishPlan({ product: product(), edits: { vc: PRICES }, settings: settings(), schema: SCHEMA }).logistics.weight, 4.3);
-  const edited = buildVcPublishPlan({ product: product(), edits: { vc: { ...PRICES, weightKg: 1.27 } }, settings: settings(), schema: SCHEMA });
-  assert.equal(edited.logistics.weight, 1.3);
+test('buildVcPublishPlan: 写入页面的值都是字符串（毛重 4.33 → "4.33"）', () => {
+  const plan = buildVcPublishPlan({ product: product(), edits: { vc: PRICES }, settings: settings(), schema: SCHEMA });
+  assert.ok(plan.form.every((e) => typeof e.value === 'string'));
+  assert.equal(plan.form.find((e) => e.field === 'weight').value, '4.33');
+  assert.equal(plan.form.find((e) => e.field === 'packSpecification').value, '1');
+  const edited = buildVcPublishPlan({ product: product(), edits: { vc: { ...PRICES, weightKg: 1.2704 } }, settings: settings(), schema: SCHEMA });
+  assert.equal(edited.form.find((e) => e.field === 'weight').value, '1.27');
+});
+
+test('vcPreflight: 长宽高超出页面范围时不打开页面', () => {
+  const { blockers } = vcPreflight({ product: product(), edits: { vc: { ...PRICES, lengthMm: 5000 } }, settings: settings() });
+  assert.ok(blockers.some((b) => /长“5000”超出页面允许的范围（1~4000mm/.test(b)), blockers.join('\n'));
 });
 
 test('vcTitle: 只删开头的品牌简称和任意位置的完整品牌，不误删标题中间同字的词', () => {

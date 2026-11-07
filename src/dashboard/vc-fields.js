@@ -28,7 +28,7 @@ export function vcFields(item, vcSettings = {}) {
     lengthMm: numberInput(own.lengthMm, src.lengthMm ?? '必填', '1'),
     widthMm: numberInput(own.widthMm, src.widthMm ?? '必填', '1'),
     heightMm: numberInput(own.heightMm, src.heightMm ?? '必填', '1'),
-    weightKg: numberInput(own.weightKg, src.weightKg ?? '必填', '0.1'),
+    weightKg: numberInput(own.weightKg, src.weightKg ?? '必填', '0.001'),
   };
   const packListing = h('input', {
     value: own.packListing ?? '',
@@ -43,7 +43,7 @@ export function vcFields(item, vcSettings = {}) {
     field('采购员/销售员 ERP', erp, '两个字段填同一个 ERP，发布时在页面上选中对应的人'),
     h('div', { class: 'row2' }, field('型号', model, '留空用采集到的型号'), field('品牌ID', brandId, '留空用采集到的品牌ID，必须是账号已授权的品牌')),
     h('div', { class: 'row3' }, field('包装长(mm)', dims.lengthMm), field('包装宽(mm)', dims.widthMm), field('包装高(mm)', dims.heightMm)),
-    h('div', { class: 'row2' }, field('毛重(kg)', dims.weightKg, '长宽高、毛重留空用采集到的值；毛重发布时四舍五入到一位小数'), field('包装清单', packListing, '留空用采集到的包装清单')),
+    h('div', { class: 'row2' }, field('毛重(kg)', dims.weightKg, '长宽高、毛重留空用采集到的值；长宽高取整数，毛重最多 3 位小数'), field('包装清单', packListing, '留空用采集到的包装清单')),
   );
 
   const read = () => {

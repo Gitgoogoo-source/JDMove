@@ -59,6 +59,7 @@ function vcPage(overrides = {}) {
     vcFillSkuAttrs: { opened: true, confirmed: true, filled: ['是否印花', '层数'], missing: [], errors: [] },
     vcSkuRowState: { ok: true, skuName: '抽纸 棉韧3层100抽*36包 王牌囤货装' },
     vcValidate: { ok: true, errors: [] },
+    vcPayloadCheck: { ok: true, problems: [], floats: [] },
     runAction: { ok: true, messages: ['提交成功'], errors: [], wareIds: [] },
     ...overrides,
   };
@@ -95,7 +96,7 @@ test('publishVcItem: 直接打开带品牌和末级类目的 VC 发布页，按�
   const order = [...new Set(page.methods())];
   assert.deepEqual(order, [
     'vcStatus', 'getFormSchema', 'vcSetFields', 'vcSetErp', 'setProps', 'vcPutImages', 'vcRecognize', 'setDescriptionHtml',
-    'vcFillSpec', 'vcSetSkuRow', 'vcFillSkuAttrs', 'vcSkuRowState', 'vcValidate',
+    'vcFillSpec', 'vcSetSkuRow', 'vcFillSkuAttrs', 'vcSkuRowState', 'vcValidate', 'vcPayloadCheck',
   ]);
   assert.ok(!page.methods().includes('runAction'), '只填写不保存');
   const images = page.calls.filter((c) => c.method === 'vcPutImages').map((c) => c.args[0].field);
@@ -133,11 +134,46 @@ test('publishVcItem: 设置为提交并上架时也只点“保存草稿”，�
   assert.ok(lines.some((l) => /已保存草稿/.test(l)));
 });
 
-test('publishVcItem: 毛重按一位小数填写（4.33 → 4.3）', async () => {
+test('publishVcItem: 字段一律按字符串写入（毛重 4.33 写 "4.33"，数字会被保存接口拒收 [456]）', async () => {
   const page = vcPage();
   installFakeChrome({ backend: page.backend });
   await publishVcItem(vcItem(), settings({ action: 'draft' }), () => {}, { imageMakers: makers });
-  assert.equal(page.calls.find((c) => c.method === 'vcSetFields').args[0].logistics.weight, 4.3);
+  const { entries } = page.calls.find((c) => c.method === 'vcSetFields').args[0];
+  assert.ok(entries.every((e) => typeof e.value === 'string'), JSON.stringify(entries));
+  const value = (field) => entries.find((e) => e.field === field)?.value;
+  assert.equal(value('weight'), '4.33');
+  assert.equal(value('length'), '408');
+  assert.equal(value('marketPrice'), '89.9');
+  assert.equal(value('features.model'), 'V2833-D');
+  const checked = page.calls.find((c) => c.method === 'vcPayloadCheck').args[0].fields.map((f) => f.field);
+  assert.ok(checked.includes('weight') && checked.includes('marketPrice'), '保存前检查写过的字段');
+});
+
+test('publishVcItem: 提交数据里字段不是文本时不保存，保留页面并说明', async () => {
+  const page = vcPage({ vcPayloadCheck: { ok: false, problems: ['毛重=4.33（数字）'], floats: ['weight=4.33'] } });
+  installFakeChrome({ backend: page.backend });
+  const res = await publishVcItem(vcItem(), settings({ action: 'draft' }), () => {}, { imageMakers: makers });
+  assert.equal(res.status, 'failed');
+  assert.match(res.message, /毛重=4\.33（数字）/);
+  assert.ok(res.tabId);
+  assert.ok(!page.methods().includes('runAction'));
+});
+
+test('publishVcItem: 保存草稿接口返回 [456] 时标为失败并带出页面原文', async () => {
+  const page = vcPage({ runAction: { ok: false, messages: ['保存草稿失败：无效的字符串，请核对后再试 [456]'], errors: [], wareIds: [] } });
+  installFakeChrome({ backend: page.backend });
+  const res = await publishVcItem(vcItem(), settings({ action: 'draft' }), () => {}, { imageMakers: makers });
+  assert.equal(res.status, 'failed');
+  assert.match(res.message, /\[456\]/);
+});
+
+test('publishVcItem: 保存草稿成功时记下草稿编号', async () => {
+  const page = vcPage({ runAction: { ok: true, messages: ['草稿已保存'], errors: [], wareIds: [], draftId: '414309950' } });
+  installFakeChrome({ backend: page.backend });
+  const lines = [];
+  const res = await publishVcItem(vcItem(), settings({ action: 'draft' }), (l) => lines.push(l), { imageMakers: makers });
+  assert.equal(res.status, 'published');
+  assert.ok(lines.some((l) => /草稿编号 414309950/.test(l)));
 });
 
 test('publishVcItem: 保存草稿 → 点“保存草稿”', async () => {

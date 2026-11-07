@@ -15,8 +15,8 @@ const NOT_OPENED_MSG = 'VC 发布页没有打开：品牌可能没有授权，�
 const LAND_TIMEOUT_MS = 5000;
 // 提交成功后页面可能整页跳走（成功页的地址还没核实过）：只认路径里带 success 的一段，不认查询参数
 const SUCCESS_PAGE_RE = /^https:\/\/[^/?#]+\/(?:[^?#]*\/)?[\w-]*success[\w-]*(?:[/?#]|$)/i;
-// 这些字段没写进去就不能提交
-const CRITICAL_FIELDS = ['标题', '型号', '市场价', '京东价', '采购价', '长', '宽', '高', '毛重'];
+// 保存草稿成功后页面 100ms 内整页跳到草稿箱（wareList?activeTab=DraftWare），脚本可能来不及返回
+const DRAFT_LIST_RE = /^https:\/\/[^/?#]+\/ware\/wareList\?[^#]*activeTab=DraftWare/;
 
 async function waitVcReady(tabId, timeoutMs = 40000) {
   const end = Date.now() + timeoutMs;
@@ -30,14 +30,22 @@ async function waitVcReady(tabId, timeoutMs = 40000) {
 }
 
 const stop = (status, message) => ({ stop: { status, message } });
+const valueOf = (plan, field) => plan.form.find((e) => e.field === field)?.value ?? '—';
+
+/** 没写进去就不能保存的字段：标题 + 计划里标了 critical 的（型号、三个价格、长宽高、毛重） */
+const criticalLabels = (plan) => ['标题', ...plan.form.filter((e) => e.critical).map((e) => e.label)];
 
 async function fillFields(tabId, plan, log, timer) {
-  const res = await callVcBackend(tabId, 'vcSetFields', { title: plan.title, model: plan.model, prices: plan.prices, logistics: plan.logistics });
+  const res = await callVcBackend(tabId, 'vcSetFields', { title: plan.title, entries: plan.form });
   timer.lap('基本信息与物流');
   if (res?.skipped?.length) log(`页面上没有这些字段，已跳过：${res.skipped.join('、')}`);
-  const failed = res?.failed ?? ['表单未就绪'];
-  if (failed.some((f) => CRITICAL_FIELDS.some((c) => f.startsWith(c)))) return stop('failed', `这些字段没有写进去：${failed.join('、')}`);
+  const failed = res?.failed ?? [res?.error || '表单未就绪'];
+  const critical = criticalLabels(plan);
+  if (failed.some((f) => critical.some((c) => f === c || f.startsWith(`${c}（`)) || f === '表单未就绪')) {
+    return stop('failed', `这些字段没有写进去：${failed.join('、')}`);
+  }
   if (failed.length) log(`部分字段没有写进去：${failed.join('、')}`);
+  log(`物流：长 ${valueOf(plan, 'length')} × 宽 ${valueOf(plan, 'wide')} × 高 ${valueOf(plan, 'height')} mm，毛重 ${valueOf(plan, 'weight')} kg`);
   log(`标题：${plan.title}`);
   log(`价格：市场价 ¥${plan.prices.marketPrice} / 京东价 ¥${plan.prices.jdPrice} / 采购价 ¥${plan.prices.costPrice}`);
   if (plan.erpCode) {
@@ -134,6 +142,20 @@ async function fillVcForm(tabId, plan, settings, log, ctx) {
   return {};
 }
 
+/**
+ * 保存前用页面自己的 convertData() 生成提交数据，确认插件写的字段没有变成带小数的数字：
+ * 写成数字（尤其带小数）时保存接口返回“无效的字符串/数字，请核对后再试 [456]/[455]”
+ */
+async function checkPayload(tabId, plan, log) {
+  const res = await callVcBackend(tabId, 'vcPayloadCheck', { fields: plan.form.map(({ field, label }) => ({ field, label })) });
+  if (res?.error) log(`提交数据检查：${res.error}`);
+  if (res?.floats?.length) log(`提交数据里有带小数的数字（请留意保存结果）：${res.floats.join('、')}`);
+  if (res && res.ok === false && res.problems?.length) {
+    return stop('failed', `这些字段在提交数据里是带小数的数字，保存会被拒收（[455]/[456]）：${res.problems.join('、')}`);
+  }
+  return {};
+}
+
 /** 点“发布商品”/“保存草稿”；页面整页跳走、脚本来不及返回时按落地地址判断 */
 async function submitVc(tabId, action, landTimeoutMs) {
   let result;
@@ -143,7 +165,14 @@ async function submitVc(tabId, action, landTimeoutMs) {
   } catch (e) {
     error = e;
   }
-  if (action === 'vc_draft' || (result && (result.ok || result.confirmText || result.errors?.length))) return result;
+  if (result && (result.ok || result.confirmText || result.errors?.length || (action === 'vc_draft' && result.messages?.length))) return result;
+  if (action === 'vc_draft') {
+    // 草稿保存成功后整页跳到草稿箱，脚本被打断：按落地地址判断
+    const draftUrl = await waitForTabUrl(tabId, DRAFT_LIST_RE, landTimeoutMs);
+    if (draftUrl) return { ...result, ok: true, url: draftUrl, messages: ['草稿已保存'], errors: [], confirmText: '' };
+    if (error) throw error;
+    return result;
+  }
   const url = await waitForTabUrl(tabId, SUCCESS_PAGE_RE, landTimeoutMs);
   if (url) return { ...result, ok: true, url, messages: result?.messages?.length ? result.messages : ['商品已提交'], errors: [], confirmText: '' };
   if (error) throw error;
@@ -162,7 +191,7 @@ function submitOutcome(result, plan, target, tabId, log, action) {
     return { status: 'failed', message: detail || '提交未成功', target, tabId };
   }
   if (action === 'vc_draft') {
-    log('已保存草稿：请到 VC 后台草稿箱检查后手动提交');
+    log(result.draftId ? `已保存草稿（草稿编号 ${result.draftId}）：请到 VC 后台草稿箱检查后手动提交` : '已保存草稿：请到 VC 后台草稿箱检查后手动提交');
     return { status: 'published', message: (result.messages ?? []).join('；') || '已保存草稿', target, price: plan.prices.jdPrice };
   }
   const wareId = parseWareId({ captured: result.wareIds, url: result.url, messages: result.messages });
@@ -193,6 +222,8 @@ async function publishInVcTab(tab, item, settings, log, target, ctx) {
     const check = await callVcBackend(tab.id, 'vcValidate');
     ctx.timer.lap('页面校验');
     if (!check?.ok) return { status: 'failed', message: `页面校验没通过：${(check?.errors ?? []).join('；')}`, target, tabId: tab.id };
+    const payload = await checkPayload(tab.id, plan, log);
+    if (payload.stop) return { ...payload.stop, target, tabId: tab.id };
 
     const action = vcActionLabel(settings.publish.action);
     if (!action) return { status: 'filled', message: '已填写完成，请在工作窗口中检查后手动点“保存草稿”或“发布商品”', target, tabId: tab.id };

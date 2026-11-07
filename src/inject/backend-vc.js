@@ -52,8 +52,6 @@
     return hit ? hit.value : null;
   }
 
-  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b) || String(a) === String(b);
-
   /** 标题：在输入框里输入（页面监听输入框计算字数），写不进去再直接写表单值 */
   async function setTitle(api, title) {
     const input = qsa('input').find((i) => /此标题仅用于|请输入商品标题/.test(i.placeholder || '') && visible(i));
@@ -69,49 +67,96 @@
   }
 
   /**
-   * 标题、型号、三个价格、物流售后字段
-   * @param {{title: string, model: string, prices: object, logistics: object}} plan
-   * @returns {Promise<{ok: boolean, failed: string[], skipped: string[]}>}
+   * 写一个字段：值一律是字符串（和在输入框里手动输入一样）；下拉字段按选项文字换成页面的选项值。
+   * 写完严格读回比较（类型也要一致）：页面把值改成数字或别的格式时算没写进去
+   * @returns {string} 空串 = 写好了；否则为失败原因
    */
-  async function vcSetFields({ title, model, prices = {}, logistics = {} }) {
+  async function writeField(api, { field, label, value }) {
+    const text = String(value);
+    // 没有选项的字段 optionValue 原样返回字符串；下拉字段用页面自己的选项值，不改类型
+    const want = optionValue(api, field, text);
+    if (want == null) return `${label}（没有“${text}”这个选项）`;
+    api.setValue(field, want);
+    await sleep(50);
+    const got = api.getValue(field);
+    if (got === want) return '';
+    return `${label}（写入“${want}”，页面上是 ${JSON.stringify(got)}）`;
+  }
+
+  /**
+   * 标题 + 计划里按页面格式转好的字段（型号、价格、长宽高、毛重、物流售后），见 shared/vc-form-values.js
+   * @param {{title: string, entries: {field: string, label: string, value: string, critical: boolean}[]}} plan
+   * @returns {Promise<{ok: boolean, failed: string[], skipped: string[]}>}
+   *   failed：没写进去的（“标签（原因）”）；skipped：页面上没有这个字段
+   */
+  async function vcSetFields({ title, entries = [] }) {
     const api = B.getFApi();
     if (!api) return { ok: false, failed: ['表单未就绪'], skipped: [] };
     const failed = [];
     const skipped = [];
     if (title && !(await setTitle(api, title))) failed.push('标题');
     const fields = api.fields();
-    const writes = [
-      ['features.model', model, '型号'],
-      ['marketPrice', prices.marketPrice, '市场价'],
-      ['jdPrice', prices.jdPrice, '京东价'],
-      ['costPrice', prices.costPrice, '采购价'],
-      ['length', logistics.length, '长'],
-      ['wide', logistics.wide, '宽'],
-      ['height', logistics.height, '高'],
-      ['weight', logistics.weight, '毛重'],
-      ['features.sldays', logistics.sldays, '保质期'],
-      ['features.unit', logistics.unit, '销售单位'],
-      ['packSpecification', logistics.packSpecification, '包装规格'],
-      ['features.packType', logistics.packType, '商品包装'],
-      ['warranty', logistics.warranty, '质保期'],
-      ['packListing', logistics.packListing, '包装清单'],
-    ];
-    for (const [field, raw, label] of writes) {
-      if (raw == null || raw === '') continue;
-      if (!fields.includes(field)) {
-        skipped.push(label);
+    for (const entry of entries) {
+      if (entry.value == null || entry.value === '') continue;
+      if (!fields.includes(entry.field)) {
+        skipped.push(entry.label);
         continue;
       }
-      const value = optionValue(api, field, raw);
-      if (value == null) {
-        failed.push(`${label}（没有“${raw}”这个选项）`);
-        continue;
-      }
-      api.setValue(field, value);
-      await sleep(50);
-      if (!same(api.getValue(field), value)) failed.push(label);
+      const err = await writeField(api, entry);
+      if (err) failed.push(err);
     }
     return { ok: failed.length === 0, failed, skipped };
+  }
+
+  // ---------- 保存前检查提交数据 ----------
+  // 保存草稿/发布商品都先调 PublishProduct 的 convertData() 把表单转成提交数据（只读，不发请求）。
+  // 这里用同一个函数生成提交数据，检查插件写过的字段是不是字符串；带小数的 JS 数字会被网关拒收（[455]/[456]）
+  function publishProductSetup() {
+    const api = B.getFApi();
+    const inst = api && api.fields().includes('productTitle') ? api.el('productTitle') : null;
+    let c = inst && inst.$ && inst.$.parent;
+    for (let i = 0; c && i < 40; i += 1, c = c.parent) {
+      if ((c.type.name || c.type.__name) === 'PublishProduct' && c.setupState) return c.setupState;
+    }
+    return null;
+  }
+
+  const PAYLOAD_SYNC_MS = 300;
+  const getPath = (obj, path) => path.split('.').reduce((o, k) => (o == null ? o : o[k]), obj);
+
+  /** 提交数据里所有带小数的 JS 数字的路径（最多 20 个） */
+  function floatPaths(obj, prefix = '', out = [], depth = 0) {
+    if (out.length >= 20 || depth > 6 || obj == null || typeof obj !== 'object') return out;
+    for (const [k, v] of Object.entries(obj)) {
+      const path = prefix ? `${prefix}.${k}` : k;
+      if (typeof v === 'number' && Number.isFinite(v) && !Number.isInteger(v)) out.push(`${path}=${v}`);
+      else if (v && typeof v === 'object') floatPaths(v, path, out, depth + 1);
+    }
+    return out;
+  }
+
+  /**
+   * @param {{fields: {field: string, label: string}[]}} input 插件写过的字段
+   * @returns {Promise<{ok: boolean, problems: string[], floats: string[], error?: string}>}
+   *   problems：插件写过、但提交数据里变成带小数数字的字段；floats：提交数据里所有带小数的数字（只提醒）
+   */
+  async function vcPayloadCheck({ fields = [] } = {}) {
+    // setValue 之后表单数据要到下一轮才同步进 convertData（实测立刻调用读到的全是 null）
+    await sleep(PAYLOAD_SYNC_MS);
+    const setup = publishProductSetup();
+    if (!setup || typeof setup.convertData !== 'function') return { ok: true, problems: [], floats: [], error: '页面没有 convertData，跳过检查' };
+    let data;
+    try {
+      data = setup.convertData();
+    } catch (e) {
+      return { ok: true, problems: [], floats: [], error: `生成提交数据失败：${String((e && e.message) || e)}` };
+    }
+    // 实测会被拒收的是带小数的数字（毛重 4.33）；整数（下拉的选项值）不算问题
+    const problems = fields
+      .map(({ field, label }) => [label, getPath(data, field)])
+      .filter(([, v]) => typeof v === 'number' && !Number.isInteger(v))
+      .map(([label, v]) => `${label}=${v}（数字）`);
+    return { ok: problems.length === 0, problems, floats: floatPaths(data) };
   }
 
   // ---------- 采购员 / 销售员 ERP ----------
@@ -289,6 +334,7 @@
     vcUtil: { optionsOf, vcSkuRows, cellOf, aiRecState },
     vcStatus,
     vcSetFields,
+    vcPayloadCheck,
     vcSetErp,
     vcValidate,
     vcSetSkuRow,

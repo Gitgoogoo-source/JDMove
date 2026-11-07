@@ -8,6 +8,9 @@ import { parseAttrDefaults } from './settings.js';
 import { publishImagePlan } from './publish-plan.js';
 import { normalizeUpc, productUpc, skuAttrValueMap } from './sku-attrs.js';
 import { parseSpecText, quantitiesByUnit } from './vc-spec.js';
+import { vcFormEntries, vcWeightKg } from './vc-form-values.js';
+
+export { vcWeightKg };
 
 const VC_TITLE_MAX = 60;
 const SKU_NAME_MAX = 60;
@@ -19,21 +22,11 @@ const PROMO_RE = /【[^】]*】/g;
 const UNIT_WORDS = ['箱', '提', '包', '袋', '盒', '瓶', '罐', '桶', '支', '卷', '条', '片', '块', '套', '组', '件'];
 const DEFAULT_SALE_UNIT = '件';
 const PACK_PARAM_NAMES = ['包装形式', '包装', '包装方式'];
-// VC 发布页的“商品毛重”只接受一位小数：填 4.33 提交时报“无效的字符串，请核对后再试 [456]”，4.3 正常
-const WEIGHT_DECIMALS = 1;
-const WEIGHT_MIN_KG = 10 ** -WEIGHT_DECIMALS;
 
 const positive = (v) => {
   const n = Number(v);
   return Number.isFinite(n) && n > 0 ? n : null;
 };
-/** 毛重（kg）四舍五入到一位小数；不足 0.1 的按 0.1 填（0 会被当成没填） */
-export function vcWeightKg(kg) {
-  const n = positive(kg);
-  if (n == null) return null;
-  const factor = 10 ** WEIGHT_DECIMALS;
-  return Math.max(WEIGHT_MIN_KG, Math.round(n * factor) / factor);
-}
 const isId = (v) => /^\d+$/.test(String(v ?? '')) && Number(v) > 0;
 const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -122,6 +115,17 @@ const vcPrices = (edits) => Object.fromEntries(Object.keys(VC_PRICE_LABELS).map(
 const planTitle = (product, edits, settings) =>
   edits.title?.trim() || vcTitle(product?.vc?.titleNoBrand || product?.title, product?.brand?.name, settings.title);
 
+/** 价格、长宽高、毛重的格式和范围（缺项上面单独报，这里只报写进去页面也会拦的值） */
+function formatBlockers(product, edits) {
+  const logistics = {
+    length: vcField(product, edits, 'lengthMm'),
+    wide: vcField(product, edits, 'widthMm'),
+    height: vcField(product, edits, 'heightMm'),
+    weight: vcWeightKg(vcField(product, edits, 'weightKg')),
+  };
+  return vcFormEntries({ prices: vcPrices(edits), logistics }).errors.filter((e) => !e.startsWith('缺少'));
+}
+
 /**
  * 打开发布页之前就能判断的缺项（不需要表单结构），缺了就不打开页面
  * @returns {{blockers: string[]}}
@@ -137,6 +141,7 @@ export function vcPreflight({ product, edits = {}, settings }) {
     ...(missingDims.length ? [`缺少包装长宽高/毛重：${missingDims.join('、')}（之前采集的商品请重新采集，或在「编辑」中填写）`] : []),
     ...(mainImageUrls.length ? [] : ['缺少主图']),
     ...(product?.detailImages?.length ? [] : ['缺少详情图（采集时没有拿到详情图，请重新采集后再发布）']),
+    ...formatBlockers(product, edits),
   ];
   return { blockers };
 }
@@ -236,13 +241,20 @@ export function buildVcPublishPlan({ product, edits = {}, settings, schema }) {
   // VC 不用默认 UPC：同一个条码填到所有商品上会被判重码，入仓还要贴码
   const upc = normalizeUpc(edits.upc) || productUpc(product);
   const { mainImageUrls, detailImageUrls } = publishImagePlan({ product, edits, settings });
+  const model = vcField(product, edits, 'model');
+  const logistics = logisticsOf(product, edits, settings, source, unit.unit);
+  const form = vcFormEntries({ model, prices, logistics });
+  // 缺项和价格/长宽高的格式 vcPreflight 已经报过
+  const formBlockers = form.errors.filter((e) => !e.startsWith('缺少') && !blockers.includes(e));
 
   return {
     title,
-    model: vcField(product, edits, 'model'),
+    model,
     erpCode,
     prices,
-    logistics: logisticsOf(product, edits, settings, source, unit.unit),
+    logistics,
+    // 按页面格式转好的字符串，页面脚本原样写入（不写数字：数字会被保存接口拒收）
+    form: form.entries,
     props,
     images: { mainImageUrls, detailImageUrls, transparentUrl: mainImageUrls[0] ?? null, aiRecUrl: mainImageUrls[0] ?? null },
     sku: { name: skuName(title, spec), spec, upc },
@@ -250,8 +262,8 @@ export function buildVcPublishPlan({ product, edits = {}, settings, schema }) {
     skuAttrUnits: quantitiesByUnit(spec.quantities),
     // 源商品的危险品标记（true/false/null）：页面选项结构没走查过，只提醒不填写
     dangerGoods: product.vc?.dangerGoods ?? null,
-    warnings: planWarnings({ props, erpCode, prices, unit, upc, dangerGoods: product.vc?.dangerGoods }),
-    blockers,
+    warnings: [...planWarnings({ props, erpCode, prices, unit, upc, dangerGoods: product.vc?.dangerGoods }), ...form.warnings],
+    blockers: [...blockers, ...formBlockers],
   };
 }
 
