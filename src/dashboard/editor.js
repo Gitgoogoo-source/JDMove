@@ -6,6 +6,7 @@ import { searchShopCategories } from '../lib/category-search.js';
 import { isArchived } from '../shared/brand-folders.js';
 import { normalizeWareId } from '../shared/price-watch.js';
 import { normalizeUpc, productUpc } from '../shared/sku-attrs.js';
+import { vcFields } from './vc-fields.js';
 
 const field = (label, control, hint) => h('label', { class: 'field' }, h('span', {}, label), control, hint ? h('small', {}, hint) : null);
 
@@ -99,11 +100,14 @@ function upcInput(value, scraped) {
 }
 
 /**
+ * @param {{onLog: Function, settings?: object}} opts settings：当前设置（发布到 VC 自营时显示 VC 字段）
  * @returns {Promise<{edits: object, mapping: object|null, shopWareId?: string} | null>} shopWareId 只在已发布商品上返回
  */
-export async function editItem(item, { onLog }) {
+export async function editItem(item, { onLog, settings }) {
   const e = item.edits ?? {};
   const archived = isArchived(item);
+  const isVc = settings?.publish?.platform === 'vc';
+  const vc = isVc ? vcFields(item, settings.vc) : null;
   const title = h('input', { value: e.title ?? '', placeholder: item.product?.title ?? '' });
   const price = h('input', { type: 'number', step: '0.01', min: '0', value: e.price ?? '', placeholder: '留空按改价规则' });
   const shopId = shopIdField(item);
@@ -124,8 +128,9 @@ export async function editItem(item, { onLog }) {
       h(
         'div',
         { class: 'dlg-body' },
-        field('标题', title, '留空=按设置自动清洗源标题；京东标题上限 60 字符（汉字算 2）'),
-        h('div', { class: 'row3' }, field('售价', price), field('库存', stock), field('品牌名', brand, '必须是店铺已授权品牌')),
+        field('标题', title, isVc ? '留空=按设置自动清洗源标题，并去掉品牌（VC 页面自动加品牌前缀）；上限 60 字符（汉字算 2）' : '留空=按设置自动清洗源标题；京东标题上限 60 字符（汉字算 2）'),
+        vc ? vc.node : null,
+        isVc ? null : h('div', { class: 'row3' }, field('售价', price), field('库存', stock), field('品牌名', brand, '必须是店铺已授权品牌')),
         archived ? h('small', { class: 'muted' }, '这里的售价只影响“重新发布”；要改店铺里的售价，请用“已发布”页的“批量改价”。') : null,
         shopId.node,
         field('UPC（商品条形码）', upc, '填到商品基本信息和 SKU 表的“商品条形码”、SKU属性的“最小可售单位UPC”。留空=用采集到的条形码；采集不到时需手动填写，否则这些类目提交时会报“请输入商品条形码”“条形码不能为空”'),
@@ -150,6 +155,8 @@ export async function editItem(item, { onLog }) {
     attrOverrides: parseAttrDefaults(overrides.value),
     cateList: c.cateList.length ? c.cateList : undefined,
     cateName: c.cateList.length ? c.cateName : undefined,
+    // POP 模式下不显示 VC 字段，原来填过的保留
+    vc: vc ? vc.read() : e.vc,
   };
   const source = mappingSourceFor(item.product);
   const mapping =

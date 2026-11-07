@@ -238,11 +238,23 @@ export const ITEM_FILES = ['src/inject/jd-price.js', 'src/inject/jd-detail.js', 
 export const B2B_ITEM_FILES = ['src/inject/jd-detail.js', 'src/inject/b2b-goods.js', 'src/inject/b2b-item-extract.js'];
 export const SHOP_FILES = ['src/inject/jd-shop-list.js'];
 
+// VC 自营发布页：在 POP 的桥接脚本之上再加三份（字段/ERP/SKU 行、规格与 SKU属性抽屉、图片空间）
+export const VC_BACKEND_FILES = [...BACKEND_FILES, 'src/inject/backend-vc.js', 'src/inject/backend-vc-drawer.js', 'src/inject/backend-vc-images.js'];
+
+/** 调用 VC 发布页的桥接 API（注入的脚本比 callBackend 多三份，方法名以 vc 开头） */
+export function callVcBackend(tabId, method, ...args) {
+  return invokeBackend(tabId, VC_BACKEND_FILES, method, args);
+}
+
 /** 调用后台桥接 API：window.__JDMOVE__.backend[method](...args) */
 export function callBackend(tabId, method, ...args) {
+  return invokeBackend(tabId, BACKEND_FILES, method, args);
+}
+
+function invokeBackend(tabId, files, method, args) {
   return runInPage(
     tabId,
-    BACKEND_FILES,
+    files,
     async (name, params) => {
       const api = window.__JDMOVE__ && window.__JDMOVE__.backend;
       if (!api || typeof api[name] !== 'function') return { ok: false, error: `桥接方法不存在：${name}` };

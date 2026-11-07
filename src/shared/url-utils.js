@@ -17,6 +17,9 @@ const IMG_HOST = 'https://img14.360buyimg.com';
 const ORIGINAL_PREFIX = `${IMG_HOST}/sku/`;
 const IMGZONE_PREFIX = 'https://img10.360buyimg.com/imgzone/';
 const PUBLISH_BASE = 'https://wares-jdm.jd.com/popPublish/';
+// VC 自营（供应商）发布页：品牌在类目页选定，由 bId 带入；VC 账号打开 popPublish 会被跳回京麦首页
+const VC_PUBLISH_BASE = 'https://wares-jdm.jd.com/vcProductPublish/';
+const PUBLISH_PATH_RE = /^\/(?:popPublish|vcProductPublish)/;
 
 const withScheme = (link) => (/^https?:/i.test(link) ? link : `https://${link.replace(/^\/\//, '')}`);
 
@@ -137,7 +140,7 @@ export function classifyPageUrl(url) {
   if (/^item(\.m)?\.jd\.com$/.test(host)) return 'item';
   if (host === B2B_HOST && u.pathname.startsWith('/account/login')) return 'b2b_login';
   if (b2bSkuOf(u)) return 'item';
-  if (host === 'wares-jdm.jd.com' && u.pathname.startsWith('/popPublish')) return 'publish';
+  if (host === 'wares-jdm.jd.com' && PUBLISH_PATH_RE.test(u.pathname)) return 'publish';
   if (host === 'wares-jdm.jd.com' && /categorySelect/.test(u.pathname)) return 'category';
   return 'other';
 }
@@ -160,4 +163,17 @@ export function buildPublishUrl({ cateList }) {
     publishPageType: '1',
   });
   return `${PUBLISH_BASE}?${params.toString()}`;
+}
+
+const isPositiveId = (v) => /^\d+$/.test(String(v ?? '')) && Number(v) > 0;
+
+/**
+ * VC 自营发布页地址：品牌 ID + 末级类目 ID（页面自己生成 uuid，不带也能打开）
+ * @param {{brandId: number|string|null, categoryId: number|string}} input
+ */
+export function buildVcPublishUrl({ brandId, categoryId }) {
+  if (!isPositiveId(brandId)) throw new Error('缺少有效的品牌ID（VC 发布页需要先选定品牌）');
+  if (!isPositiveId(categoryId)) throw new Error('缺少有效的末级类目ID');
+  const params = new URLSearchParams({ bId: String(brandId), publishPageType: '1', locType: '0', categoryId: String(categoryId) });
+  return `${VC_PUBLISH_BASE}?${params.toString()}`;
 }

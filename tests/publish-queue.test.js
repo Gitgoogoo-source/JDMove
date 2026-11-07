@@ -55,7 +55,7 @@ function fakePage(runAction) {
 function setup(runAction, seed = {}) {
   const page = fakePage(runAction);
   const fake = installFakeChrome({ backend: page.backend });
-  Object.assign(fake.localStore, { items: [task('1'), task('2')], settings: { publish: { reuploadDetailImages: false } }, ...seed });
+  Object.assign(fake.localStore, { items: [task('1'), task('2')], settings: { publish: { platform: 'pop', reuploadDetailImages: false } }, ...seed });
   const logs = [];
   const runner = createQueueRunner({ onChange: () => {}, onLog: (l) => logs.push(l) });
   return { page, fake, logs, runner };
@@ -74,7 +74,7 @@ test('发布队列：京麦提交限流时整批暂停，后面的商品不再�
 });
 
 test('发布队列：限流的商品回到“已采集”留在任务列表，并记下冷却结束时间', async () => {
-  const { fake, runner } = setup(throttled, { settings: { publish: { reuploadDetailImages: false, throttleCooldownMin: 30 } } });
+  const { fake, runner } = setup(throttled, { settings: { publish: { platform: 'pop', reuploadDetailImages: false, throttleCooldownMin: 30 } } });
   const before = Date.now();
   await runner.publish(['1', '2']);
   const [first, second] = fake.localStore.items;

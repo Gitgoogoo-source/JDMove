@@ -1,6 +1,6 @@
 // 设置弹窗
 import { h, openDialog } from './dom.js';
-import { PUBLISH_ACTIONS, REPRICE_ACTIONS, validateSettings } from '../shared/settings.js';
+import { PUBLISH_ACTIONS, PUBLISH_PLATFORMS, REPRICE_ACTIONS, VC_PACK_TYPES, validateSettings } from '../shared/settings.js';
 import { parseCateListInput } from '../shared/category-pick.js';
 import { EDIT_URL_HINT, editUrlPreview } from './reprice-dialog.js';
 
@@ -42,6 +42,7 @@ export async function editSettings(settings) {
     prefix: h('input', { value: s.title.prefix }),
     suffix: h('input', { value: s.title.suffix }),
     removeWords: h('input', { value: s.title.removeWords.join(',') }),
+    platform: select(s.publish.platform, PUBLISH_PLATFORMS),
     action: select(s.publish.action, PUBLISH_ACTIONS),
     pubDelay: num(s.publish.delaySec, { min: 0 }),
     maxMain: num(s.publish.maxMainImages, { min: 1, max: 10 }),
@@ -58,6 +59,11 @@ export async function editSettings(settings) {
     pwMargin: num(s.priceWatch.alertMargin, { min: 0, step: '0.01' }),
     pwEditUrl: h('input', { value: s.priceWatch.editUrlTemplate, placeholder: '粘贴任意一个商品的编辑页地址' }),
     pwAction: select(s.priceWatch.repriceAction, REPRICE_ACTIONS),
+    vcErp: h('input', { value: s.vc.erpCode, placeholder: '如 xudezhi.6；留空沿用页面默认值', pattern: '[A-Za-z0-9._\\-]{1,50}' }),
+    vcUnit: h('input', { value: s.vc.saleUnit, placeholder: '留空按包装形式/规格推断，如 箱、提、包' }),
+    vcPackSpec: num(s.vc.packSpecification, { min: 1, step: '1' }),
+    vcPackType: select(s.vc.packType, Object.fromEntries(VC_PACK_TYPES.map((t) => [t, t]))),
+    vcWarranty: h('input', { value: s.vc.warranty }),
   };
 
   const dialog = h(
@@ -83,11 +89,17 @@ export async function editSettings(settings) {
           h('div', { class: 'row2' }, field('前缀', f.prefix), field('后缀', f.suffix)),
           field('删除词（逗号分隔）', f.removeWords)),
         h('fieldset', {}, h('legend', {}, '发布'),
-          h('div', { class: 'row2' }, field('填写完成后', f.action), field('每条发布间隔（秒）', f.pubDelay)),
+          field('发布到', f.platform, 'VC 自营：直接打开 vcProductPublish 发布页（用采集到的类目和品牌ID），市场价/京东价/采购价/采购员/销售员需在「编辑」中填写'),
+          h('div', { class: 'row2' }, field('填写完成后', f.action, 'VC 自营只有“发布商品”（提交采销审核）和“保存草稿”：提交并上架、提交暂不上架都点“发布商品”'), field('每条发布间隔（秒）', f.pubDelay)),
           h('div', { class: 'row2' }, field('主图最多', f.maxMain), field('详情图最多', f.maxDetail)),
           f.reupload.node, f.skuAttrs.node,
           field('默认 UPC', f.defaultUpc, '源商品没有条形码、编辑里也没填 UPC 时，商品基本信息和 SKU 表的“商品条形码”、“最小可售单位UPC”填这个值；留空则不填，发布会停下提示'),
           field('限流后冷却（分钟）', f.throttleCooldown, '京麦提交时返回“操作过于频繁”会暂停发布；这段时间内再点“发布选中”会先提醒。0 = 不提醒')),
+        h('fieldset', {}, h('legend', {}, 'VC 自营'),
+          field('采购员/销售员 ERP', f.vcErp, '两个字段填同一个 ERP；单个商品可在「编辑」里另填'),
+          h('div', { class: 'row3' }, field('销售单位', f.vcUnit), field('包装规格', f.vcPackSpec), field('商品包装', f.vcPackType)),
+          field('质保期', f.vcWarranty, '源商品主数据里没有质保时使用'),
+          h('small', { class: 'muted' }, 'VC 不使用上面的“默认 UPC”：同一个条码填到所有商品会被判重码，入仓还要贴码；没有条码的商品请在「编辑 → UPC」填写。')),
         h('fieldset', {}, h('legend', {}, '已发布商品：京东今日价检查与改价'),
           h('div', { class: 'row3' },
             field('检查最小间隔（秒）', f.pwMinDelay),
@@ -125,6 +137,7 @@ export async function editSettings(settings) {
     },
     publish: {
       ...s.publish,
+      platform: f.platform.value,
       action: f.action.value,
       delaySec: Number(f.pubDelay.value),
       maxMainImages: Number(f.maxMain.value),
@@ -134,6 +147,13 @@ export async function editSettings(settings) {
       defaultUpc: f.defaultUpc.value,
       // 留空时用默认值，而不是变成 0（0 表示不提醒）
       throttleCooldownMin: f.throttleCooldown.value.trim() === '' ? undefined : Number(f.throttleCooldown.value),
+    },
+    vc: {
+      erpCode: f.vcErp.value,
+      saleUnit: f.vcUnit.value,
+      packSpecification: Number(f.vcPackSpec.value),
+      packType: f.vcPackType.value,
+      warranty: f.vcWarranty.value,
     },
     attrDefaultsText: f.attrDefaults.value,
     packList: f.packList.value,

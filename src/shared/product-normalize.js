@@ -3,6 +3,7 @@ import { normalizeName } from './text.js';
 import { parsePrice } from './pricing.js';
 import { toOriginalImageUrl, jfsPathOf } from './url-utils.js';
 import { productUpc } from './sku-attrs.js';
+import { vcSourceInfo } from './vc-source.js';
 
 const NOISE_PARAMS = new Set(['商品编号', '店铺', '店铺名称'].map(normalizeName));
 const BAD_IMAGE_RE = /blank\.gif|loading|misc\.360buyimg\.com|^data:|\/\/static\.360buyimg\.com/i;
@@ -128,6 +129,8 @@ export function normalizeProduct(raw = {}, opts = {}) {
     // 当前 SKU 的条形码（wareInfoReadMap.upc_code），发布时填到 SKU属性的“最小可售单位UPC”；
     // 没有条形码的商品 upc_code 是 SKU 编号本身，不能当条形码用
     upc: productUpc({ upc: raw.wareInfo?.upc_code, skuId, variants: allDims.variants }),
+    // VC 自营发布用：四级类目、品牌 ID、型号、包装长宽高、毛重、质保（商品主数据里的值）
+    vc: vcSourceInfo(raw.wareInfo),
   };
 }
 

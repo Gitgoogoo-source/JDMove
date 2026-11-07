@@ -50,7 +50,8 @@ async function autoCategory(tabId, product, log) {
   return target ? { target } : { error: `未找到匹配类目（源类目：${product.crumbs.join(' > ')}），请在编辑中指定` };
 }
 
-async function fillDescription(tabId, plan, settings, log, { timer, images }) {
+/** 详情图转存 + 代码模式写入详情（VC 发布页用同一个详情编辑器，publisher-vc.js 复用） */
+export async function fillDescription(tabId, plan, settings, log, { timer, images }) {
   // 源商品没有详情图时发布计划已经拦下；走到这里说明设置里的详情图数量为 0
   if (!plan.detailImageUrls.length) {
     log('详情图数量设置为 0，跳过商品详情');

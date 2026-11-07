@@ -1,5 +1,5 @@
 // 图片下载与处理（扩展页面 / Service Worker 中运行，使用 OffscreenCanvas）
-import { squarePlan, detailSlicePlan, isDecorativeImage } from '../shared/image-math.js';
+import { squarePlan, detailSlicePlan, isDecorativeImage, clearBackground, opaqueRatio } from '../shared/image-math.js';
 
 const MAX_BYTES = 2.8 * 1024 * 1024;
 
@@ -67,4 +67,33 @@ export async function makeDetailImages(url, baseName) {
   }
   bmp.close();
   return out;
+}
+
+// 透图（VC 发布页）：1:1、至少 480px、PNG、≤3MB。PNG 比 JPEG 大，超限时缩小边长重试
+const TRANSPARENT_SIDES = [1000, 800, 600];
+// 去背景后不透明部分少于 5%：商品本身是白色或主图是纯白图，自动生成的透图不可用
+const MIN_OPAQUE_RATIO = 0.05;
+
+/**
+ * 透图：白底补成正方形后，把与边缘连通的白色背景清成透明，输出 PNG
+ * @returns {Promise<{name: string, mime: string, b64: string}>}
+ */
+export async function makeTransparentImage(url, name) {
+  const bmp = await fetchBitmap(url);
+  try {
+    for (const side of TRANSPARENT_SIDES) {
+      const p = squarePlan(bmp.width, bmp.height, { minSide: side, maxSide: side });
+      const { canvas, ctx } = whiteCanvas(p.side, p.side);
+      ctx.drawImage(bmp, p.dx, p.dy, p.dw, p.dh);
+      const pixels = ctx.getImageData(0, 0, p.side, p.side);
+      const cleared = clearBackground(pixels.data, p.side, p.side);
+      if (opaqueRatio(cleared) < MIN_OPAQUE_RATIO) throw new Error('主图去掉白底后几乎全透明（白色商品或纯白图），请在发布页手动上传透图');
+      ctx.putImageData(new ImageData(cleared, p.side, p.side), 0, 0);
+      const blob = await canvas.convertToBlob({ type: 'image/png' });
+      if (blob.size <= MAX_BYTES) return { name, mime: 'image/png', b64: await blobToBase64(blob) };
+    }
+  } finally {
+    bmp.close();
+  }
+  throw new Error('透图压缩后仍超过 3MB');
 }

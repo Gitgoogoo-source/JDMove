@@ -12,6 +12,18 @@ const DEFAULT_PUBLISH_ACTION = 'submit_on';
 // 第 2 版起默认“提交并上架”：之前保存的“保存草稿”多半是旧默认值，读取时迁移一次
 const PUBLISH_ACTION_VERSION = 2;
 
+// 发布到哪种店铺后台：VC 自营（供应商）和 POP 的发布页、表单字段完全不同
+export const PUBLISH_PLATFORMS = {
+  vc: 'VC 自营（供应商后台 vcp.jd.com）',
+  pop: 'POP 店铺（京麦商家后台）',
+};
+const DEFAULT_PLATFORM = 'vc';
+// VC 发布页“商品包装”的选项
+export const VC_PACK_TYPES = ['普通商品', '易碎品', '裸瓶液体', '带包装液体'];
+// 京东员工 ERP 账号：字母、数字、点、下划线、横线
+const ERP_RE = /^[\w.-]{1,50}$/;
+const MAX_UNIT_LENGTH = 10;
+
 export const EDIT_URL_RULE =
   '需要京东商家后台的 https 链接，且只含一个商品编号；地址里同时有多个编号（如 wareId 和 skuId）时，请把商品编号写成 {wareId}，并删掉其他编号参数';
 
@@ -30,6 +42,7 @@ export const DEFAULT_SETTINGS = Object.freeze({
   stock: 100,
   title: { prefix: '', suffix: '', removeWords: ['京东自营', '自营', '京东超市'], maxLength: 60 },
   publish: {
+    platform: DEFAULT_PLATFORM,
     action: DEFAULT_PUBLISH_ACTION,
     actionVersion: PUBLISH_ACTION_VERSION,
     delaySec: 5,
@@ -44,6 +57,9 @@ export const DEFAULT_SETTINGS = Object.freeze({
   },
   // 已发布商品的京东今日价检查与批量改价；editUrlTemplate 为店铺商品编辑页地址，商品编号写成 {wareId}
   priceWatch: { minDelaySec: 3, maxDelaySec: 6, alertMargin: 0, editUrlTemplate: '', repriceAction: 'auto' },
+  // VC 自营发布：采购员/销售员共用的 ERP（留空沿用页面默认值）、销售单位（留空按包装形式/规格推断）、
+  // 包装规格、商品包装、质保期（源商品没有时用）
+  vc: { erpCode: '', saleUnit: '', packSpecification: 1, packType: '普通商品', warranty: '无质保' },
   attrDefaultsText: '本品与最小可售单位数量关系=1\n销售期限=新日期',
   packList: '',
   categoryMap: [],
@@ -97,10 +113,12 @@ export function validateSettings(input) {
     errors.push('最大间隔不能小于最小间隔');
     maxDelay = minDelay;
   }
-  const action = v.publish.action in PUBLISH_ACTIONS ? v.publish.action : DEFAULT_PUBLISH_ACTION;
+  const action = Object.hasOwn(PUBLISH_ACTIONS, v.publish.action) ? v.publish.action : DEFAULT_PUBLISH_ACTION;
   if (action !== v.publish.action) errors.push('发布动作无效，已改为提交并上架');
   const rounding = ['cent', 'jiao', 'yuan', 'nine'].includes(v.price.rounding) ? v.price.rounding : 'cent';
   const priceWatch = validatePriceWatch(v.priceWatch, num, errors);
+  const platform = Object.hasOwn(PUBLISH_PLATFORMS, v.publish.platform) ? v.publish.platform : DEFAULT_PLATFORM;
+  if (platform !== v.publish.platform) errors.push('发布平台无效，已改为 VC 自营');
 
   const value = {
     ...v,
@@ -128,6 +146,7 @@ export function validateSettings(input) {
     },
     publish: {
       ...v.publish,
+      platform,
       action,
       delaySec: num(v.publish.delaySec, d.publish.delaySec, { min: 0, max: 600 }, '发布间隔'),
       maxMainImages: num(v.publish.maxMainImages, d.publish.maxMainImages, { min: 1, max: 10 }, '主图数量'),
@@ -138,9 +157,26 @@ export function validateSettings(input) {
       throttleCooldownMin: num(v.publish.throttleCooldownMin, d.publish.throttleCooldownMin, { min: 0, max: 1440 }, '限流冷却时间'),
     },
     priceWatch,
+    vc: validateVc(v.vc, num, errors),
     categoryMap: Array.isArray(v.categoryMap) ? v.categoryMap : [],
   };
   return { ok: errors.length === 0, errors, value };
+}
+
+function validateVc(vc, num, errors) {
+  const d = DEFAULT_SETTINGS.vc;
+  const erp = String(vc.erpCode ?? '').trim();
+  const erpCode = erp === '' || ERP_RE.test(erp) ? erp : '';
+  if (erp && !erpCode) errors.push('ERP 代码只能包含字母、数字、点、下划线、横线（如 xudezhi.6），已清空');
+  const packType = VC_PACK_TYPES.includes(vc.packType) ? vc.packType : d.packType;
+  if (packType !== vc.packType) errors.push(`商品包装无效，已改为${d.packType}`);
+  return {
+    erpCode,
+    saleUnit: String(vc.saleUnit ?? '').trim().slice(0, MAX_UNIT_LENGTH),
+    packSpecification: Math.floor(num(vc.packSpecification, d.packSpecification, { min: 1, max: 100000 }, '包装规格')),
+    packType,
+    warranty: String(vc.warranty ?? '').trim() || d.warranty,
+  };
 }
 
 /** 默认 UPC：留空表示不使用；填了但不是有效条形码（8~14 位数字、校验位正确）时恢复默认 */
@@ -163,7 +199,7 @@ function validatePriceWatch(pw, num, errors) {
   const rawUrl = String(pw.editUrlTemplate ?? '').trim();
   const derived = deriveEditUrlTemplate(rawUrl);
   if (rawUrl && !derived) errors.push(`商品编辑页地址无效，已清空：${EDIT_URL_RULE}`);
-  const repriceAction = pw.repriceAction in REPRICE_ACTIONS ? pw.repriceAction : d.repriceAction;
+  const repriceAction = Object.hasOwn(REPRICE_ACTIONS, pw.repriceAction) ? pw.repriceAction : d.repriceAction;
   if (repriceAction !== pw.repriceAction) errors.push('改价后的动作无效，已改为自动');
   return {
     minDelaySec: minDelay,

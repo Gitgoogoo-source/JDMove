@@ -1,11 +1,12 @@
 // 批量任务执行器：在任务面板页面中运行（页面保持打开即可持续执行）
-import { validateSettings } from '../shared/settings.js';
+import { validateSettings, PUBLISH_PLATFORMS } from '../shared/settings.js';
 import { collectFailurePatch, publishResultPatch } from '../shared/store.js';
 import { priceCheckPatch, priceStatus, repricePatch } from '../shared/price-watch.js';
 import { throttleRecord } from '../shared/publish-throttle.js';
 import { itemRepo, settingsRepo, throttleRepo, sleep, randomBetween } from './chrome-env.js';
 import { collectUrl, checkPriceUrl, closeCollectTab } from './collector.js';
 import { publishItem } from './publisher.js';
+import { publishVcItem } from './publisher-vc.js';
 import { repriceItem } from './repricer.js';
 import { crawlShop } from './shop-crawler.js';
 
@@ -97,7 +98,9 @@ export function createQueueRunner({ onChange, onLog, saveLocal = async () => nul
   async function publishOne(item, settings) {
     await itemRepo.update(item.id, { status: 'publishing', message: '' });
     const { log } = itemLogger(item.id);
-    const res = await publishItem(item, settings, log);
+    // 设置里选的店铺后台：VC 自营和 POP 的发布页、表单完全不同
+    const publish = settings.publish.platform === 'vc' ? publishVcItem : publishItem;
+    const res = await publish(item, settings, log);
     const patch = publishResultPatch(item, res);
     await itemRepo.update(item.id, patch);
     log(`结果：${res.message}${patch.publishedAt ? '（已移到“已发布”）' : ''}`);
@@ -162,6 +165,8 @@ export function createQueueRunner({ onChange, onLog, saveLocal = async () => nul
     const { value: settings } = validateSettings(await settingsRepo.get());
     const { handle, delay } = modeRunner(mode, settings, opts);
     setState({ running: true, mode, stopRequested: false, pauseReason: '', pausedMode: null });
+    // 默认发布平台已改为 VC 自营：每批发布都写明发到哪种后台，店铺是 POP 时可以及时去设置里改回
+    if (mode === 'publish') onLog(`发布到：${PUBLISH_PLATFORMS[settings.publish.platform]}（可在设置 →「发布到」中切换）`);
     let paused = false;
     let aborted = false;
     let tally = {};

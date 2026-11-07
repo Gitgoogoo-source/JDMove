@@ -301,7 +301,7 @@ async function handleShop() {
 async function handleEdit(id) {
   const item = items.find((i) => i.id === id);
   if (!item) return;
-  const res = await editItem(item, { onLog: appendLog });
+  const res = await editItem(item, { onLog: appendLog, settings });
   if (!res) return;
   if (res.shopWareId !== undefined && res.shopWareId !== (item.shopWareId ?? '')) {
     if (!(await itemRepo.update(id, { shopWareId: res.shopWareId }))) return appendLog(`[${id}] 条目已不存在，修改未保存`);

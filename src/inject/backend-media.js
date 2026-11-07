@@ -541,6 +541,9 @@
     submit_off: ['提交暂不上架'],
     submit_on: ['提交并上架', '提交审核并上架'],
     auto: ['提交', '保存', '提交审核', '提交修改', '保存修改', '确认修改'],
+    // VC 自营发布页只有这两个按钮：“发布商品”提交采销审核
+    vc_publish: ['发布商品'],
+    vc_draft: ['保存草稿'],
   };
   // 保存/提交成功后京麦弹出“保存成功 … 我知道了”，需要点掉才算结束
   const SUCCESS_POPUP_RE = /保存成功|提交成功|发布成功|操作成功/;
@@ -557,6 +560,8 @@
   const idField = (text, name) => (String(text || '').match(new RegExp(`"${name}"\\s*:\\s*"?(\\d{6,20})`)) || [])[1] || '';
   // 发布页的提交接口（saveproduct / saveProductNew）：成功时返回新商品的 productId，也就是店铺商品编号（wareId）
   const SAVE_API_RE = /saveproduct/i;
+  // VC 发布页走统一网关 sff.jd.com/api，接口名写在请求体里
+  const VC_SAVE_BODY_RE = /warePublishPageSaveProductService\.saveProductNew/;
   // 返回了编号但同时标着失败（success:false、4xx/5xx 错误码）不算提交成功
   const FAILED_BODY_RE = /"success"\s*:\s*false|"code"\s*:\s*"?[45]\d\d\b/;
   // 提交接口的原始返回带回扩展侧判断（如限流 bCode 10003）；只带回前 2000 个字符
@@ -586,8 +591,8 @@
     const saved = [];
     const responses = [];
     const restores = [];
-    const record = (text, url) => {
-      const isSave = SAVE_API_RE.test(String(url || ''));
+    const record = (text, url, body) => {
+      const isSave = SAVE_API_RE.test(String(url || '')) || (typeof body === 'string' && VC_SAVE_BODY_RE.test(body));
       if (isSave) responses.push({ text: String(text).slice(0, SAVE_RESPONSE_MAX), at: Date.now(), failure: saveFailure(String(text)) });
       const id = idField(text, 'wareId') || (isSave ? idField(text, 'productId') : '');
       if (id) captured.push({ id, at: Date.now() });
@@ -599,7 +604,7 @@
       XMLHttpRequest.prototype.send = function send(body) {
         this.addEventListener('load', () => {
           try {
-            record(this.responseText, this.responseURL);
+            record(this.responseText, this.responseURL, body);
           } catch {
             /* 非文本响应忽略 */
           }
@@ -611,8 +616,9 @@
       const origFetch = window.fetch;
       restores.push(() => (window.fetch = origFetch));
       window.fetch = function fetchWithCapture(...args) {
+        const reqBody = args[1] && typeof args[1].body === 'string' ? args[1].body : undefined;
         return origFetch.apply(window, args).then((res) => {
-          if (/json|text/.test(res.headers.get('content-type') || '')) res.clone().text().then((t) => record(t, res.url), () => undefined);
+          if (/json|text/.test(res.headers.get('content-type') || '')) res.clone().text().then((t) => record(t, res.url, reqBody), () => undefined);
           return res;
         });
       };
@@ -633,6 +639,8 @@
   // 之前把它当成保存结果，误报成功并立刻关掉标签页，保存请求根本没发出去
   async function clickAndWatch(action, { timeoutMs = 20000 } = {}, capture = { captured: [], saved: [], responses: [] }) {
     const labels = ACTION_BUTTONS[action];
+    // 保存草稿不跳转、没有店铺编号，确认框自动点“确定”（POP 和 VC 发布页各有一个草稿按钮）
+    const isDraft = action === 'draft' || action === 'vc_draft';
     if (!labels) return { ok: true, skipped: true };
     const btn = labels.map((l) => buttonByText(l)).find(Boolean);
     if (!btn) return { ok: false, error: `找不到“${labels.join('”或“')}”按钮` };
@@ -653,7 +661,7 @@
     while (Date.now() < end) {
       // 页面马上会跳走，脚本随之结束：先把结果带回去
       // 保存草稿不跳转、草稿也没有店铺编号：只按弹窗判断
-      if (action !== 'draft' && capture.saved.some((c) => c.at >= clickedAt)) {
+      if (!isDraft && capture.saved.some((c) => c.at >= clickedAt)) {
         submitted = true;
         break;
       }
@@ -670,7 +678,7 @@
       }
       if (box && !confirmText) {
         confirmText = textOf(box).slice(0, 200);
-        if (action === 'draft') {
+        if (isDraft) {
           const ok = buttonByText('确定', box);
           if (ok) click(ok);
         } else break; // 提交前的确认框交给人工判断
@@ -678,7 +686,7 @@
       if (location.href !== startUrl) break;
       if ([...seen].some((m) => SUCCESS_POPUP_RE.test(m) || /失败|错误|请/.test(m))) break;
       // 提交接口已经返回失败（如限流）：页面不一定弹提示，稍等一下就结束
-      const failedSave = action !== 'draft' && capture.responses.find((r) => r.at >= clickedAt && r.failure != null);
+      const failedSave = !isDraft && capture.responses.find((r) => r.at >= clickedAt && r.failure != null);
       if (failedSave && Date.now() - failedSave.at >= FAILED_SAVE_GRACE_MS) break;
       await sleep(100);
     }
@@ -689,7 +697,7 @@
     // 页面没弹提示时用提交接口返回的错误文字
     const failure = capture.responses.filter((r) => r.at >= clickedAt && r.failure).map((r) => r.failure).pop();
     if (!success && !msgs.length && !errors.length) msgs.push(failure || `点击“${label}”后没有看到保存结果`);
-    const draftIds = new Set(action === 'draft' ? capture.saved.map((c) => c.id) : []);
+    const draftIds = new Set(isDraft ? capture.saved.map((c) => c.id) : []);
     const wareIds = capture.captured.filter((c) => c.at >= clickedAt && !draftIds.has(c.id)).map((c) => c.id);
     return {
       ok: submitted || popupSuccess || (success && errors.length === 0),
@@ -719,5 +727,7 @@
     setDescriptionHtml,
     runAction,
     skuRowCount: () => skuRows().length,
+    // 给 VC 发布页脚本（backend-vc*.js）复用
+    mediaUtil: { componentChain, putFiles, b64ToFile, installUploadCapture, commitInput, chooseSelectOption },
   });
 })();

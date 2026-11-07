@@ -58,6 +58,15 @@
 
   const { jfsOf } = NS;
 
+  // 商品主数据里要带回扩展侧的字段：保质期（参数列表没有时兜底）、商品条形码（页面上不显示），
+  // 以及 VC 自营发布用的四级类目 ID、品牌 ID、型号、包装长宽高（mm）、毛重（kg）、质保
+  const WARE_INFO_KEYS = [
+    'shelf_life', 'upc_code',
+    'category_id1', 'category_id2', 'category_id', 'category_id4',
+    'brand_id', 'model', 'weight', 'length', 'width', 'height', 'warranty',
+  ];
+  const pickWareInfo = (read) => Object.fromEntries(WARE_INFO_KEYS.map((k) => [k, read[k] == null ? '' : String(read[k])]));
+
   function fromBusiness(b) {
     const images = [];
     const mainArea = b.mainImageVO && b.mainImageVO.mainImageArea;
@@ -85,8 +94,7 @@
       // 与页面显示一致：取主价格（京东价/补贴价等），不取页面不显示的原价 op
       priceText: NS.pickBusinessPrice(b),
       brandText: read.cn_brand || '',
-      // 商品主数据里的结构化字段：保质期（参数列表没有时兜底）、商品条形码（页面上不显示）
-      wareInfo: { shelf_life: read.shelf_life || '', upc_code: read.upc_code || '' },
+      wareInfo: pickWareInfo(read),
       shopName: (b.itemShopInfo && b.itemShopInfo.shopName) || '',
       pageConfig: {
         skuid: (b.price && b.price.id) || skuIdFromUrl(),
