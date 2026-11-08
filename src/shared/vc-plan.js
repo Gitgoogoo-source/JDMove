@@ -19,6 +19,9 @@ const SKU_NAME_MAX = 60;
 // 5 个采集不到、需要手动填写的字段里的 3 个价格（采购员/销售员共用 ERP，单独处理）
 export const VC_PRICE_LABELS = { marketPrice: '市场价', jdPrice: '京东价', costPrice: '采购价' };
 const DIM_LABELS = { lengthMm: '长', widthMm: '宽', heightMm: '高', weightKg: '毛重' };
+// 源商品没有（或是占位值）且编辑里也没填时的包装长宽高（mm）和毛重（kg）
+export const DEFAULT_DIMS = Object.freeze({ lengthMm: 100, widthMm: 100, heightMm: 100, weightKg: 0.5 });
+const DIM_UNITS = { lengthMm: 'mm', widthMm: 'mm', heightMm: 'mm', weightKg: 'kg' };
 const PROMO_RE = /【[^】]*】/g;
 // 销售单位：包装形式或规格里出现的容器词
 const UNIT_WORDS = ['箱', '提', '包', '袋', '盒', '瓶', '罐', '桶', '支', '卷', '条', '片', '块', '套', '组', '件'];
@@ -106,8 +109,12 @@ function vcCategory(product, edits, settings) {
 const vcField = (product, edits, key) => {
   const own = edits.vc?.[key];
   if (key === 'model') return String(own ?? '').trim() || vcSourceFields(product).model;
-  return positive(own) ?? vcSourceFields(product)[key];
+  return positive(own) ?? vcSourceFields(product)[key] ?? DEFAULT_DIMS[key];
 };
+
+/** 用了默认值的长宽高/毛重（编辑里和源商品都没有） */
+const defaultedDims = (product, edits) =>
+  Object.keys(DIM_LABELS).filter((k) => !positive(edits.vc?.[k]) && !vcSourceFields(product)[k]);
 
 const EDIT_HINT = '请在「编辑 → VC 自营」中填写';
 const RECOLLECT_HINT = '之前采集的商品请重新采集，或在「编辑」中填写';
@@ -152,13 +159,11 @@ function formatBlockers(product, edits) {
  */
 export function vcPreflight({ product, edits = {}, settings }) {
   const title = planTitle(product, edits, settings);
-  const missingDims = Object.entries(DIM_LABELS).filter(([k]) => !vcField(product, edits, k)).map(([, l]) => l);
   const { mainImageUrls } = publishImagePlan({ product, edits, settings });
   const blockers = [
     ...(title ? [] : ['缺少标题']),
     ...priceBlockers(vcPrices(edits)),
     ...(vcField(product, edits, 'model') ? [] : [`缺少型号（${modelHint(product)}）`]),
-    ...(missingDims.length ? [`缺少包装长宽高/毛重：${missingDims.join('、')}（${missingHint(product)}）`] : []),
     ...(mainImageUrls.length ? [] : ['缺少主图']),
     ...(product?.detailImages?.length ? [] : ['缺少详情图（采集时没有拿到详情图，请重新采集后再发布）']),
     ...formatBlockers(product, edits),
@@ -237,6 +242,13 @@ function modelWarning(product, edits) {
   return model && modelFrom !== '型号' ? [`型号用的是源商品的${modelFrom}「${model}」，请核对`] : [];
 }
 
+function dimsWarning(product, edits) {
+  const keys = defaultedDims(product, edits);
+  if (!keys.length) return [];
+  const list = keys.map((k) => `${DIM_LABELS[k]} ${DEFAULT_DIMS[k]}${DIM_UNITS[k]}`).join('、');
+  return [`包装长宽高/毛重按默认值填写：${list}（${missingHint(product)}），请核对`];
+}
+
 function planWarnings({ props, erp, prices, unit, upc, dangerGoods }) {
   const guessed = props.report
     .filter((r) => r.status === 'guessed')
@@ -299,6 +311,7 @@ export function buildVcPublishPlan({ product, edits = {}, settings, schema }) {
     dangerGoods: product.vc?.dangerGoods ?? null,
     warnings: [
       ...modelWarning(product, edits),
+      ...dimsWarning(product, edits),
       ...planWarnings({ props, erp, prices, unit, upc, dangerGoods: product.vc?.dangerGoods }),
       ...form.warnings,
     ],

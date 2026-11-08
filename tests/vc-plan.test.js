@@ -107,7 +107,7 @@ test('vcPreflight: 旧数据缺型号/长宽高/毛重时提示重新采集或�
   const old = { ...product(), vc: undefined };
   const { blockers } = vcPreflight({ product: old, edits: { vc: PRICES }, settings: settings() });
   assert.ok(blockers.some((b) => /型号/.test(b)));
-  assert.ok(blockers.some((b) => /长宽高|毛重/.test(b)));
+  assert.ok(!blockers.some((b) => /长宽高|毛重/.test(b)), blockers.join('\n'));
   const filled = { vc: { ...PRICES, model: 'M1', lengthMm: 1, widthMm: 2, heightMm: 3, weightKg: 0.5 } };
   assert.deepEqual(vcPreflight({ product: old, edits: filled, settings: settings() }).blockers, []);
 });
@@ -120,20 +120,32 @@ test('vcPreflight: POP 商品没有型号时用货号，不再拦下', () => {
   assert.ok(!blockers.some((b) => /型号/.test(b)), blockers.join('\n'));
 });
 
-test('vcPreflight: 采集到了但源商品主数据里没有长宽高时，提示在编辑中填写（重新采集也不会有）', () => {
-  const { blockers } = vcPreflight({ product: popProduct(), edits: { vc: PRICES }, settings: settings() });
-  const dims = blockers.find((b) => /长宽高/.test(b));
-  assert.match(dims, /长、宽、高/);
+test('buildVcPublishPlan: 源商品主数据里没有长宽高时按默认 100mm 填写并提醒核对，已有的毛重不覆盖', () => {
+  const plan = buildVcPublishPlan({ product: popProduct(), edits: { vc: PRICES }, settings: settings(), schema: SCHEMA });
+  assert.ok(!plan.blockers.some((b) => /长宽高/.test(b)), plan.blockers.join('\n'));
+  assert.equal(plan.logistics.length, 100);
+  assert.equal(plan.logistics.wide, 100);
+  assert.equal(plan.logistics.height, 100);
+  assert.equal(plan.logistics.weight, 4.33);
+  const dims = plan.warnings.find((w) => /长宽高\/毛重按默认值/.test(w));
+  assert.match(dims, /长 100mm、宽 100mm、高 100mm）?/);
+  assert.doesNotMatch(dims, /毛重 0/);
   assert.match(dims, /源商品主数据里没有/);
-  assert.doesNotMatch(dims, /重新采集/);
 });
 
-test('vcPreflight: 主数据里是占位值（1×1×1 mm、0.01 kg）时当成没有，并写明是占位值', () => {
+test('buildVcPublishPlan: 主数据里是占位值（1×1×1 mm、0.01 kg）时当成没有，按默认 100mm / 0.5kg 填写', () => {
   const fake = { ...product(), vc: { ...product().vc, lengthMm: 1, widthMm: 1, heightMm: 1, weightKg: 0.01 } };
-  const { blockers } = vcPreflight({ product: fake, edits: { vc: PRICES }, settings: settings() });
-  const dims = blockers.find((b) => /长宽高/.test(b));
-  assert.match(dims, /长、宽、高、毛重/);
+  const plan = buildVcPublishPlan({ product: fake, edits: { vc: PRICES }, settings: settings(), schema: SCHEMA });
+  assert.deepEqual([plan.logistics.length, plan.logistics.wide, plan.logistics.height, plan.logistics.weight], [100, 100, 100, 0.5]);
+  const dims = plan.warnings.find((w) => /长宽高\/毛重按默认值/.test(w));
+  assert.match(dims, /长、?.*毛重 0\.5kg/);
   assert.match(dims, /占位值/);
+});
+
+test('buildVcPublishPlan: 源商品有长宽高/毛重时不用默认值', () => {
+  const plan = buildVcPublishPlan({ product: product(), edits: { vc: PRICES }, settings: settings(), schema: SCHEMA });
+  assert.deepEqual([plan.logistics.length, plan.logistics.wide, plan.logistics.height, plan.logistics.weight], [408, 310, 280, 4.33]);
+  assert.ok(!plan.warnings.some((w) => /长宽高\/毛重按默认值/.test(w)), plan.warnings.join("\n"));
 });
 
 test('buildVcPublishPlan: 型号用货号时提醒核对', () => {

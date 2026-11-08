@@ -53,7 +53,7 @@ const CASES = [
     model: ['V2182-A', '货号'],
     dims: [null, null, null, 5],
     upc: '6901236351840',
-    blockers: [/^缺少包装长宽高\/毛重：长、宽、高（源商品主数据里没有/],
+    blockers: [], // 长宽高按默认值 100mm 填写（只提醒，不拦）
   },
   {
     name: 'jingxi-placeholder-10120802107169',
@@ -64,7 +64,7 @@ const CASES = [
     dims: [null, null, null, null],
     placeholders: ['长宽高 1×1×1 mm', '毛重 0.01 kg'],
     upc: '',
-    blockers: [/^缺少包装长宽高\/毛重：长、宽、高、毛重（源商品主数据里是占位值/],
+    blockers: [], // 长宽高/毛重按默认值填写（只提醒，不拦）
   },
   {
     name: 'jdhk-100094541482',
