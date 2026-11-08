@@ -40,7 +40,7 @@ export function vcFields(item, vcSettings = {}) {
   };
   const packListing = h('input', {
     value: own.packListing ?? '',
-    placeholder: item.product?.packList || '源商品没有包装清单，留空按设置的包装清单或“类目名*1”',
+    placeholder: item.product?.packList || '源商品没有包装清单，留空按设置的包装清单或“品牌 类目 x1”',
   });
 
   const node = h(

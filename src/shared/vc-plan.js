@@ -206,6 +206,14 @@ function shelfLifeDays(source) {
   return found ? positive(convertInputValue(found.value, '天')) : null;
 }
 
+/** 品牌的中文名：“维达（Vinda）”→“维达”；只有外文名时原样保留 */
+const brandShortName = (name) => String(name ?? '').replace(/[（(][^）)]*[）)]/g, '').trim() || String(name ?? '').trim();
+
+/** 源商品没有包装清单时的默认值：品牌 类目 x1，如“维达 常规抽纸 x1” */
+export function defaultPackListing(product) {
+  return [brandShortName(product?.brand?.name), product?.leafCategory || '商品', 'x1'].filter(Boolean).join(' ');
+}
+
 function logisticsOf(product, edits, settings, source, saleUnit) {
   return {
     length: vcField(product, edits, 'lengthMm'),
@@ -217,7 +225,7 @@ function logisticsOf(product, edits, settings, source, saleUnit) {
     packType: settings.vc.packType,
     warranty: product?.vc?.warranty || settings.vc.warranty,
     // 采集到的包装清单优先于设置：设置里的是所有商品共用的一句话
-    packListing: String(edits.vc?.packListing ?? '').trim() || product?.packList || settings.packList || `${product?.leafCategory || '商品'}*1`,
+    packListing: String(edits.vc?.packListing ?? '').trim() || product?.packList || settings.packList || defaultPackListing(product),
     sldays: shelfLifeDays(source),
   };
 }

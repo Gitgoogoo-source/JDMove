@@ -1,7 +1,7 @@
 // VC 自营发布的填写计划（纯函数）：用 2026-11 走查过的维达抽纸样本
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildVcPublishPlan, vcPreflight, vcTarget, vcTitle, vcActionLabel, vcWeightKg } from '../src/shared/vc-plan.js';
+import { buildVcPublishPlan, vcPreflight, vcTarget, vcTitle, vcActionLabel, vcWeightKg, defaultPackListing } from '../src/shared/vc-plan.js';
 import { mergeSettings } from '../src/shared/settings.js';
 import { weightedLength } from '../src/shared/title.js';
 
@@ -175,7 +175,7 @@ test('buildVcPublishPlan: 样本商品生成完整计划', () => {
     packSpecification: 1,
     packType: '普通商品',
     warranty: '无质保',
-    packListing: '常规抽纸*1',
+    packListing: '维达 常规抽纸 x1',
     sldays: null,
   });
   assert.deepEqual(plan.props.values, { 132416: '704205', 164370: 'c1', 164372: 't2' });
@@ -292,7 +292,7 @@ test('buildVcPublishPlan: 销售单位取包装形式里最先出现的容器词
   assert.equal(plan.logistics.unit, '盒');
 });
 
-test('buildVcPublishPlan: 包装清单按 编辑 > 采集到的 > 设置 > 类目名*1', () => {
+test('buildVcPublishPlan: 包装清单按 编辑 > 采集到的 > 设置 > 品牌 类目 x1', () => {
   const pack = '维达（Vinda）抽纸 棉韧3层100抽*36包S码 亲肤无刺激 纸巾 整箱';
   const withPack = { ...product(), packList: pack };
   const s = settings({ packList: '抽纸*36' });
@@ -300,6 +300,19 @@ test('buildVcPublishPlan: 包装清单按 编辑 > 采集到的 > 设置 > 类�
   assert.equal(plan(withPack).logistics.packListing, pack);
   assert.equal(plan(withPack, { packListing: '手填*1' }).logistics.packListing, '手填*1');
   assert.equal(plan(product()).logistics.packListing, '抽纸*36');
+});
+
+test('buildVcPublishPlan: 源商品没有包装清单时默认填“品牌 类目 x1”，有则不覆盖', () => {
+  const plan = (p) => buildVcPublishPlan({ product: p, edits: { vc: PRICES }, settings: settings(), schema: SCHEMA });
+  assert.equal(plan({ ...product(), packList: '' }).logistics.packListing, '维达 常规抽纸 x1');
+  assert.equal(plan({ ...product(), packList: '抽纸*36包' }).logistics.packListing, '抽纸*36包');
+});
+
+test('defaultPackListing: 品牌去掉括号里的外文名；只有外文名、没有品牌或类目时也能生成', () => {
+  assert.equal(defaultPackListing({ brand: { name: '德芙（Dove）' }, leafCategory: '牛奶巧克力' }), '德芙 牛奶巧克力 x1');
+  assert.equal(defaultPackListing({ brand: { name: '(Apple)' }, leafCategory: '手机' }), '(Apple) 手机 x1');
+  assert.equal(defaultPackListing({ brand: { name: '' }, leafCategory: '抽纸' }), '抽纸 x1');
+  assert.equal(defaultPackListing({}), '商品 x1');
 });
 
 test('buildVcPublishPlan: 有京东给的无品牌标题时用它生成标题', () => {
