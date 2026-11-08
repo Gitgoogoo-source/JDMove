@@ -21,3 +21,20 @@ export async function loadVcTemplate(categoryIds) {
   const entry = findVcTemplateEntry(await readJson('index.json'), categoryIds);
   return entry ? readJson(entry.file) : null;
 }
+
+/**
+ * 全部上架模板（发布前检查弹窗里选模板用）；某份模板读不出来时跳过并写进 errors
+ * @returns {Promise<{catalog: import('../shared/vc-templates.js').VcTemplateCatalog, errors: string[]}>}
+ */
+export async function loadVcCatalog() {
+  const index = await readJson('index.json');
+  const entries = index?.templates ?? [];
+  const results = await Promise.allSettled(entries.map((e) => readJson(e.file)));
+  const byId = new Map();
+  const errors = [];
+  results.forEach((r, i) => {
+    if (r.status === 'fulfilled' && r.value) byId.set(entries[i].categoryId, r.value);
+    else errors.push(`上架模板「${entries[i].categoryName}」读取失败：${r.reason?.message ?? '文件为空'}`);
+  });
+  return { catalog: { entries: entries.filter((e) => byId.has(e.categoryId)), byId }, errors };
+}

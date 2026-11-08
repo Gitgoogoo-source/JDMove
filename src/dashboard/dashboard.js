@@ -6,6 +6,8 @@ import { editItem } from './editor.js';
 import { editSettings } from './settings-dialog.js';
 import { createStorageController } from './storage-ui.js';
 import { openVcImportDialog } from './vc-import-dialog.js';
+import { openPublishReview } from './publish-review-dialog.js';
+import { rebaseEdits } from '../shared/vc-review.js';
 import { importEdit } from '../shared/vc-import.js';
 import { extractSkuIds, b2bItemUrls } from '../shared/url-utils.js';
 import { parseShopInput } from '../shared/shop-url.js';
@@ -339,6 +341,37 @@ async function handleVcImport() {
   await reload();
 }
 
+/**
+ * 「发布选中」：先打开发布前检查弹窗（按上架模板列出每个商品要填的内容，缺的可以补、可以选模板、可以表格批量填），
+ * 保存弹窗里的修改后发布勾选的商品
+ */
+async function handlePublishSelected() {
+  const ids = targetIds((i) => i.product && ['collected', 'failed', 'need_action'].includes(i.status));
+  if (!ids.length) return appendLog('没有可发布的条目（需先采集；已发布的商品在“已发布”页，需要时可用行内“重新发布”）');
+  if (!confirmPublishDuringCooldown()) return;
+  let res;
+  try {
+    res = await openPublishReview({ items: ids.map((id) => items.find((i) => i.id === id)).filter(Boolean), settings, onLog: appendLog });
+  } catch (e) {
+    return appendLog(`发布前检查打不开：${e.message}`);
+  }
+  if (!res) return appendLog('已取消发布');
+  if (res.changes.length) {
+    try {
+      // 以存储里最新的编辑内容为准，只覆盖弹窗里改过的项（弹窗打开期间在别处的修改保留）
+      const changed = await itemRepo.saveEditsMany(res.changes.map((c) => ({ id: c.id, edit: (current) => rebaseEdits(c.before, c.edits, current) })));
+      appendLog(`发布前检查：已保存 ${changed.length} 个商品的修改`);
+    } catch (e) {
+      appendLog(`发布前检查：修改保存失败，没有发布：${e.message}`);
+      return reload();
+    }
+  }
+  await reload();
+  if (!res.publishIds.length) return appendLog(res.changes.length ? '只保存了修改，没有发布' : '没有勾选要发布的商品');
+  appendLog(`开始发布 ${res.publishIds.length} 条（填写完成后：${PUBLISH_ACTIONS[settings.publish.action] ?? settings.publish.action}）`);
+  runner.publish(res.publishIds);
+}
+
 /** 删除本地文件夹；返回删除成功（或本来就没有文件夹）的条目 id */
 async function removeLocalFolders(targets) {
   const done = [];
@@ -490,13 +523,7 @@ function bind() {
     appendLog(`开始保存 ${ids.length} 条到本地`);
     runner.saveLocal(ids);
   });
-  $('#btnPublish').addEventListener('click', () => {
-    const ids = targetIds((i) => i.product && ['collected', 'failed', 'need_action'].includes(i.status));
-    if (!ids.length) return appendLog('没有可发布的条目（需先采集；已发布的商品在“已发布”页，需要时可用行内“重新发布”）');
-    if (!confirmPublishDuringCooldown()) return;
-    appendLog(`开始发布 ${ids.length} 条（填写完成后：${PUBLISH_ACTIONS[settings.publish.action] ?? settings.publish.action}）`);
-    runner.publish(ids);
-  });
+  $('#btnPublish').addEventListener('click', handlePublishSelected);
   $('#btnDelete').addEventListener('click', async () => {
     if (!selected.size) return appendLog('请先勾选要删除的条目');
     await deleteItems([...selected]);

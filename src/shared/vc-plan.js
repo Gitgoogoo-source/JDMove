@@ -111,7 +111,11 @@ function noBrandError(product) {
   return `缺少品牌ID${which}：VC 发布页需要先选定已授权品牌，请重新采集，或在「编辑 → VC 自营 → 品牌ID」中填写`;
 }
 
-function vcCategory(product, edits, settings) {
+/**
+ * 发布用的末级类目：手动指定（edits.cateList）> 类目映射 > 源商品主数据；都没有时为 null
+ * @returns {{categoryId: string, cateList: string[], name: string, from: 'manual'|'map'|'source'} | null}
+ */
+export function vcCategory(product, edits = {}, settings = {}) {
   const pick = (ids, name, from) => {
     const cateList = (ids ?? []).map(String).filter(isId);
     return cateList.length ? { categoryId: cateList.at(-1), cateList, name, from } : null;

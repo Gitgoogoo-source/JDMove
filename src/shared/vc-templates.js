@@ -79,3 +79,61 @@ export function vcTemplateRequired(template) {
     spec: [...new Set(spec)],
   };
 }
+
+/** 模板里的 SKU属性（发布页 SKU属性抽屉的字段），结构同 vcTemplateAttrs；parts：多段数字的段数（纸张尺寸 长×宽 = 2） */
+export function vcTemplateSkuAttrs(template) {
+  return (template?.skuProps ?? []).map((p) => ({
+    field: String(p.field),
+    title: p.title ?? '',
+    type: p.type,
+    kind: attrKind(p),
+    required: !!p.required,
+    suffix: p.suffix ?? '',
+    maxLength: p.maxLength ?? p.max ?? 0,
+    options: p.options ?? [],
+  }));
+}
+
+/**
+ * 已读进内存的全部模板：templates/vc/index.json 的条目 + 每份模板（按三级类目ID）
+ * @typedef {{entries: Array<{categoryId: string, leafIds: string[], file: string, path: string}>, byId: Map<string, object>}} VcTemplateCatalog
+ */
+
+/**
+ * 在模板目录里按类目ID路径找模板（从末级往上找）
+ * @param {VcTemplateCatalog|null|undefined} catalog
+ * @param {Array<string|number>|string|number} categoryIds
+ * @returns {object|null}
+ */
+export function findCatalogTemplate(catalog, categoryIds) {
+  const entry = findVcTemplateEntry({ templates: catalog?.entries ?? [] }, categoryIds);
+  return entry ? catalog.byId.get(entry.categoryId) ?? null : null;
+}
+
+/** 模板可以发布的末级类目：末级三级类目是它自己；不是末级的（抽纸、卷纸）是录制时读到的四级类目 */
+export function vcTemplateLeaves(template) {
+  if (!template) return [];
+  if (template.isLeaf || !template.leafChildren?.length) {
+    return [{ id: String(template.publishCategoryId || template.categoryId), name: template.publishCategoryName || template.categoryName }];
+  }
+  return template.leafChildren.map((c) => ({ id: String(c.id), name: c.name }));
+}
+
+const pathNames = (template) => (template?.path ?? []).map((p) => p.name);
+
+/** 模板的显示名：家庭清洁/纸品 > 清洁纸品 > 抽纸 */
+export const vcTemplateLabel = (template) => pathNames(template).join(' > ') || template?.categoryName || '';
+
+/**
+ * 选了某个模板（和它的末级类目）后，编辑里要存的类目ID路径和名称：发布页按这个类目打开
+ * @param {object} template
+ * @param {string} [leafId] 不是末级的三级类目要选四级类目，默认录制模板用的那个
+ * @returns {{cateList: string[], cateName: string}}
+ */
+export function vcTemplateCategory(template, leafId) {
+  const ids = (template?.path ?? []).map((p) => String(p.id));
+  if (template?.isLeaf) return { cateList: ids, cateName: pathNames(template).join(' > ') };
+  const leaves = vcTemplateLeaves(template);
+  const leaf = leaves.find((l) => l.id === String(leafId)) ?? leaves.find((l) => l.id === String(template?.publishCategoryId)) ?? leaves[0];
+  return { cateList: [...ids, leaf.id], cateName: [...pathNames(template), leaf.name].join(' > ') };
+}
