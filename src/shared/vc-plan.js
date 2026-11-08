@@ -24,6 +24,8 @@ const PROMO_RE = /【[^】]*】/g;
 const UNIT_WORDS = ['箱', '提', '包', '袋', '盒', '瓶', '罐', '桶', '支', '卷', '条', '片', '块', '套', '组', '件'];
 const DEFAULT_SALE_UNIT = '件';
 const PACK_PARAM_NAMES = ['包装形式', '包装', '包装方式'];
+// 内置属性默认值：源商品没有该属性时才用；设置里的「属性默认值」和编辑里的属性覆盖优先
+export const BUILTIN_ATTR_DEFAULTS = Object.freeze({ 适用场景: '通用' });
 
 const positive = (v) => {
   const n = Number(v);
@@ -256,7 +258,7 @@ function planWarnings({ props, erp, prices, unit, upc, dangerGoods }) {
  */
 export function buildVcPublishPlan({ product, edits = {}, settings, schema }) {
   const { blockers } = vcPreflight({ product, edits, settings });
-  const attrDefaults = parseAttrDefaults(settings.attrDefaultsText);
+  const attrDefaults = { ...BUILTIN_ATTR_DEFAULTS, ...parseAttrDefaults(settings.attrDefaultsText) };
   const overrides = edits.attrOverrides ?? {};
   const overrideParams = Object.entries(overrides).map(([name, value]) => ({ name, value }));
   const source = { ...product, params: [...overrideParams, ...(product.params ?? [])] };

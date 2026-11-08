@@ -314,3 +314,25 @@ test('buildVcPublishPlan: 规格按钮没采到时用主数据里的销售属性
   assert.equal(plan.sku.spec.desc, '王牌囤货装');
   assert.deepEqual(plan.skuAttrUnits, { 层: '3', 抽: '100', 包: '36' });
 });
+
+test('buildVcPublishPlan: 源商品没有「适用场景」时默认填“通用”', () => {
+  const p = product();
+  const bare = { ...p, params: p.params.filter((x) => x.name !== '适用场景') };
+  const plan = buildVcPublishPlan({ product: bare, edits: { vc: PRICES }, settings: settings(), schema: SCHEMA });
+  assert.equal(plan.props.values['132416'], '3');
+  assert.equal(plan.props.report.find((r) => r.title === '适用场景').status, 'default');
+  assert.ok(!plan.props.missingRequired.includes('适用场景'));
+});
+
+test('buildVcPublishPlan: 源商品有「适用场景」时不被默认值覆盖', () => {
+  const plan = buildVcPublishPlan({ product: product(), edits: { vc: PRICES }, settings: settings(), schema: SCHEMA });
+  assert.equal(plan.props.values['132416'], '704205');
+});
+
+test('buildVcPublishPlan: 设置里的「适用场景」默认值优先于内置“通用”', () => {
+  const p = product();
+  const bare = { ...p, params: p.params.filter((x) => x.name !== '适用场景') };
+  const s = settings({ attrDefaultsText: '适用场景=商用' });
+  const plan = buildVcPublishPlan({ product: bare, edits: { vc: PRICES }, settings: s, schema: SCHEMA });
+  assert.equal(plan.props.values['132416'], '1');
+});
