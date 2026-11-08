@@ -130,6 +130,8 @@ dialog form { display: flex; flex-direction: column; max-height: 88vh; }
 }
 .field textarea { min-height: 72px; resize: vertical; }
 .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+/* 和带标签的输入框并排时，按钮对齐到输入框那一行 */
+.row2 > button { align-self: end; }
 .row3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
 .thumbs { display: flex; flex-wrap: wrap; gap: 6px; }
 .params { display: grid; grid-template-columns: 160px 1fr; gap: 2px 12px; font-size: 12px; }

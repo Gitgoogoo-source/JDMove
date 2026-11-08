@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseCategoryText, matchCategoryMap, parseCateListInput, mappingSourceFor } from '../src/shared/category-pick.js';
+import { parseCategoryText, matchCategoryMap, parseCateListInput, mappingSourceFor, cateListInputError, cateChangeNote } from '../src/shared/category-pick.js';
 import { readFileSync } from 'node:fs';
 import { normalizeProduct } from '../src/shared/product-normalize.js';
 
@@ -60,4 +60,27 @@ test('mappingSourceFor: 取到叶子类目为止的末两级，去掉品牌（�
   assert.equal(mappingSourceFor({ leafCategory: '牛奶巧克力', crumbs: ['巧克力', '牛奶巧克力', '德芙(Dove)'] }), '巧克力>牛奶巧克力');
   assert.equal(mappingSourceFor({ leafCategory: '饼干', crumbs: ['食品', '饼干'] }), '食品>饼干');
   assert.equal(mappingSourceFor({ leafCategory: '', crumbs: [] }), '');
+});
+
+test('cateListInputError: 留空或能解析出类目ID时通过；填了内容却解析不出ID时说明要填什么', () => {
+  assert.equal(cateListInputError(''), '');
+  assert.equal(cateListInputError('   '), '');
+  assert.equal(cateListInputError('15901,15902,15908'), '');
+  assert.equal(cateListInputError('家庭清洁/纸品[15901] > 清洁纸品[15902] > 抽纸[15908]'), '');
+  for (const bad of ['常规抽纸', '家庭清洁/纸品 > 清洁纸品 > 抽纸', '0,0']) {
+    assert.match(cateListInputError(bad), /类目ID/, bad);
+    assert.match(cateListInputError(bad), /15901,15902,15908/, bad);
+  }
+});
+
+test('parseCateListInput: 0 不是类目ID', () => {
+  assert.deepEqual(parseCateListInput('0,15901'), [15901]);
+});
+
+test('cateChangeNote: 说明保存后发布用哪个类目', () => {
+  assert.equal(cateChangeNote({}, {}), '');
+  assert.equal(cateChangeNote({ cateList: [1, 2] }, { cateList: [1, 2], cateName: 'A' }), '');
+  assert.equal(cateChangeNote({}, { cateList: [15901, 15902, 15908], cateName: '家庭清洁/纸品 > 清洁纸品 > 抽纸' }), '目标类目已设为：家庭清洁/纸品 > 清洁纸品 > 抽纸 [15901,15902,15908]');
+  assert.equal(cateChangeNote({}, { cateList: [15901, 15902, 15908] }), '目标类目已设为：[15901,15902,15908]');
+  assert.equal(cateChangeNote({ cateList: [1] }, {}), '已清空指定类目，发布时自动匹配');
 });

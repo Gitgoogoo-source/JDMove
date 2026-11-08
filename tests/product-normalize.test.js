@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { normalizeProduct, validateProduct } from '../src/shared/product-normalize.js';
+import { collectWarnings, normalizeProduct, validateProduct } from '../src/shared/product-normalize.js';
 
 const legacyRaw = {
   url: 'https://item.jd.com/100001.html',
@@ -201,4 +201,50 @@ test('京东没有条形码时 upc_code 填的是 SKU 编号本身：不当作�
 test('upc_code 为“SKU编号;条形码”多值格式时取出条形码', () => {
   const raw = { ...legacyRaw, skuId: '100050587042', pageConfig: { ...legacyRaw.pageConfig, skuid: 100050587042, colorSize: [] } };
   assert.equal(normalizeProduct({ ...raw, wareInfo: { upc_code: '100050587042;6914973600058' } }).upc, '6914973600058');
+});
+
+// 2026-11 10139321640215：页面没返回商品数据时退回 HTML 采集，没有品牌参数，面包屑最后一级是品牌
+const domRaw = {
+  source: 'dom',
+  skuId: '10139321640215',
+  domTitle: '维达（Vinda）超韧抽纸3层M码 餐巾纸面巾纸 150抽*3包',
+  crumbs: ['家庭清洁/纸品', '清洁纸品', '抽纸', '常规抽纸', '维达（Vinda）'],
+  brandText: '',
+  wareInfo: null,
+  mainImages: ['jfs/t1/1/a.jpg'],
+  priceText: '21.34',
+};
+
+test('normalizeProduct: 没有品牌参数时，标题开头的面包屑末级当作品牌，不当作叶子类目', () => {
+  const p = normalizeProduct(domRaw);
+  assert.equal(p.brand.name, '维达（Vinda）');
+  assert.equal(p.leafCategory, '常规抽纸');
+  // 标题开头不是面包屑末级时不猜
+  const other = normalizeProduct({ ...domRaw, domTitle: '超韧抽纸3层M码' });
+  assert.equal(other.brand.name, '');
+  assert.equal(other.leafCategory, '维达（Vinda）');
+});
+
+test('normalizeProduct: 面包屑末级不像品牌（叶子类目）时，即使标题以它开头也不当作品牌', () => {
+  const p = normalizeProduct({ ...domRaw, domTitle: '牙刷套装 软毛 4支', crumbs: ['个护健康', '口腔护理', '牙刷'] });
+  assert.equal(p.brand.name, '');
+  assert.equal(p.leafCategory, '牙刷');
+  const latin = normalizeProduct({ ...domRaw, domTitle: 'Vinda 抽纸', crumbs: ['家庭清洁/纸品', '抽纸', 'Vinda'] });
+  assert.equal(latin.brand.name, 'Vinda');
+  assert.equal(latin.leafCategory, '抽纸');
+});
+
+test('collectWarnings: 没读到类目ID时提示（发布时会被拦下）；下架时提示', () => {
+  const [missing] = collectWarnings(normalizeProduct(domRaw));
+  assert.match(missing, /没有读到源商品的类目ID和品牌ID/);
+  assert.match(missing, /重新采集/);
+  assert.match(missing, /类目ID路径/);
+  const ok = normalizeProduct({ ...domRaw, wareInfo: { category_id1: '15901', category_id2: '15902', category_id: '15908', brand_id: '17519' } });
+  assert.deepEqual(collectWarnings(ok), []);
+  assert.deepEqual(collectWarnings({ ...ok, offShelf: '商品已下架' }), ['源商品已下架（商品已下架）：页面不显示价格和规格，请核对采集到的信息']);
+  // 下架商品页本来就没有这些数据：不建议重新采集
+  const offMissing = collectWarnings({ ...normalizeProduct(domRaw), offShelf: '商品已下架' })[0];
+  assert.doesNotMatch(offMissing, /重新采集/);
+  assert.match(offMissing, /类目ID路径/);
+  assert.match(collectWarnings({ ...ok, vc: { ...ok.vc, brandId: null }, brand: { id: null, name: '' } })[0], /品牌ID/);
 });

@@ -11,6 +11,7 @@ import { extractSkuIds, b2bItemUrls } from '../shared/url-utils.js';
 import { parseShopInput } from '../shared/shop-url.js';
 import { itemRepo, settingsRepo, throttleRepo } from '../lib/chrome-env.js';
 import { EDITED_NOTE, THROTTLE_KEY, editsEqual, pickRecollect } from '../shared/store.js';
+import { cateChangeNote } from '../shared/category-pick.js';
 import { PUBLISH_ACTIONS } from '../shared/settings.js';
 import { ALERT_FOLDER_KEY, alertItems, priceStatus, checkedToday } from '../shared/price-watch.js';
 import { groupPublishedByBrand, filterFolders, isArchived, taskItems } from '../shared/brand-folders.js';
@@ -304,10 +305,14 @@ async function handleEdit(id) {
   const res = await editItem(item, { onLog: appendLog, settings });
   if (!res) return;
   // 没改内容时不保存，避免已发布商品被误标为“已修改，尚未重新发布”
-  if (!editsEqual(item.edits, res.edits)) {
+  if (editsEqual(item.edits, res.edits)) {
+    appendLog(`[${id}] 内容没有变化，没有保存`);
+  } else {
     const saved = await itemRepo.saveEdits(id, res.edits);
     if (!saved) return appendLog(`[${id}] 条目已不存在，修改未保存`);
-    if (saved.message.startsWith(EDITED_NOTE)) appendLog(`[${id}] 修改已保存，需点“重新发布”或“发布选中”才会提交到店铺`);
+    const cateNote = cateChangeNote(item.edits, res.edits);
+    appendLog(`[${id}] 修改已保存${cateNote ? `，${cateNote}` : ''}`);
+    if (saved.message.startsWith(EDITED_NOTE)) appendLog(`[${id}] 需点“重新发布”或“发布选中”才会提交到店铺`);
   }
   if (res.mapping) {
     const others = settings.categoryMap.filter((m) => m.source !== res.mapping.source);

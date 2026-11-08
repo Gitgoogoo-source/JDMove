@@ -85,6 +85,24 @@ test('vcTarget: 旧数据没有类目或品牌 ID 时给出原因', () => {
   assert.match(vcTarget({ product: noBrand, edits: {}, settings: settings() }).error, /品牌/);
 });
 
+test('vcTarget: 新采集的商品没有类目 ID 时，说明是采集时没读到，并给出类目ID路径的写法', () => {
+  const noCate = { ...product(), vc: { ...product().vc, cateIds: [] } };
+  const { error } = vcTarget({ product: noCate, edits: {}, settings: settings() });
+  assert.doesNotMatch(error, /之前采集的商品/);
+  assert.match(error, /采集时没有读到/);
+  assert.match(error, /15901,15902,15908/);
+  assert.match(error, /保存/);
+  const offShelf = vcTarget({ product: { ...noCate, offShelf: '商品已下架' }, edits: {}, settings: settings() }).error;
+  assert.match(offShelf, /源商品已下架/);
+});
+
+test('vcTarget: 缺品牌 ID 时说明在哪里填', () => {
+  const noBrand = { ...product(), vc: { ...product().vc, brandId: null }, brand: { id: null, name: '维达（Vinda）' } };
+  const { error } = vcTarget({ product: noBrand, edits: {}, settings: settings() });
+  assert.match(error, /编辑 → VC 自营 → 品牌ID/);
+  assert.match(error, /维达（Vinda）/);
+});
+
 test('vcTitle: 去掉品牌（品牌前缀由页面自动加）和【】里的宣传语，按 60 字符截断', () => {
   const t = vcTitle(product().title, '维达（Vinda）', settings().title);
   assert.equal(t, '抽纸 棉韧3层100抽*36包S码 亲肤无刺激纸巾 AB混发');

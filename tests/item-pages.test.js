@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fiber, loadItemPage, plain } from './helpers/item-page.js';
-import { normalizeProduct } from '../src/shared/product-normalize.js';
+import { collectWarnings, normalizeProduct } from '../src/shared/product-normalize.js';
 import { vcSourceFields } from '../src/shared/vc-source.js';
 import { vcPreflight } from '../src/shared/vc-plan.js';
 import { mergeSettings } from '../src/shared/settings.js';
@@ -118,4 +118,20 @@ test('真实商品页：只采集链接对应的规格；单规格商品没有�
   assert.deepEqual(self.variants, [{ skuId: '100114866451', values: { 规格: '【王牌囤货装】 3层 100抽*36包' } }]);
   const health = (await collect('health-100200187696')).product;
   assert.deepEqual([health.variants, health.saleDims], [[], []]);
+});
+
+test('真实商品页 pop-offshelf-10139321640215：已下架的商品没有主数据，类目和品牌 ID 从 pageConfigVO 读', async () => {
+  const { raw, product } = await collect('pop-offshelf-10139321640215');
+  assert.equal(raw.source, 'react', '没有 wareInfoReadMap 时也应从页面的商品数据里读，而不是退回 HTML');
+  assert.equal(raw.offShelf, '商品已下架');
+  assert.deepEqual(product.vc.cateIds, ['15901', '15902', '15908']);
+  assert.equal(product.vc.brandId, 17519);
+  assert.deepEqual(product.brand, { id: 17519, name: '维达（Vinda）' });
+  assert.equal(product.leafCategory, '常规抽纸');
+  assert.equal(product.offShelf, '商品已下架');
+  assert.ok(product.mainImages.length > 0, '主图');
+  assert.deepEqual([vcSourceFields(product).model, vcSourceFields(product).modelFrom], ['V2182', '参数“货号”']);
+  // 类目、品牌、型号都有了：只剩价格（下架商品页不显示）需要手动填写，VC 价格本来就是手动填
+  assert.deepEqual(blockersOf(product), []);
+  assert.deepEqual(collectWarnings(product), ['源商品已下架（商品已下架）：页面不显示价格和规格，请核对采集到的信息']);
 });

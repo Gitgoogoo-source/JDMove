@@ -88,10 +88,26 @@ export function vcTitle(raw, brandName, titleOpts = {}) {
  */
 export function vcTarget({ product, edits = {}, settings }) {
   const category = vcCategory(product, edits, settings);
-  if (!category) return { error: '源商品没有类目ID（之前采集的商品请重新采集），也可以在「编辑」中填写类目ID路径' };
+  if (!category) return { error: noCategoryError(product) };
   const brandId = [edits.vc?.brandId, product?.vc?.brandId, product?.brand?.id].map(positive).find(Boolean);
-  if (!brandId) return { error: '缺少品牌ID：VC 发布页需要先选定已授权品牌，请重新采集或在「编辑」中填写品牌ID' };
+  if (!brandId) return { error: noBrandError(product) };
   return { target: { ...category, brandId } };
+}
+
+const CATE_EXAMPLE = '如 15901,15902,15908，或用「搜索店铺类目」点选末级类目';
+
+/** 没有类目时的原因：旧数据没采主数据 / 采集时商品页没返回类目（已下架的商品常见） */
+function noCategoryError(product) {
+  const fill = `在「编辑 → 目标类目 → 类目ID路径」中填写类目ID（${CATE_EXAMPLE}），点「保存」后再发布`;
+  if (!product?.vc) return `源商品没有类目ID（之前采集的商品，请重新采集），也可以${fill}`;
+  if (product.offShelf) return `源商品已下架（${product.offShelf}），采集时没有读到类目ID，请${fill}`;
+  return `采集时没有读到源商品的类目ID，请重新采集，或${fill}`;
+}
+
+function noBrandError(product) {
+  const name = String(product?.brand?.name ?? '').trim();
+  const which = name ? `（源商品品牌：${name}）` : '';
+  return `缺少品牌ID${which}：VC 发布页需要先选定已授权品牌，请重新采集，或在「编辑 → VC 自营 → 品牌ID」中填写`;
 }
 
 function vcCategory(product, edits, settings) {

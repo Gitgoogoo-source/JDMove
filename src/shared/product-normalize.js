@@ -93,6 +93,20 @@ function onlyCurrent(dims, skuId) {
   };
 }
 
+// 像品牌的写法：中文名（外文名），或只有外文；叶子类目（牙刷、常规抽纸）不像
+const BRAND_LIKE_RE = /^[^（(]+[（(][^）)]+[）)]$|^[A-Za-z0-9][A-Za-z0-9 .&'+-]*$/;
+
+/**
+ * 没有品牌参数时（页面没返回商品数据、退回 HTML 采集）认面包屑里的品牌：
+ * 京东的面包屑最后一级是品牌，商品标题通常以品牌开头（维达（Vinda）超韧抽纸…）。
+ * 末级要像品牌、标题要以它开头才认，对不上时不猜（标题以叶子类目开头很常见，如“牙刷套装…”）
+ */
+function crumbBrand(crumbs, title) {
+  const last = crumbs.at(-1);
+  if (crumbs.length < 2 || !last || !title || !BRAND_LIKE_RE.test(last)) return '';
+  return normalizeName(title).startsWith(normalizeName(last)) ? last : '';
+}
+
 /**
  * @param {object} raw 页面抓取结果（见 src/inject/jd-item-extract.js）
  * @param {{allVariants?: boolean}} [opts] allVariants=true 时保留全部规格
@@ -107,14 +121,15 @@ export function normalizeProduct(raw = {}, opts = {}) {
   const skuId = str(raw.skuId || pc?.skuid);
   const allDims = fromColorSize(pc?.colorSize) ?? fromDomDims(raw.saleDims);
   const dims = opts.allVariants || allDims.variants.length === 0 ? allDims : onlyCurrent(allDims, skuId);
-  const brandName = str(raw.brandText) || brandParam?.value || '';
+  const title = str(raw.domTitle) || str(pc?.name) || cleanDocTitle(raw.docTitle);
+  const brandName = str(raw.brandText) || brandParam?.value || crumbBrand(crumbs, title);
   // 面包屑最后一级通常是品牌，倒数第二级才是叶子类目
   const leafIdx = brandName && crumbs.length > 1 && normalizeName(crumbs.at(-1)) === normalizeName(brandName) ? -2 : -1;
 
   return {
     skuId,
     url: str(raw.url),
-    title: str(raw.domTitle) || str(pc?.name) || cleanDocTitle(raw.docTitle),
+    title,
     brand: { id: Number.isFinite(Number(pc?.brand)) && pc?.brand ? Number(pc.brand) : null, name: brandName },
     crumbs,
     leafCategory: crumbs.at(leafIdx) ?? '',
@@ -125,6 +140,8 @@ export function normalizeProduct(raw = {}, opts = {}) {
     saleDims: dims.saleDims,
     variants: dims.variants,
     isSelf: raw.isSelf ?? null,
+    // 商品页上的下架提示（如“商品已下架”）；在售时为空
+    offShelf: str(raw.offShelf),
     packList: str(raw.packList),
     // 当前 SKU 的条形码（wareInfoReadMap.upc_code），发布时填到 SKU属性的“最小可售单位UPC”；
     // 没有条形码的商品 upc_code 是 SKU 编号本身，不能当条形码用
@@ -153,4 +170,22 @@ export function validateProduct(p, { detailState } = {}) {
   if (!(p?.price > 0)) errs.push('缺少价格');
   if (!p?.detailImages?.length) errs.push(MISSING_DETAIL_MSG[detailState] ?? '缺少详情图（请重新采集）');
   return errs;
+}
+
+/**
+ * 采集成功但发布前要注意的问题：没有类目ID/品牌ID（VC 发布页必须有）、源商品已下架
+ * @param {object} p normalizeProduct 的结果
+ * @returns {string[]}
+ */
+export function collectWarnings(p) {
+  const hasCate = Boolean(p?.vc?.cateIds?.length);
+  const hasBrand = Boolean(p?.vc?.brandId || p?.brand?.id);
+  const missing = [hasCate ? '' : '类目ID', hasBrand ? '' : '品牌ID'].filter(Boolean);
+  const fill = [hasCate ? '' : '类目ID路径', hasBrand ? '' : '品牌ID'].filter(Boolean).join('和');
+  // 下架商品页本来就没有这些数据，重新采集也不会有
+  const advice = p?.offShelf ? `已下架的商品页没有这些数据，发布前请在「编辑」中填写${fill}` : `发布前请重新采集，或在「编辑」中填写${fill}`;
+  return [
+    ...(missing.length ? [`没有读到源商品的${missing.join('和')}（商品页没有返回完整的商品数据），${advice}`] : []),
+    ...(p?.offShelf ? [`源商品已下架（${p.offShelf}）：页面不显示价格和规格，请核对采集到的信息`] : []),
+  ];
 }

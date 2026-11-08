@@ -77,3 +77,26 @@ test('商品主数据带上货号（POP 商品的型号常是空的，货号有�
   assert.equal(raw.wareInfoAll.vender_name, '京东大药房');
   assert.equal(raw.wareInfoAll.category_id4, '21953');
 });
+
+test('同时有没带主数据的商品数据和带 wareInfoReadMap 的商品数据时，用带主数据的那份', async () => {
+  const { wareInfoReadMap, ...noReadMap } = HEALTH_BIZ;
+  const rendered = { ...noReadMap, pageConfigVO: { brand: '1', cat: [1, 2, 3] } };
+  const NS = loadItemPage({ hostname: 'item.jingdonghealth.cn', tree: fiber(rendered, { child: fiber(HEALTH_BIZ) }) });
+  const raw = await NS.extractItem({ scrollDetail: false, detailWaitMs: 0 });
+  assert.equal(raw.wareInfo.category_id4, wareInfoReadMap.category_id4);
+  assert.equal(raw.wareInfo.brand_id, '235513');
+  assert.equal(raw.offShelf, '');
+});
+
+test('在售商品的主数据晚到（先渲染出没有 wareInfoReadMap 的商品数据）时等主数据，不提前用残缺的数据', async () => {
+  const { wareInfoReadMap, ...noReadMap } = HEALTH_BIZ;
+  const tree = fiber({ ...noReadMap, pageConfigVO: { brand: '235513', cat: [13314, 21909, 21919] } });
+  setTimeout(() => {
+    tree.child = fiber(HEALTH_BIZ);
+  }, 2000);
+  const NS = loadItemPage({ hostname: 'item.jingdonghealth.cn', tree });
+  const raw = await NS.extractItem({ scrollDetail: false, detailWaitMs: 0 });
+  assert.equal(raw.wareInfo.category_id4, wareInfoReadMap.category_id4);
+  assert.equal(raw.wareInfo.upc_code, wareInfoReadMap.upc_code);
+  assert.ok(raw.wareInfoAll, '完整主数据写进原始数据.json');
+});

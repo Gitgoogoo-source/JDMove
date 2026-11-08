@@ -1,5 +1,5 @@
 // 采集：在页面中运行抓取脚本并归一化
-import { normalizeProduct, validateProduct } from '../shared/product-normalize.js';
+import { collectWarnings, normalizeProduct, validateProduct } from '../shared/product-normalize.js';
 import { parsePrice } from '../shared/pricing.js';
 import { classifyPageUrl, isB2bItemUrl } from '../shared/url-utils.js';
 import { ITEM_FILES, B2B_ITEM_FILES, runInPage, openWorkTab, navigateTab, closeTab, bringTabToFront, sleep } from './chrome-env.js';
@@ -60,7 +60,8 @@ export async function collectFromTab(tabId, { scrollDetail = true, allVariants =
   const blocked = blockedResult(raw.pageType);
   if (blocked) return blocked;
   const product = normalizeProduct(raw, { allVariants });
-  return { status: 'ok', product, warnings: validateProduct(product, { detailState: raw.detailState }), raw };
+  const warnings = [...validateProduct(product, { detailState: raw.detailState }), ...collectWarnings(product)];
+  return { status: 'ok', product, warnings, raw };
 }
 
 /**

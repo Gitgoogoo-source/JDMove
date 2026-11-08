@@ -1,0 +1,50 @@
+{
+  "capturedAt": "2026-11-08",
+  "note": "已下架的 POP 商品：商品数据里没有 wareInfoReadMap / price / colorSizeVO，类目和品牌 ID 只在 pageConfigVO 里；itemOverVO 提示已下架",
+  "url": "https://item.jd.com/10139321640215.html",
+  "biz": {
+    "skuHeadVO": { "skuTitle": "维达（Vinda）超韧抽纸3层M码 餐巾纸面巾纸 卫生纸巾纸抽 湿水不易破 【M码大尺寸】 3层 150抽*3包" },
+    "crumbInfoVO": {
+      "crumbs": [{ "text": "家庭清洁/纸品" }, { "text": "清洁纸品" }, { "text": "抽纸" }, { "text": "常规抽纸" }, { "text": "维达（Vinda）" }]
+    },
+    "productAttributeVO": {
+      "attributes": [
+        { "labelName": "品牌", "labelValue": "维达（Vinda）" },
+        { "labelName": "商品编号", "labelValue": "10139321640215" },
+        { "labelName": "店铺", "labelValue": "维达官方旗舰店" },
+        { "labelName": "货号", "labelValue": "V2182" },
+        { "labelName": "纸张尺寸", "labelValue": "长153mm 宽195mm" },
+        { "labelName": "单包抽数", "labelValue": "150抽" },
+        { "labelName": "类型", "labelValue": "软包式" },
+        { "labelName": "类别", "labelValue": "抽取式" }
+      ],
+      "coreAttributes": [
+        { "labelName": "层数", "labelValue": "3层" },
+        { "labelName": "香型", "labelValue": "无香型" },
+        { "labelName": "原料成分", "labelValue": "原生木浆" },
+        { "labelName": "包装形式", "labelValue": "提装" },
+        { "labelName": "适用场景", "labelValue": "家用" },
+        { "labelName": "是否印花", "labelValue": "无印花" }
+      ]
+    },
+    "itemShopInfo": { "shopName": "维达官方旗舰店" },
+    "itemOverVO": { "itemOverTip": "商品已下架" },
+    "mainImageVO": {
+      "mainImageArea": { "imageUrl": "jfs/t1/333954/23/9926/119649/68baa48eFb197afba/2103b38cfb7a7627.jpg" },
+      "carouselArea": [
+        { "imageUrl": "https://img10.360buyimg.com/pcpubliccms/s228x228_jfs/t1/333954/23/9926/119649/68baa48eFb197afba/2103b38cfb7a7627.jpg.avif" },
+        { "imageUrl": "https://img10.360buyimg.com/pcpubliccms/s228x228_jfs/t1/462123/2/17592/157630/6a448420F1e95cb59/0083320320de8397.jpg.avif" },
+        { "imageUrl": "https://img10.360buyimg.com/pcpubliccms/s228x228_jfs/t1/266411/30/24540/73546/67bedda8F656f44d0/85948749f6caa699.jpg.avif" }
+      ]
+    },
+    "pageConfigVO": {
+      "skuid": 10139321640215,
+      "brand": "17519",
+      "cat": [15901, 15902, 15908],
+      "catName": ["家庭清洁/纸品", "清洁纸品", "抽纸", "常规抽纸"],
+      "isPop": true,
+      "isSelf": false,
+      "isOver": true
+    }
+  }
+}

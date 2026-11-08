@@ -36,15 +36,21 @@
     return out;
   }
 
-  // 新版商品页（React）：在组件状态中寻找 wareBusiness 接口数据。以商品主数据 wareInfoReadMap 为准：
-  // 单规格商品（如京东健康的药品）没有 colorSizeVO；页面先渲染的半成品状态只有 skuHeadVO
-  const isBusiness = (v) => Boolean(v && typeof v === 'object' && v.skuHeadVO && v.wareInfoReadMap);
+  // 新版商品页（React）：在组件状态中寻找 wareBusiness 接口数据，优先用带商品主数据 wareInfoReadMap 的那份。
+  // 单规格商品（如京东健康的药品）没有 colorSizeVO；页面先渲染的半成品状态只有 skuHeadVO（或再加 pageConfigVO）。
+  // 已下架的商品（2026-11 实测 10139321640215）整份数据都没有 wareInfoReadMap 和价格，类目和品牌 ID 只在 pageConfigVO 里
+  const isObject = (v) => Boolean(v && typeof v === 'object');
+  const hasReadMap = (v) => isObject(v) && Boolean(v.skuHeadVO && v.wareInfoReadMap);
+  const isRendered = (v) => isObject(v) && Boolean(v.skuHeadVO && v.crumbInfoVO && v.mainImageVO && v.pageConfigVO);
+  /** 商品页的下架提示（itemOverVO.itemOverTip，如“商品已下架”）；在售时为空 */
+  const offShelfTip = (b) => String((b && b.itemOverVO && b.itemOverVO.itemOverTip) || '').trim();
   function reactBusiness() {
     const root = document.getElementById('root');
     const key = root && Object.keys(root).find((k) => k.startsWith('__reactContainer'));
     if (!key) return null;
     const stack = [root[key]];
     let guard = 0;
+    let rendered = null;
     while (stack.length && guard < 50000) {
       guard += 1;
       const f = stack.pop();
@@ -52,12 +58,13 @@
       let st = f.memoizedState;
       for (let i = 0; st && i < 40; i += 1, st = st.next) {
         const v = st.memoizedState && st.memoizedState.current;
-        if (isBusiness(v)) return v;
+        if (hasReadMap(v)) return v;
+        if (!rendered && isRendered(v)) rendered = v;
       }
       if (f.child) stack.push(f.child);
       if (f.sibling) stack.push(f.sibling);
     }
-    return null;
+    return rendered;
   }
 
   const { jfsOf } = NS;
@@ -76,6 +83,13 @@
   const pickWareInfo = (read) => Object.fromEntries(WARE_INFO_KEYS.map((k) => [k, asText(read[k])]));
   // 完整主数据：只写进本地“原始数据.json”备查（排查采集问题、以后补字段不用重新采集），不进商品数据
   const allWareInfo = (read) => Object.fromEntries(Object.entries(read).map(([k, v]) => [k, asText(v)]));
+  // 没有主数据时（已下架的商品）用 pageConfigVO：cat 是一级到末级类目 ID，brand 是品牌 ID；其余字段留空
+  function configWareInfo(cfg) {
+    const cat = Array.isArray(cfg.cat) ? cfg.cat.map(asText) : [];
+    const empty = Object.fromEntries(WARE_INFO_KEYS.map((k) => [k, '']));
+    const ids = { category_id1: cat[0], category_id2: cat[1], category_id: cat[2], category_id4: cat[3], brand_id: asText(cfg.brand) };
+    return Object.assign(empty, Object.fromEntries(Object.entries(ids).map(([k, v]) => [k, v || ''])));
+  }
 
   function fromBusiness(b) {
     const images = [];
@@ -96,7 +110,8 @@
       (b.productAttributeVO && b.productAttributeVO.attributes) || [],
     );
     const pageCfg = b.pageConfigVO || {};
-    const read = b.wareInfoReadMap || {};
+    const readMap = b.wareInfoReadMap || null;
+    const read = readMap || {};
     return {
       title: (b.skuHeadVO && b.skuHeadVO.skuTitle) || '',
       crumbs: ((b.crumbInfoVO && b.crumbInfoVO.crumbs) || []).map((c) => c.text).filter(Boolean),
@@ -104,8 +119,9 @@
       // 与页面显示一致：取主价格（京东价/补贴价等），不取页面不显示的原价 op
       priceText: NS.pickBusinessPrice(b),
       brandText: read.cn_brand || '',
-      wareInfo: pickWareInfo(read),
-      wareInfoAll: allWareInfo(read),
+      wareInfo: readMap ? pickWareInfo(readMap) : configWareInfo(pageCfg),
+      wareInfoAll: readMap ? allWareInfo(readMap) : null,
+      offShelf: offShelfTip(b),
       shopName: (b.itemShopInfo && b.itemShopInfo.shopName) || '',
       pageConfig: {
         skuid: (b.price && b.price.id) || skuIdFromUrl(),
@@ -113,7 +129,7 @@
         imageList: images.filter(Boolean),
         brand: pageCfg.brand || null,
         colorSize: Object.values(bySku),
-        cat: (read.category_id && [read.category_id]) || [],
+        cat: (read.category_id && [read.category_id]) || (Array.isArray(pageCfg.cat) ? pageCfg.cat : []),
       },
     };
   }
@@ -277,15 +293,19 @@
     window.scrollTo(0, 0);
   }
 
+  // 只读到没有主数据的商品数据时：已下架的商品直接用（主数据不会来）；在售的商品等到超时，
+  // 主数据晚到（网络慢）时不会提前用残缺的数据，超时仍没有才用它
   async function waitForBusiness(timeout = 6000) {
     const end = Date.now() + timeout;
+    let partial = null;
     while (Date.now() < end) {
       const b = reactBusiness();
-      if (b) return b;
-      if (window.pageConfig && window.pageConfig.product && window.pageConfig.product.skuid) return null;
+      if (b && (b.wareInfoReadMap || offShelfTip(b))) return b;
+      if (b) partial = b;
+      else if (window.pageConfig && window.pageConfig.product && window.pageConfig.product.skuid) return null;
       await sleep(300);
     }
-    return null;
+    return partial;
   }
 
   async function waitForPrice(timeout = 5000) {
@@ -304,7 +324,9 @@
     const biz = await waitForBusiness();
     const fromBiz = biz ? fromBusiness(biz) : null;
     const pc = (fromBiz && fromBiz.pageConfig) || pageConfigProduct();
-    const price = fromBiz && fromBiz.priceText ? fromBiz.priceText : await waitForPrice();
+    // 已下架的商品页不显示价格，不用等
+    const offShelf = (fromBiz && fromBiz.offShelf) || '';
+    const price = fromBiz && fromBiz.priceText ? fromBiz.priceText : offShelf ? priceText() : await waitForPrice();
     if (opts.scrollDetail !== false) await scrollThrough();
     const detail = await waitForDetail(opts.detailWaitMs == null ? DETAIL_WAIT_MS : opts.detailWaitMs);
     window.scrollTo(0, 0);
@@ -330,6 +352,7 @@
       detailImages: detail.images,
       detailState: detail.state,
       isSelf: self || /自营/.test(shopName) ? true : null,
+      offShelf,
     };
   };
 
@@ -338,7 +361,9 @@
     const type = pageType();
     if (type !== 'item') return { pageType: type, url: location.href };
     const biz = await waitForBusiness();
-    const info = biz ? NS.pickBusinessPriceInfo(biz) : { price: await waitForPrice(), label: '' };
+    const fromBiz = biz ? NS.pickBusinessPriceInfo(biz) : null;
+    // 商品数据里没有价格时（如没有主数据的页面）读页面上显示的价格；已下架的商品页不显示价格，不用等
+    const info = fromBiz && fromBiz.price ? fromBiz : { price: biz && offShelfTip(biz) ? '' : await waitForPrice(), label: '' };
     return {
       pageType: 'item',
       skuId: (biz && biz.price && String(biz.price.id || '')) || skuIdFromUrl(),

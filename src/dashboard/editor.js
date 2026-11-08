@@ -1,6 +1,6 @@
 // 单个商品的编辑弹窗：标题 / VC 自营字段 / UPC / 类目 / 属性覆盖
 import { h, openDialog, safeImgSrc } from './dom.js';
-import { parseCateListInput, mappingSourceFor } from '../shared/category-pick.js';
+import { cateListInputError, parseCateListInput, mappingSourceFor } from '../shared/category-pick.js';
 import { parseAttrDefaults } from '../shared/settings.js';
 import { searchShopCategories } from '../lib/category-search.js';
 import { normalizeUpc, productUpc } from '../shared/sku-attrs.js';
@@ -20,9 +20,23 @@ function categoryPicker(item, onLog) {
     placeholder: '留空=自动匹配；或填类目ID，如 17991,17994,18132',
   });
   const nameInput = h('input', { type: 'hidden', value: item.edits?.cateName ?? '' });
+  // 填了内容却解析不出类目ID时拦住保存（以前会悄悄存成“自动匹配”）
+  const checkCate = () => cateInput.setCustomValidity(cateListInputError(cateInput.value));
+  cateInput.addEventListener('input', () => {
+    nameInput.value = '';
+    checkCate();
+  });
+  checkCate();
   const keyword = h('input', { value: item.product?.leafCategory ?? '', placeholder: '搜索关键词' });
   const results = h('div', { class: 'cat-results' });
   const searchBtn = h('button', { type: 'button' }, '搜索店铺类目');
+  // 关键词框里按回车是搜索，不提交弹窗
+  keyword.addEventListener('keydown', (ev) => {
+    // 输入法选字时的回车不算（isComposing / keyCode 229）
+    if (ev.key !== 'Enter' || ev.isComposing || ev.keyCode === 229) return;
+    ev.preventDefault();
+    if (!searchBtn.disabled) searchBtn.click();
+  });
   searchBtn.addEventListener('click', async () => {
     searchBtn.disabled = true;
     results.replaceChildren(h('span', { class: 'muted' }, '搜索中（会在工作窗口打开类目页）…'));
@@ -36,6 +50,7 @@ function categoryPicker(item, onLog) {
                 onclick: () => {
                   cateInput.value = r.path.map((n) => n.id).join(',');
                   nameInput.value = r.path.map((n) => n.name).join(' > ');
+                  checkCate();
                 },
               }, r.text),
             )
@@ -53,8 +68,8 @@ function categoryPicker(item, onLog) {
     'fieldset',
     {},
     h('legend', {}, '目标类目'),
-    field('类目ID路径', cateInput, '选择搜索结果中的“末级类目”，否则发布页无法打开'),
-    h('div', { class: 'row2' }, keyword, searchBtn),
+    field('类目ID路径', cateInput, '填类目ID（数字，逗号分隔），或在下面搜索后点选“末级类目”；不是末级类目时发布页无法打开'),
+    h('div', { class: 'row2' }, field('搜索关键词（不会保存，只用来查类目ID）', keyword), searchBtn),
     results,
     h('label', { class: 'check' }, saveMap, '同时记住：以后同一源类目自动使用此类目'),
     nameInput,
@@ -118,7 +133,13 @@ export async function editItem(item, { onLog, settings }) {
         productInfo(item.product),
         h('fieldset', {}, h('legend', {}, '最近日志'), logView),
       ),
-      h('div', { class: 'dlg-foot' }, h('button', { value: 'cancel', formnovalidate: true }, '取消'), h('button', { value: 'save', class: 'primary' }, '保存')),
+      // “取消”不是提交按钮：输入框里按回车时提交的是“保存”（会校验），不会被当成取消悄悄关掉
+      h(
+        'div',
+        { class: 'dlg-foot' },
+        h('button', { type: 'button', onclick: () => dialog.close('cancel') }, '取消'),
+        h('button', { value: 'save', class: 'primary' }, '保存'),
+      ),
     ),
   );
   const result = await openDialog(dialog);

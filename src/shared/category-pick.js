@@ -74,7 +74,34 @@ export function mappingSourceFor(product) {
  */
 export function parseCateListInput(input) {
   const text = String(input ?? '');
-  const bracketed = [...text.matchAll(/\[(\d+)\]/g)].map((m) => Number(m[1]));
+  const bracketed = [...text.matchAll(/\[(\d+)\]/g)].map((m) => Number(m[1])).filter((n) => n > 0);
   if (bracketed.length) return bracketed;
-  return (text.match(/\d+/g) ?? []).map(Number);
+  return (text.match(/\d+/g) ?? []).map(Number).filter((n) => n > 0);
+}
+
+/**
+ * 编辑弹窗里“类目ID路径”的校验：留空（自动匹配）或能解析出类目ID时返回空字符串；
+ * 填了内容却解析不出ID（如只填了类目名称）时返回提示，弹窗据此拦住保存，不再悄悄丢掉输入
+ * @param {string} input
+ */
+export function cateListInputError(input) {
+  if (!String(input ?? '').trim() || parseCateListInput(input).length) return '';
+  return '类目ID路径要填类目ID（数字），如 15901,15902,15908；不知道ID时用下面的「搜索店铺类目」选择末级类目';
+}
+
+const cateLabel = (edits) => {
+  const ids = `[${edits.cateList.join(',')}]`;
+  return edits.cateName ? `${edits.cateName} ${ids}` : ids;
+};
+
+/**
+ * 保存编辑后类目的变化，写进日志让用户知道发布时用哪个类目；类目没变时为空
+ * @param {{cateList?: number[], cateName?: string}} prev
+ * @param {{cateList?: number[], cateName?: string}} next
+ */
+export function cateChangeNote(prev = {}, next = {}) {
+  const before = (prev?.cateList ?? []).join(',');
+  const after = (next?.cateList ?? []).join(',');
+  if (before === after) return '';
+  return after ? `目标类目已设为：${cateLabel(next)}` : '已清空指定类目，发布时自动匹配';
 }

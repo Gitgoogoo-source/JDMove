@@ -7,7 +7,9 @@ import { installFakeChrome } from './helpers/fake-chrome.js';
 import { collectFromTab, collectUrl } from '../src/lib/collector.js';
 import { bringTabToFront } from '../src/lib/chrome-env.js';
 
-const fixture = JSON.parse(readFileSync(new URL('./fixtures/item-100035179134.raw.json', import.meta.url), 'utf8'));
+// 这份样本是早期采集的（没有商品主数据）：补上现在采集都会带的类目/品牌 ID，避免“没有类目ID”的提示干扰详情区的断言
+const legacy = JSON.parse(readFileSync(new URL('./fixtures/item-100035179134.raw.json', import.meta.url), 'utf8'));
+const fixture = { ...legacy, wareInfo: { category_id1: '1320', category_id2: '1583', category_id: '37145', brand_id: '5962' } };
 const ITEM_URL = 'https://item.jd.com/100035179134.html';
 const loaded = { ...fixture, detailState: 'ok' };
 const notLoaded = { ...fixture, detailImages: [], detailState: 'not_loaded' };
