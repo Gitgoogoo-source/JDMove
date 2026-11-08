@@ -26,7 +26,7 @@ async function processImages(urls, maker, log, signal) {
 
 /**
  * @param {{sku: string, mainImageUrls: string[], detailImageUrls: string[], reuploadDetail: boolean, transparentUrl?: string|null}} input
- *   transparentUrl：VC 发布页的透图用哪张图生成（PNG）；POP 不传
+ *   transparentUrl：VC 发布页的透图用哪张图生成（PNG）
  * @param {{log: (msg: string) => void, timer?: {record: (label: string, ms: number) => void},
  *   makers?: {main?: Function, detail?: Function, transparent?: Function}, now?: () => number}} deps
  * @returns {{main: Promise<object[]>, detail: Promise<object[]>, transparent: Promise<object|null>, cancel: () => void}}

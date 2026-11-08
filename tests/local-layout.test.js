@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { safeName, imageFileName, pickBrandDir, buildLocalPlan, IMAGE_DIRS, INFO_JSON, INFO_TXT } from '../src/shared/local-layout.js';
+import { safeName, imageFileName, pickBrandDir, buildLocalPlan, IMAGE_DIRS, INFO_JSON, INFO_TXT, RAW_JSON } from '../src/shared/local-layout.js';
 import { UNKNOWN_BRAND } from '../src/shared/brand-folders.js';
 
 const product = {
@@ -69,4 +69,12 @@ test('buildLocalPlan: 万商商品的价格写成“万商采购价”', () => {
   const product = { title: 't', price: 7.1, url: 'https://b2b.jd.com/goods/goods-detail/100289450311' };
   const plan = buildLocalPlan({ skuId: '100289450311', product });
   assert.match(plan.files.find((f) => f.name === INFO_TXT).text, /万商采购价：7\.1/);
+});
+
+test('buildLocalPlan: 采集时带上页面原始数据就多写一个“原始数据.json”；没有时不写', () => {
+  const raw = { pageType: 'item', skuId: '100012345678', wareInfoAll: { item_num: 'V2182-A' } };
+  const plan = buildLocalPlan(item, { now: new Date('2026-11-08T08:00:00Z'), raw });
+  const file = JSON.parse(plan.files.find((f) => f.name === RAW_JSON).text);
+  assert.deepEqual(file, { app: 'jdmove', kind: 'raw', collectedAt: '2026-11-08T08:00:00.000Z', raw });
+  assert.ok(!buildLocalPlan(item).files.some((f) => f.name === RAW_JSON));
 });

@@ -10,6 +10,7 @@ import { normalizeUpc, productUpc, skuAttrValueMap } from './sku-attrs.js';
 import { parseSpecText, quantitiesByUnit } from './vc-spec.js';
 import { vcFormEntries, vcWeightKg } from './vc-form-values.js';
 import { ERP_LABELS, vcErpCodes } from './vc-erp.js';
+import { vcSourceFields } from './vc-source.js';
 
 export { vcWeightKg };
 
@@ -60,6 +61,9 @@ function stripBrand(text, brandName) {
   return out;
 }
 
+/** 去掉【】宣传语和品牌后的标题（不清洗、不截断）：用来判断商品是什么，比如自动选末级类目 */
+export const titleWithoutBrand = (raw, brandName) => stripBrand(String(raw ?? '').replace(PROMO_RE, ' '), brandName).trim();
+
 /**
  * VC 标题：去掉【】里的宣传语和品牌（页面自动加品牌前缀，标题里再写品牌会重复），再按设置清洗、截断到 60 字符
  * @param {string} raw
@@ -96,12 +100,25 @@ function vcCategory(product, edits, settings) {
   return pick(product?.vc?.cateIds, product?.leafCategory || '源商品类目', 'source');
 }
 
-/** 编辑里的值优先，没有时用源商品主数据 */
+/** 编辑里的值优先，没有时用源商品里可信的值（型号可以退到货号；0 和占位值不算，见 vcSourceFields） */
 const vcField = (product, edits, key) => {
   const own = edits.vc?.[key];
-  if (key === 'model') return String(own ?? '').trim() || product?.vc?.model || '';
-  return positive(own) ?? positive(product?.vc?.[key]);
+  if (key === 'model') return String(own ?? '').trim() || vcSourceFields(product).model;
+  return positive(own) ?? vcSourceFields(product)[key];
 };
+
+const EDIT_HINT = '请在「编辑 → VC 自营」中填写';
+const RECOLLECT_HINT = '之前采集的商品请重新采集，或在「编辑」中填写';
+
+/** 源商品为什么没有这些值：旧数据没采主数据 / 主数据里是占位值 / 主数据里就没有（POP 商品常见，重新采集也不会有） */
+function missingHint(product) {
+  if (!product?.vc) return RECOLLECT_HINT;
+  const { placeholders } = vcSourceFields(product);
+  if (placeholders.length) return `源商品主数据里是占位值：${placeholders.join('，')}；${EDIT_HINT}`;
+  return `源商品主数据里没有（POP 店铺的商品常见），${EDIT_HINT}`;
+}
+
+const modelHint = (product) => (product?.vc ? `源商品没有型号和货号，${EDIT_HINT}` : RECOLLECT_HINT);
 
 function priceBlockers(prices) {
   const missing = Object.entries(VC_PRICE_LABELS).filter(([k]) => !prices[k]).map(([, label]) => label);
@@ -138,8 +155,8 @@ export function vcPreflight({ product, edits = {}, settings }) {
   const blockers = [
     ...(title ? [] : ['缺少标题']),
     ...priceBlockers(vcPrices(edits)),
-    ...(vcField(product, edits, 'model') ? [] : ['缺少型号（之前采集的商品请重新采集，或在「编辑」中填写）']),
-    ...(missingDims.length ? [`缺少包装长宽高/毛重：${missingDims.join('、')}（之前采集的商品请重新采集，或在「编辑」中填写）`] : []),
+    ...(vcField(product, edits, 'model') ? [] : [`缺少型号（${modelHint(product)}）`]),
+    ...(missingDims.length ? [`缺少包装长宽高/毛重：${missingDims.join('、')}（${missingHint(product)}）`] : []),
     ...(mainImageUrls.length ? [] : ['缺少主图']),
     ...(product?.detailImages?.length ? [] : ['缺少详情图（采集时没有拿到详情图，请重新采集后再发布）']),
     ...formatBlockers(product, edits),
@@ -211,6 +228,13 @@ function erpWarning(erp) {
   return missing.length ? [`${missing.join('、')} 没有填写，沿用页面上的默认值，请核对`] : [];
 }
 
+/** 型号不是从编辑或主数据型号来的（用了货号/参数）时提醒核对 */
+function modelWarning(product, edits) {
+  if (String(edits.vc?.model ?? '').trim()) return [];
+  const { model, modelFrom } = vcSourceFields(product);
+  return model && modelFrom !== '型号' ? [`型号用的是源商品的${modelFrom}「${model}」，请核对`] : [];
+}
+
 function planWarnings({ props, erp, prices, unit, upc, dangerGoods }) {
   const guessed = props.report
     .filter((r) => r.status === 'guessed')
@@ -271,7 +295,11 @@ export function buildVcPublishPlan({ product, edits = {}, settings, schema }) {
     skuAttrUnits: quantitiesByUnit(spec.quantities),
     // 源商品的危险品标记（true/false/null）：页面选项结构没走查过，只提醒不填写
     dangerGoods: product.vc?.dangerGoods ?? null,
-    warnings: [...planWarnings({ props, erp, prices, unit, upc, dangerGoods: product.vc?.dangerGoods }), ...form.warnings],
+    warnings: [
+      ...modelWarning(product, edits),
+      ...planWarnings({ props, erp, prices, unit, upc, dangerGoods: product.vc?.dangerGoods }),
+      ...form.warnings,
+    ],
     blockers: [...blockers, ...formBlockers],
   };
 }

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parsePrice, computePrice, retailPrice } from '../src/shared/pricing.js';
+import { parsePrice } from '../src/shared/pricing.js';
 import { weightedLength, truncateWeighted, cleanTitle } from '../src/shared/title.js';
 
 test('parsePrice reads numbers from price text', () => {
@@ -8,32 +8,6 @@ test('parsePrice reads numbers from price text', () => {
   assert.equal(parsePrice('¥ 1,299.00'), 1299);
   assert.equal(parsePrice('暂无报价'), null);
   assert.equal(parsePrice(undefined), null);
-});
-
-test('computePrice applies multiplier and add with cent rounding', () => {
-  assert.equal(computePrice(100, { multiplier: 1.1, add: 2, rounding: 'cent' }), 112);
-  assert.equal(computePrice(33.333, { multiplier: 1, add: 0, rounding: 'cent' }), 33.33);
-});
-
-test('computePrice rounding modes', () => {
-  assert.equal(computePrice(37.23, { rounding: 'jiao' }), 37.2);
-  assert.equal(computePrice(37.5, { rounding: 'yuan' }), 38);
-  assert.equal(computePrice(37.23, { rounding: 'nine' }), 37.9);
-  assert.equal(computePrice(37.95, { rounding: 'nine' }), 38.9);
-});
-
-test('computePrice enforces minimum price and rejects invalid source', () => {
-  assert.equal(computePrice(0.001, { minPrice: 0.5 }), 0.5);
-  assert.equal(computePrice(null, {}), null);
-  assert.equal(computePrice(-3, {}), null);
-});
-
-test('retailPrice is the sale price × 1.1 ending in .9, always above the sale price', () => {
-  assert.equal(retailPrice(1.05), 1.9);
-  assert.equal(retailPrice(52.9), 58.9);
-  assert.equal(retailPrice(72.9), 80.9);
-  assert.equal(retailPrice(null), null);
-  assert.equal(retailPrice(0), null);
 });
 
 test('weightedLength counts CJK as 2', () => {

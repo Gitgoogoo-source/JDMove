@@ -86,3 +86,15 @@ test('removeItemFolder finds the folder without a recorded path and refuses unsa
   assert.equal(await removeItemFolder(root, { ...item, local: { dir: '华为（HUAWEI）/999' }, product: null }), null);
   assert.equal(await removeItemFolder(root, { id: '1', skuId: '1', product: null }), null);
 });
+
+test('saveItemToFolder: 采集时写入原始数据；之后“保存到本地”没有原始数据时保留原来的文件', async () => {
+  const root = fakeDir();
+  const raw = { pageType: 'item', skuId: '100012345678' };
+  await saveItemToFolder(root, item, { fetchImpl: fakeFetch, raw });
+  const path = '华为（HUAWEI）/100012345678/原始数据.json';
+  const rawIn = async () => JSON.parse(await root.read(path).text()).raw;
+  assert.deepEqual(await rawIn(), raw);
+  await saveItemToFolder(root, item, { fetchImpl: fakeFetch });
+  assert.ok(root.tree().includes(path));
+  assert.deepEqual(await rawIn(), raw);
+});

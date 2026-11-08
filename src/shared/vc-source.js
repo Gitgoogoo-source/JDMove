@@ -47,7 +47,7 @@ function dangerFlag(v) {
 
 /**
  * @param {Record<string, unknown> | null | undefined} wareInfo 商品页 wareInfoReadMap 的节选
- * @returns {{cateIds: string[], brandId: number|null, model: string, weightKg: number|null,
+ * @returns {{cateIds: string[], brandId: number|null, model: string, itemNum: string, weightKg: number|null,
  *   lengthMm: number|null, widthMm: number|null, heightMm: number|null, warranty: string,
  *   spuId: string, seriesId: string, dangerGoods: boolean|null, shortTitle: string, titleNoBrand: string,
  *   saleAttrs: {name: string, value: string}[]}}
@@ -62,6 +62,7 @@ export function vcSourceInfo(wareInfo) {
     cateIds: [...new Set(ids)],
     brandId: positive(w.brand_id),
     model: str(w.model),
+    itemNum: str(w.item_num),
     weightKg: positive(w.weight),
     lengthMm: positive(w.length),
     widthMm: positive(w.width),
@@ -73,5 +74,60 @@ export function vcSourceInfo(wareInfo) {
     shortTitle: features.shortTitle ?? '',
     titleNoBrand: features.skuNameWithoutBrand ?? '',
     saleAttrs: parseSaleAttrs(w.sale_attributes),
+  };
+}
+
+// 型号的来源：主数据型号 > 主数据货号（POP 商品的 model 常是空的，item_num 有值）> 参数里的这些名称（按顺序）
+const MODEL_PARAM_NAMES = ['型号', '产品型号', '规格型号', '货号', '款号'];
+// 主数据没登记包装尺寸/毛重时是 0，或者是占位值：长宽高都是 1 mm、毛重 0.01 kg（2026-11 实测京喜自营官方店 10120802107169）
+const PLACEHOLDER_MAX_MM = 1;
+const PLACEHOLDER_MAX_KG = 0.01;
+const DIM_KEYS = ['lengthMm', 'widthMm', 'heightMm'];
+
+/** 型号和来源说明；SKU 编号不算型号 */
+function sourceModel(product) {
+  const vc = product?.vc ?? {};
+  const skuId = str(product?.skuId);
+  const params = product?.params ?? [];
+  const candidates = [
+    { value: vc.model, from: '型号' },
+    { value: vc.itemNum, from: '货号' },
+    ...MODEL_PARAM_NAMES.map((name) => ({ value: params.find((p) => str(p?.name) === name)?.value, from: `参数“${name}”` })),
+  ];
+  const hit = candidates.map((c) => ({ ...c, value: str(c.value) })).find((c) => c.value && c.value !== skuId);
+  return hit ? { model: hit.value, modelFrom: hit.from } : { model: '', modelFrom: '' };
+}
+
+/** 长宽高三项都 ≤1 mm 时是占位值，三项一起丢掉 */
+function sourceDims(vc) {
+  const dims = DIM_KEYS.map((k) => positive(vc?.[k]));
+  const fake = dims.every((d) => d != null && d <= PLACEHOLDER_MAX_MM);
+  return {
+    values: Object.fromEntries(DIM_KEYS.map((k, i) => [k, fake ? null : dims[i]])),
+    placeholder: fake ? `长宽高 ${dims.join('×')} mm` : '',
+  };
+}
+
+function sourceWeight(vc) {
+  const kg = positive(vc?.weightKg);
+  const fake = kg != null && kg <= PLACEHOLDER_MAX_KG;
+  return { weightKg: fake ? null : kg, placeholder: fake ? `毛重 ${kg} kg` : '' };
+}
+
+/**
+ * VC 发布用的源商品型号、包装长宽高（mm）、毛重（kg）：只取可信的值，并说明来源（发布计划和编辑弹窗共用）。
+ * 0 算没有；占位值也算没有，记在 placeholders 里，用来告诉用户为什么缺
+ * @param {{skuId?: string, params?: {name: string, value: string}[], vc?: object} | null | undefined} product 归一化后的商品
+ * @returns {{model: string, modelFrom: string, lengthMm: number|null, widthMm: number|null, heightMm: number|null,
+ *   weightKg: number|null, placeholders: string[]}} modelFrom：'型号' | '货号' | '参数“…”' | ''（没有型号）
+ */
+export function vcSourceFields(product) {
+  const dims = sourceDims(product?.vc);
+  const weight = sourceWeight(product?.vc);
+  return {
+    ...sourceModel(product),
+    ...dims.values,
+    weightKg: weight.weightKg,
+    placeholders: [dims.placeholder, weight.placeholder].filter(Boolean),
   };
 }

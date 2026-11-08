@@ -1,4 +1,4 @@
-// 注入到 item.jd.com 页面（MAIN world）执行，返回原始商品数据。
+// 注入到京东商品页（MAIN world）执行，返回原始商品数据。
 // 页面结构经常改版，因此每项数据都有多套兜底策略；归一化在扩展侧完成。
 (() => {
   const NS = (window.__JDMOVE__ = window.__JDMOVE__ || {});
@@ -7,6 +7,8 @@
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const text = (el) => (el ? (el.innerText || el.textContent || '').replace(/\s+/g, ' ').trim() : '');
   const qsa = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+  // 商品页域名，与 src/shared/url-utils.js 的 ITEM_HOSTS 一致：全球购跳到 npcitem.jd.hk，京东健康跳到 item.jingdonghealth.cn
+  const ITEM_HOST_RE = /^(?:item(?:\.m)?\.jd\.com|npcitem\.jd\.hk|item\.jingdonghealth\.cn)$/;
   const first = (sels) => {
     for (const s of sels) {
       const el = document.querySelector(s);
@@ -21,7 +23,7 @@
     if (/pc-frequent|risk_handler|safe\.jd\.com/.test(href) || /频控|访问频繁/.test(document.title)) return 'throttle';
     if (/passport\.jd\.com/.test(href)) return 'login';
     if (/验证/.test(document.title) && !document.querySelector('.sku-name, #spec-list')) return 'throttle';
-    if (/^item(\.m)?\.jd\.com$/.test(location.hostname)) return 'item';
+    if (ITEM_HOST_RE.test(location.hostname)) return 'item';
     return 'unknown';
   }
 
@@ -34,7 +36,9 @@
     return out;
   }
 
-  // 新版商品页（React）：在组件状态中寻找 wareBusiness 接口数据
+  // 新版商品页（React）：在组件状态中寻找 wareBusiness 接口数据。以商品主数据 wareInfoReadMap 为准：
+  // 单规格商品（如京东健康的药品）没有 colorSizeVO；页面先渲染的半成品状态只有 skuHeadVO
+  const isBusiness = (v) => Boolean(v && typeof v === 'object' && v.skuHeadVO && v.wareInfoReadMap);
   function reactBusiness() {
     const root = document.getElementById('root');
     const key = root && Object.keys(root).find((k) => k.startsWith('__reactContainer'));
@@ -48,7 +52,7 @@
       let st = f.memoizedState;
       for (let i = 0; st && i < 40; i += 1, st = st.next) {
         const v = st.memoizedState && st.memoizedState.current;
-        if (v && typeof v === 'object' && v.skuHeadVO && v.colorSizeVO) return v;
+        if (isBusiness(v)) return v;
       }
       if (f.child) stack.push(f.child);
       if (f.sibling) stack.push(f.sibling);
@@ -60,14 +64,18 @@
 
   // 商品主数据里要带回扩展侧的字段：保质期（参数列表没有时兜底）、商品条形码（页面上不显示），
   // 以及 VC 自营发布用的四级类目 ID、品牌 ID、型号、包装长宽高（mm）、毛重（kg）、质保、
-  // SPU、系列、危险品标记、features2（含 shortTitle / skuNameWithoutBrand）、销售属性
+  // SPU、系列、危险品标记、features2（含 shortTitle / skuNameWithoutBrand）、销售属性；
+  // 货号 item_num：POP 商品的 model 常是空的，货号有值
   const WARE_INFO_KEYS = [
     'shelf_life', 'upc_code',
     'category_id1', 'category_id2', 'category_id', 'category_id4',
-    'brand_id', 'model', 'weight', 'length', 'width', 'height', 'warranty',
+    'brand_id', 'model', 'item_num', 'weight', 'length', 'width', 'height', 'warranty',
     'realSpuId', 'main_sku_id', 'seriesId', 'isdangergoods', 'features2', 'sale_attributes',
   ];
-  const pickWareInfo = (read) => Object.fromEntries(WARE_INFO_KEYS.map((k) => [k, read[k] == null ? '' : String(read[k])]));
+  const asText = (v) => (v == null ? '' : typeof v === 'object' ? JSON.stringify(v) : String(v));
+  const pickWareInfo = (read) => Object.fromEntries(WARE_INFO_KEYS.map((k) => [k, asText(read[k])]));
+  // 完整主数据：只写进本地“原始数据.json”备查（排查采集问题、以后补字段不用重新采集），不进商品数据
+  const allWareInfo = (read) => Object.fromEntries(Object.entries(read).map(([k, v]) => [k, asText(v)]));
 
   function fromBusiness(b) {
     const images = [];
@@ -97,6 +105,7 @@
       priceText: NS.pickBusinessPrice(b),
       brandText: read.cn_brand || '',
       wareInfo: pickWareInfo(read),
+      wareInfoAll: allWareInfo(read),
       shopName: (b.itemShopInfo && b.itemShopInfo.shopName) || '',
       pageConfig: {
         skuid: (b.price && b.price.id) || skuIdFromUrl(),
@@ -297,7 +306,7 @@
     const pc = (fromBiz && fromBiz.pageConfig) || pageConfigProduct();
     const price = fromBiz && fromBiz.priceText ? fromBiz.priceText : await waitForPrice();
     if (opts.scrollDetail !== false) await scrollThrough();
-    const detail = await waitForDetail();
+    const detail = await waitForDetail(opts.detailWaitMs == null ? DETAIL_WAIT_MS : opts.detailWaitMs);
     window.scrollTo(0, 0);
     const shopName = (fromBiz && fromBiz.shopName) || text(first(['.contact .name', '.J-hove-wrap .name', '[class*="shop-name"]', '[class*="shopName"]']));
     const self = document.querySelector('.u-jd, [class*="self-operated"], [class*="ziying"]');
@@ -313,6 +322,7 @@
       brandText: (fromBiz && fromBiz.brandText) || brandText(),
       params: (fromBiz ? fromBiz.params : []).concat(params()),
       wareInfo: fromBiz ? fromBiz.wareInfo : null,
+      wareInfoAll: fromBiz ? fromBiz.wareInfoAll : null,
       mainImages: mainImages(),
       priceText: price || priceText(),
       saleDims: saleDims(),

@@ -61,10 +61,11 @@ async function saveImages(skuDir, images, fetchImpl) {
 /**
  * @param {FileSystemDirectoryHandle} root 用户选择的存储位置
  * @param {object} item 已采集的任务条目
+ * @param {{fetchImpl?: typeof fetch, raw?: object|null}} [opts] raw：刚采集时页面返回的原始数据（写进 原始数据.json）
  * @returns {Promise<{dir: string, saved: number, failed: string[]}>} dir 为相对存储位置的路径
  */
-export async function saveItemToFolder(root, item, { fetchImpl = globalThis.fetch } = {}) {
-  const plan = buildLocalPlan(item);
+export async function saveItemToFolder(root, item, { fetchImpl = globalThis.fetch, raw = null } = {}) {
+  const plan = buildLocalPlan(item, { raw });
   const brandName = pickBrandDir(await subDirNames(root), plan.brand);
   const brandDir = await root.getDirectoryHandle(brandName, { create: true });
   const skuDir = await brandDir.getDirectoryHandle(plan.skuDir, { create: true });

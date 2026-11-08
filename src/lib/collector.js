@@ -43,7 +43,8 @@ const extractRaw = (tabId, files, scrollDetail) =>
  * 把标签页切到前台再取一次；第二次不整页滚动，只等详情区。
  * @param {number} tabId
  * @param {{scrollDetail?: boolean, allVariants?: boolean, retryDelayMs?: number}} [opts]
- * @returns {Promise<{status: 'ok'|'throttle'|'login'|'setup'|'error', product?: object, warnings?: string[], message?: string}>}
+ * @returns {Promise<{status: 'ok'|'throttle'|'login'|'setup'|'error', product?: object, warnings?: string[], raw?: object, message?: string}>}
+ *   raw：页面返回的原始数据（保存到本地时写进 原始数据.json）
  */
 export async function collectFromTab(tabId, { scrollDetail = true, allVariants = false, retryDelayMs = DETAIL_RETRY_DELAY_MS } = {}) {
   const { files, problem } = await itemPage(tabId);
@@ -59,7 +60,7 @@ export async function collectFromTab(tabId, { scrollDetail = true, allVariants =
   const blocked = blockedResult(raw.pageType);
   if (blocked) return blocked;
   const product = normalizeProduct(raw, { allVariants });
-  return { status: 'ok', product, warnings: validateProduct(product, { detailState: raw.detailState }) };
+  return { status: 'ok', product, warnings: validateProduct(product, { detailState: raw.detailState }), raw };
 }
 
 /**

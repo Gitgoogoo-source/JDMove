@@ -238,10 +238,16 @@ export const ITEM_FILES = ['src/inject/jd-price.js', 'src/inject/jd-detail.js', 
 export const B2B_ITEM_FILES = ['src/inject/jd-detail.js', 'src/inject/b2b-goods.js', 'src/inject/b2b-item-extract.js'];
 export const SHOP_FILES = ['src/inject/jd-shop-list.js'];
 
-// VC 自营发布页：在 POP 的桥接脚本之上再加三份（字段/ERP/SKU 行、规格与 SKU属性抽屉、图片空间）
-export const VC_BACKEND_FILES = [...BACKEND_FILES, 'src/inject/backend-vc.js', 'src/inject/backend-vc-drawer.js', 'src/inject/backend-vc-images.js'];
+// VC 发布页 / 类目选择页：公共桥接（工具、属性、详情、保存草稿）之上再加四份（发布页的字段/ERP/SKU 行、规格与 SKU属性抽屉、图片空间，类目选择页的子类目）
+export const VC_BACKEND_FILES = [
+  ...BACKEND_FILES,
+  'src/inject/backend-vc.js',
+  'src/inject/backend-vc-drawer.js',
+  'src/inject/backend-vc-images.js',
+  'src/inject/backend-vc-category.js',
+];
 
-/** 调用 VC 发布页的桥接 API（注入的脚本比 callBackend 多三份，方法名以 vc 开头） */
+/** 调用 VC 发布页 / 类目选择页的桥接 API（注入的脚本比 callBackend 多四份，方法名以 vc 开头） */
 export function callVcBackend(tabId, method, ...args) {
   return invokeBackend(tabId, VC_BACKEND_FILES, method, args);
 }

@@ -31,80 +31,58 @@ function memoryStorage(initial = {}) {
 }
 
 test('mergeSettings fills defaults without mutating input', () => {
-  const saved = { price: { multiplier: 1.2 } };
+  const saved = { title: { prefix: '新品' } };
   const merged = mergeSettings(saved);
-  assert.equal(merged.price.multiplier, 1.2);
-  assert.equal(merged.price.rounding, DEFAULT_SETTINGS.price.rounding);
-  assert.equal(merged.publish.action, 'submit_on');
-  assert.deepEqual(saved, { price: { multiplier: 1.2 } });
+  assert.equal(merged.title.prefix, '新品');
+  assert.equal(merged.title.maxLength, DEFAULT_SETTINGS.title.maxLength);
+  assert.equal(merged.publish.action, 'draft');
+  assert.deepEqual(saved, { title: { prefix: '新品' } });
 });
 
 test('validateSettings clamps and reports errors', () => {
   const { ok, errors, value } = validateSettings(
     mergeSettings({
       collect: { minDelaySec: 30, maxDelaySec: 5 },
-      price: { multiplier: -1 },
-      publish: { action: 'hack' },
-      stock: 'abc',
+      title: { maxLength: 'abc' },
+      publish: { delaySec: -3 },
     }),
   );
   assert.equal(ok, false);
   assert.ok(errors.length >= 3);
   assert.equal(value.collect.maxDelaySec >= value.collect.minDelaySec, true);
-  assert.equal(value.price.multiplier, 1);
-  assert.equal(value.publish.action, 'submit_on');
-  assert.equal(value.stock, DEFAULT_SETTINGS.stock);
+  assert.equal(value.title.maxLength, DEFAULT_SETTINGS.title.maxLength);
+  assert.equal(value.publish.delaySec, DEFAULT_SETTINGS.publish.delaySec);
 });
 
-test('mergeSettings: 旧版本保存的“保存草稿”迁移为“提交并上架”（草稿里的商品没有店铺编号）', () => {
-  assert.equal(mergeSettings({ publish: { action: 'draft' } }).publish.action, 'submit_on');
-  // 其他动作是用户自己选的，保留
+test('mergeSettings: 发布动作只有“保存草稿”和“只填写”；旧版本的“提交并上架/提交暂不上架”读取时改为保存草稿', () => {
+  for (const action of ['submit_on', 'submit_off', 'draft', 'hack', undefined]) {
+    assert.equal(mergeSettings({ publish: { action } }).publish.action, 'draft', String(action));
+  }
   assert.equal(mergeSettings({ publish: { action: 'none' } }).publish.action, 'none');
-  assert.equal(mergeSettings({ publish: { action: 'submit_off' } }).publish.action, 'submit_off');
+  assert.equal(validateSettings({ publish: { action: 'submit_on' } }).ok, true, '旧设置不报错');
 });
 
-test('mergeSettings: 迁移之后再选“保存草稿”会保留', () => {
-  const once = mergeSettings({ publish: { action: 'draft' } });
-  const chosen = mergeSettings({ ...once, publish: { ...once.publish, action: 'draft' } });
-  assert.equal(chosen.publish.action, 'draft');
-  assert.equal(mergeSettings(chosen).publish.action, 'draft');
+test('mergeSettings: 旧版本的 POP 设置（售价倍率、库存、发布平台、默认 UPC、改价）读取时丢掉', () => {
+  const merged = mergeSettings({
+    price: { multiplier: 1.2 },
+    stock: 7,
+    publish: { platform: 'pop', defaultUpc: '6914973039001', actionVersion: 2 },
+    priceWatch: { editUrlTemplate: 'https://wares-jdm.jd.com/x?wareId={wareId}', repriceAction: 'auto', alertMargin: 2 },
+  });
+  assert.equal('price' in merged || 'stock' in merged, false);
+  assert.deepEqual(['platform', 'defaultUpc', 'actionVersion'].filter((k) => k in merged.publish), []);
+  assert.deepEqual(merged.priceWatch, { minDelaySec: 3, maxDelaySec: 6, alertMargin: 2 });
 });
 
 test('validateSettings accepts defaults', () => {
   assert.equal(validateSettings(DEFAULT_SETTINGS).ok, true);
 });
 
-test('validateSettings: price watch turns a pasted edit link into a template and clamps delays', () => {
-  const { value, errors } = validateSettings(
-    mergeSettings({
-      priceWatch: {
-        minDelaySec: 10,
-        maxDelaySec: 4,
-        alertMargin: -2,
-        editUrlTemplate: 'https://wares-jdm.jd.com/popPublish/?wareId=10088812345&publishType=2',
-        repriceAction: 'hack',
-      },
-    }),
-  );
-  assert.equal(value.priceWatch.editUrlTemplate, 'https://wares-jdm.jd.com/popPublish/?wareId={wareId}&publishType=2');
+test('validateSettings: price watch clamps delays and the alert margin', () => {
+  const { value, errors } = validateSettings(mergeSettings({ priceWatch: { minDelaySec: 10, maxDelaySec: 4, alertMargin: -2 } }));
   assert.equal(value.priceWatch.maxDelaySec, 10);
   assert.equal(value.priceWatch.alertMargin, DEFAULT_SETTINGS.priceWatch.alertMargin);
-  assert.equal(value.priceWatch.repriceAction, 'auto');
-  assert.equal(errors.length, 3);
-  const bad = validateSettings(mergeSettings({ priceWatch: { editUrlTemplate: 'https://example.com/?wareId=10088812345' } }));
-  assert.equal(bad.value.priceWatch.editUrlTemplate, '');
-  assert.match(bad.errors.join(), /商品编辑页地址无效/);
-});
-
-test('validateSettings: 默认 UPC 默认 6914973039001，可清空关闭，无效时恢复默认', () => {
-  assert.equal(DEFAULT_SETTINGS.publish.defaultUpc, '6914973039001');
-  const set = (defaultUpc) => validateSettings({ publish: { defaultUpc } });
-  assert.equal(set(' ６９０１２３４５６７８９２ ').value.publish.defaultUpc, '6901234567892');
-  assert.equal(set('').value.publish.defaultUpc, '');
-  assert.ok(set('').ok);
-  const bad = set('12ab');
-  assert.equal(bad.value.publish.defaultUpc, '6914973039001');
-  assert.ok(bad.errors.some((e) => e.includes('默认 UPC')));
+  assert.equal(errors.length, 2);
 });
 
 test('parseAttrDefaults parses key=value lines', () => {
@@ -175,14 +153,14 @@ test('newItem creates a pending item', () => {
 });
 
 test('settings repository merges with defaults', async () => {
-  const storage = memoryStorage({ settings: { stock: 7 } });
+  const storage = memoryStorage({ settings: { publish: { delaySec: 7 } } });
   const repo = createSettingsRepository(storage);
   const s = await repo.get();
-  assert.equal(s.stock, 7);
-  assert.equal(s.publish.action, 'submit_on');
-  const saved = await repo.save({ ...s, stock: 9 });
-  assert.equal(saved.stock, 9);
-  assert.equal(storage.dump().settings.stock, 9);
+  assert.equal(s.publish.delaySec, 7);
+  assert.equal(s.publish.action, 'draft');
+  const saved = await repo.save({ ...s, publish: { ...s.publish, delaySec: 9 } });
+  assert.equal(saved.publish.delaySec, 9);
+  assert.equal(storage.dump().settings.publish.delaySec, 9);
 });
 
 test('saveEdits keeps need_action status so the item stays in the 需处理 list', async () => {
@@ -235,7 +213,6 @@ test('publishResultPatch stamps publishedAt only on a successful publish', () =>
     message: '完成',
     target: { id: 't1' },
     publishedAt: 50,
-    shopWareId: '',
   });
   assert.deepEqual(publishResultPatch(item, { status: 'filled', message: '已填写完成' }, 50), {
     status: 'need_action',
@@ -249,17 +226,11 @@ test('publishResultPatch stamps publishedAt only on a successful publish', () =>
   assert.equal('publishedAt' in failed, false);
 });
 
-test('publishResultPatch records the shop price and product id of a successful publish', () => {
-  const item = { ...newItem('100001', 1), shopWareId: '10000000001', salePrice: 9 };
-  const patch = publishResultPatch(item, { status: 'published', message: '完成', price: 59.9, wareId: '10088812345' }, 50);
-  assert.equal(patch.salePrice, 59.9);
-  assert.equal(patch.shopWareId, '10088812345');
-  // 重新发布会在店铺里生成新商品：没拿到新编号时清掉旧编号，避免改价改到旧商品上
-  const unknown = publishResultPatch(item, { status: 'published', message: '完成', price: 59.9 }, 50);
-  assert.equal(unknown.shopWareId, '');
-  const failed = publishResultPatch(item, { status: 'failed', message: 'x', price: 59.9, wareId: '10088812345' }, 50);
+test('publishResultPatch records the VC 京东价 of a successful publish', () => {
+  const item = { ...newItem('100001', 1), salePrice: 9 };
+  assert.equal(publishResultPatch(item, { status: 'published', message: '完成', price: 59.9 }, 50).salePrice, 59.9);
+  const failed = publishResultPatch(item, { status: 'failed', message: 'x', price: 59.9 }, 50);
   assert.equal('salePrice' in failed, false);
-  assert.equal('shopWareId' in failed, false);
 });
 
 test('editsEqual ignores key order, undefined values and empty overrides', () => {

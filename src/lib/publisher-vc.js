@@ -1,20 +1,19 @@
-// VC 自营发布：源商品的类目/品牌 → 直接打开 VC 发布页 → 按计划逐项填写 → 页面本地校验 → 保存草稿（不点“发布商品”）。
-// POP 的流程在 publisher.js，两边只共用详情写入（同一个详情编辑器）
+// VC 自营发布：源商品的类目/品牌 → 直接打开 VC 发布页 → 按计划逐项填写 → 页面本地校验 → 保存草稿（不点“发布商品”）
 import { buildVcPublishPlan, vcPreflight, vcTarget, vcActionLabel } from '../shared/vc-plan.js';
-import { buildVcPublishUrl } from '../shared/url-utils.js';
-import { callVcBackend, openWorkTab, closeTab, sleep, waitForTabUrl } from './chrome-env.js';
+import { descriptionHtml } from '../shared/publish-plan.js';
+import { buildVcPublishUrl, imgzoneUrl } from '../shared/url-utils.js';
+import { callVcBackend, openWorkTab, navigateTab, closeTab, sleep, waitForTabUrl } from './chrome-env.js';
 import { landedPageKind } from './category-search.js';
+import { forgetLeaf, resolveLeafTarget, sharedLeafCache } from './vc-leaf.js';
 import { startImagePrep } from './image-prep.js';
-import { fillDescription } from './publisher.js';
 import { createStopwatch } from '../shared/stopwatch.js';
-import { parseWareId } from '../shared/price-watch.js';
 import { detectSaveThrottle } from '../shared/publish-throttle.js';
 
 const LOGIN_MSG = '商家后台需要重新登录';
 const NOT_OPENED_MSG = 'VC 发布页没有打开：品牌可能没有授权，或类目不在账号的产品线里（可在「编辑」中指定类目ID和品牌ID）';
 const LAND_TIMEOUT_MS = 5000;
-// 提交成功后页面可能整页跳走（成功页的地址还没核实过）：只认路径里带 success 的一段，不认查询参数
-const SUCCESS_PAGE_RE = /^https:\/\/[^/?#]+\/(?:[^?#]*\/)?[\w-]*success[\w-]*(?:[/?#]|$)/i;
+// 详情图转存时每次传给页面的张数
+const DETAIL_CHUNK = 6;
 // 保存草稿成功后页面 100ms 内整页跳到草稿箱（wareList?activeTab=DraftWare），脚本可能来不及返回
 const DRAFT_LIST_RE = /^https:\/\/[^/?#]+\/ware\/wareList\?[^#]*activeTab=DraftWare/;
 
@@ -23,7 +22,8 @@ async function waitVcReady(tabId, timeoutMs = 40000) {
   let last = null;
   while (Date.now() < end) {
     last = await callVcBackend(tabId, 'vcStatus').catch(() => null);
-    if (last && (last.ready || last.loginRequired)) return last;
+    // 页面显示了打不开的原因（如“您选择的类目不是末级类目”）：再等也不会好
+    if (last && (last.ready || last.loginRequired || last.pageError)) return last;
     await sleep(1000);
   }
   return last ?? { ready: false };
@@ -100,6 +100,34 @@ async function recognizeImages(tabId, plan, log, timer) {
 
 const drawerNote = (r) => [r?.missing?.length ? `必填项没填：${r.missing.join('、')}` : '', ...(r?.errors ?? [])].filter(Boolean).join('；');
 
+/** 详情图转存（可选）+ 代码模式写入商品详情 */
+async function fillDescription(tabId, plan, settings, log, { timer, images }) {
+  // 源商品没有详情图时发布前检查已经拦下；走到这里说明设置里的详情图数量为 0
+  if (!plan.detailImageUrls.length) {
+    log('详情图数量设置为 0，跳过商品详情');
+    return;
+  }
+  let urls = plan.detailImageUrls;
+  if (settings.publish.reuploadDetailImages) {
+    const slices = await images.detail;
+    timer.lap('等待详情图处理');
+    const uploaded = [];
+    for (let i = 0; i < slices.length; i += DETAIL_CHUNK) {
+      const res = await callVcBackend(tabId, 'uploadDetailImages', slices.slice(i, i + DETAIL_CHUNK));
+      if (res?.errors?.length) log(`详情图上传问题：${res.errors.join('；')}`);
+      if (!res?.ok) throw new Error(res?.error || '详情图上传失败');
+      uploaded.push(...res.urls);
+    }
+    urls = uploaded.map(imgzoneUrl);
+    timer.lap('详情图上传');
+    log(`详情图已转存 ${urls.length} 张`);
+  }
+  const desc = await callVcBackend(tabId, 'setDescriptionHtml', descriptionHtml(urls));
+  timer.lap('详情写入');
+  if (!desc?.ok) throw new Error(desc?.error || '商品详情写入失败');
+  if (desc.direct) log('详情编辑器没有同步内容，已直接写入表单，请在页面上核对商品详情');
+}
+
 /** SKU 表（单行）：规格（选填，填不好跳过）→ 商品名称、条形码 → SKU属性（必填） */
 async function fillSku(tabId, plan, settings, log, timer) {
   const ctx = { values: plan.skuAttrValues, units: plan.skuAttrUnits, desc: plan.sku.spec.desc };
@@ -156,30 +184,23 @@ async function checkPayload(tabId, plan, log) {
   return {};
 }
 
-/** 点“发布商品”/“保存草稿”；页面整页跳走、脚本来不及返回时按落地地址判断 */
-async function submitVc(tabId, action, landTimeoutMs) {
+/** 点“保存草稿”；草稿保存成功后页面整页跳到草稿箱，脚本来不及返回时按落地地址判断 */
+async function saveVcDraft(tabId, landTimeoutMs) {
   let result;
   let error;
   try {
-    result = await callVcBackend(tabId, 'runAction', action);
+    result = await callVcBackend(tabId, 'runAction', 'vc_draft');
   } catch (e) {
     error = e;
   }
-  if (result && (result.ok || result.confirmText || result.errors?.length || (action === 'vc_draft' && result.messages?.length))) return result;
-  if (action === 'vc_draft') {
-    // 草稿保存成功后整页跳到草稿箱，脚本被打断：按落地地址判断
-    const draftUrl = await waitForTabUrl(tabId, DRAFT_LIST_RE, landTimeoutMs);
-    if (draftUrl) return { ...result, ok: true, url: draftUrl, messages: ['草稿已保存'], errors: [], confirmText: '' };
-    if (error) throw error;
-    return result;
-  }
-  const url = await waitForTabUrl(tabId, SUCCESS_PAGE_RE, landTimeoutMs);
-  if (url) return { ...result, ok: true, url, messages: result?.messages?.length ? result.messages : ['商品已提交'], errors: [], confirmText: '' };
+  if (result && (result.ok || result.confirmText || result.errors?.length || result.messages?.length)) return result;
+  const draftUrl = await waitForTabUrl(tabId, DRAFT_LIST_RE, landTimeoutMs);
+  if (draftUrl) return { ...result, ok: true, url: draftUrl, messages: ['草稿已保存'], errors: [], confirmText: '' };
   if (error) throw error;
   return result;
 }
 
-function submitOutcome(result, plan, target, tabId, log, action) {
+function submitOutcome(result, plan, target, tabId, log) {
   const throttle = !result?.ok && detectSaveThrottle({ responses: result?.saveResponses, messages: result?.messages, confirmText: result?.confirmText });
   if (throttle) {
     log(`${throttle.message}，已关闭发布页`);
@@ -190,13 +211,8 @@ function submitOutcome(result, plan, target, tabId, log, action) {
     const detail = [result?.error, ...(result?.errors ?? []), ...(result?.messages ?? [])].filter(Boolean).join('；');
     return { status: 'failed', message: detail || '提交未成功', target, tabId };
   }
-  if (action === 'vc_draft') {
-    log(result.draftId ? `已保存草稿（草稿编号 ${result.draftId}）：请到 VC 后台草稿箱检查后手动提交` : '已保存草稿：请到 VC 后台草稿箱检查后手动提交');
-    return { status: 'published', message: (result.messages ?? []).join('；') || '已保存草稿', target, price: plan.prices.jdPrice };
-  }
-  const wareId = parseWareId({ captured: result.wareIds, url: result.url, messages: result.messages });
-  log(wareId ? `商品编号：${wareId}` : '没有拿到商品编号（VC 商品提交后进入采销审核）');
-  return { status: 'published', message: (result.messages ?? []).join('；') || '已提交', target, price: plan.prices.jdPrice, wareId };
+  log(result.draftId ? `已保存草稿（草稿编号 ${result.draftId}）：请到 VC 后台草稿箱检查后手动提交` : '已保存草稿：请到 VC 后台草稿箱检查后手动提交');
+  return { status: 'published', message: (result.messages ?? []).join('；') || '已保存草稿', target, price: plan.prices.jdPrice };
 }
 
 async function publishInVcTab(tab, item, settings, log, target, ctx) {
@@ -207,7 +223,10 @@ async function publishInVcTab(tab, item, settings, log, target, ctx) {
     if (landed !== 'publish') return { status: 'failed', message: NOT_OPENED_MSG, target };
     const st = await waitVcReady(tab.id);
     if (st.loginRequired) return { status: 'need_action', message: LOGIN_MSG, target };
-    if (!st.ready) return { status: 'failed', message: 'VC 发布页未就绪（类目可能不是末级或不在产品线里）', target };
+    // notLeaf：由 publishVcItem 换成末级类目后重开发布页
+    if (st.notLeaf) return { status: 'failed', notLeaf: true, message: `VC 发布页提示：${st.pageError}`, target };
+    if (st.pageError) return { status: 'failed', message: `VC 发布页打不开：${st.pageError}`, target };
+    if (!st.ready) return { status: 'failed', message: 'VC 发布页未就绪（页面加载超时，或类目不在账号的产品线里）', target };
     if (st.publishDisabled) log(`注意：${st.publishDisabledMsg}`);
     ctx.timer.lap('页面就绪');
 
@@ -225,28 +244,56 @@ async function publishInVcTab(tab, item, settings, log, target, ctx) {
     const payload = await checkPayload(tab.id, plan, log);
     if (payload.stop) return { ...payload.stop, target, tabId: tab.id };
 
-    const action = vcActionLabel(settings.publish.action);
-    if (!action) return { status: 'filled', message: '已填写完成，请在工作窗口中检查后手动点“保存草稿”或“发布商品”', target, tabId: tab.id };
-    const result = await submitVc(tab.id, action, ctx.landTimeoutMs);
-    ctx.timer.lap(action === 'vc_draft' ? '保存草稿' : '发布商品');
-    return submitOutcome(result, plan, target, tab.id, log, action);
+    if (!vcActionLabel(settings.publish.action)) {
+      return { status: 'filled', message: '已填写完成，请在工作窗口中检查后手动点“保存草稿”或“发布商品”', target, tabId: tab.id };
+    }
+    const result = await saveVcDraft(tab.id, ctx.landTimeoutMs);
+    ctx.timer.lap('保存草稿');
+    return submitOutcome(result, plan, target, tab.id, log);
   } catch (e) {
     return { status: 'failed', message: e.message, target, tabId: tab.id };
   }
 }
 
+/** 自动换过类目时在结果里写明，不只写在日志里（保存草稿后要按这个核对类目） */
+const withLeafNote = (result, note) => (note ? { ...result, message: `${result.message}（${note}）` } : result);
+
+/** 源类目不是末级类目：到类目选择页选子类目，在同一个标签页里换成末级类目的发布页再填一遍 */
+async function retryWithLeaf(tab, item, settings, log, leafArgs, ctx) {
+  const leaf = await resolveLeafTarget({ ...leafArgs, tabId: tab.id });
+  ctx.timer.lap('选末级类目');
+  if (leaf.error) return { status: 'need_action', message: leaf.error, target: leafArgs.target };
+  try {
+    await navigateTab(tab.id, buildVcPublishUrl(leaf.target));
+  } catch (e) {
+    return { status: 'failed', message: e.message, target: leaf.target };
+  }
+  ctx.timer.lap('打开页面');
+  const { notLeaf, ...result } = await publishInVcTab(tab, item, settings, log, leaf.target, ctx);
+  if (!notLeaf) return withLeafNote(result, leaf.note);
+  forgetLeaf(leafArgs.cache, leaf.target.cateList);
+  const message = `自动选的子类目「${leaf.target.name}」[${leaf.target.categoryId}] 在 VC 发布页上仍提示不是末级类目，请在「编辑」中填写类目ID路径`;
+  return { ...result, message };
+}
+
 /**
  * 发布单个条目到 VC 自营店铺
- * @param {{imageMakers?: {main?: Function, detail?: Function, transparent?: Function}, landTimeoutMs?: number}} [deps]
+ * @param {{imageMakers?: {main?: Function, detail?: Function, transparent?: Function}, landTimeoutMs?: number,
+ *   leafCache?: Map<string, object[]>}} [deps] leafCache：读到的子类目（类目ID → 子类目），默认整个运行期共用一份
  * @returns {Promise<{status: 'published'|'filled'|'need_action'|'failed'|'throttle', message: string, target?: object, tabId?: number,
- *   price?: number, wareId?: string}>} price：京东价；tabId：需要人工检查时保留的发布页
+ *   price?: number}>} price：京东价（记作店铺售价，检查京东今日价时对比）；tabId：需要人工检查时保留的发布页
  */
-export async function publishVcItem(item, settings, log, { imageMakers, landTimeoutMs = LAND_TIMEOUT_MS } = {}) {
+export async function publishVcItem(item, settings, log, { imageMakers, landTimeoutMs = LAND_TIMEOUT_MS, leafCache = sharedLeafCache } = {}) {
   if (!item.product) return { status: 'need_action', message: '尚未采集' };
   const picked = vcTarget({ product: item.product, edits: item.edits, settings });
   if (picked.error) return { status: 'need_action', message: picked.error };
   const { blockers } = vcPreflight({ product: item.product, edits: item.edits, settings });
   if (blockers.length) return { status: 'need_action', message: blockers.join('；'), target: picked.target };
+  // 之前已经读到过这个类目的子类目（不是末级类目）：直接换成子类目，不再打开会报错的发布页
+  const leafArgs = { product: item.product, edits: item.edits, log, cache: leafCache };
+  const known = await resolveLeafTarget({ ...leafArgs, target: picked.target });
+  if (known.error) return { status: 'need_action', message: known.error, target: picked.target };
+  const { target } = known;
 
   const timer = createStopwatch();
   const { images: imagePlan } = buildVcPublishPlan({ product: item.product, edits: item.edits, settings, schema: { attrs: [] } });
@@ -258,13 +305,20 @@ export async function publishVcItem(item, settings, log, { imageMakers, landTime
   );
   let tab;
   try {
-    tab = await openWorkTab(buildVcPublishUrl(picked.target));
+    tab = await openWorkTab(buildVcPublishUrl(target));
   } catch (e) {
     images.cancel();
     throw e;
   }
   timer.lap('打开页面');
-  const result = await publishInVcTab(tab, item, settings, log, picked.target, { timer, images, landTimeoutMs });
+  const ctx = { timer, images, landTimeoutMs };
+  const first = await publishInVcTab(tab, item, settings, log, target, ctx);
+  // 用记下的子类目打开后仍报不是末级类目：清掉记录，从源类目重新选
+  if (first.notLeaf && known.changed) forgetLeaf(leafCache, target.cateList);
+  const retryFrom = known.changed ? picked.target : target;
+  const result = first.notLeaf
+    ? await retryWithLeaf(tab, item, settings, log, { ...leafArgs, target: retryFrom }, ctx)
+    : withLeafNote(first, known.note);
   images.cancel();
   log(`耗时：${timer.summary()}`);
   if (!result.tabId) await closeTab(tab.id);

@@ -112,6 +112,41 @@ test('vcPreflight: 旧数据缺型号/长宽高/毛重时提示重新采集或�
   assert.deepEqual(vcPreflight({ product: old, edits: filled, settings: settings() }).blockers, []);
 });
 
+// POP 商品（2026-11 维达官方旗舰店 30235277278）：主数据没有型号、长宽高是 0，只有货号和毛重
+const popProduct = () => ({ ...product(), vc: { ...product().vc, model: '', itemNum: 'V2182-A', lengthMm: null, widthMm: null, heightMm: null } });
+
+test('vcPreflight: POP 商品没有型号时用货号，不再拦下', () => {
+  const { blockers } = vcPreflight({ product: popProduct(), edits: { vc: PRICES }, settings: settings() });
+  assert.ok(!blockers.some((b) => /型号/.test(b)), blockers.join('\n'));
+});
+
+test('vcPreflight: 采集到了但源商品主数据里没有长宽高时，提示在编辑中填写（重新采集也不会有）', () => {
+  const { blockers } = vcPreflight({ product: popProduct(), edits: { vc: PRICES }, settings: settings() });
+  const dims = blockers.find((b) => /长宽高/.test(b));
+  assert.match(dims, /长、宽、高/);
+  assert.match(dims, /源商品主数据里没有/);
+  assert.doesNotMatch(dims, /重新采集/);
+});
+
+test('vcPreflight: 主数据里是占位值（1×1×1 mm、0.01 kg）时当成没有，并写明是占位值', () => {
+  const fake = { ...product(), vc: { ...product().vc, lengthMm: 1, widthMm: 1, heightMm: 1, weightKg: 0.01 } };
+  const { blockers } = vcPreflight({ product: fake, edits: { vc: PRICES }, settings: settings() });
+  const dims = blockers.find((b) => /长宽高/.test(b));
+  assert.match(dims, /长、宽、高、毛重/);
+  assert.match(dims, /占位值/);
+});
+
+test('buildVcPublishPlan: 型号用货号时提醒核对', () => {
+  const edits = { vc: { ...PRICES, lengthMm: 408, widthMm: 310, heightMm: 280 } };
+  const plan = buildVcPublishPlan({ product: popProduct(), edits, settings: settings(), schema: SCHEMA });
+  assert.deepEqual(plan.blockers, []);
+  assert.equal(plan.model, 'V2182-A');
+  assert.ok(plan.warnings.some((w) => /型号.*货号.*V2182-A/.test(w)), plan.warnings.join('\n'));
+  const own = buildVcPublishPlan({ product: popProduct(), edits: { vc: { ...edits.vc, model: 'X1' } }, settings: settings(), schema: SCHEMA });
+  assert.equal(own.model, 'X1');
+  assert.ok(!own.warnings.some((w) => /货号/.test(w)));
+});
+
 test('buildVcPublishPlan: 样本商品生成完整计划', () => {
   const plan = buildVcPublishPlan({ product: product(), edits: { vc: { ...PRICES, erpCode: 'xudezhi.6' } }, settings: settings(), schema: SCHEMA });
   assert.deepEqual(plan.blockers, []);

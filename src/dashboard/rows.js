@@ -35,21 +35,15 @@ function todayPrice(check, st) {
 
 function priceCell(item, st) {
   const src = item.product?.price;
-  if (!(src > 0)) return h('td', {}, h('span', { class: 'sub' }, st.sale > 0 ? `售价 ${st.sale}` : '—'), todayPrice(item.priceCheck, st));
+  const sale = h('div', { class: 'sub', title: 'VC 京东价（发布时填的，检查京东今日价时和它对比）' }, `京东价 ¥${st.sale ?? '—'}`);
+  if (!(src > 0)) return h('td', {}, sale, todayPrice(item.priceCheck, st));
   return h(
     'td',
     {},
-    h('div', { title: '采集时的京东价' }, `源 ¥${src}`),
-    h('div', { class: 'sub' }, `售 ¥${st.sale ?? '—'}`),
+    h('div', { title: '采集时源商品页显示的价格' }, `源 ¥${src}`),
+    sale,
     todayPrice(item.priceCheck, st),
   );
-}
-
-function shopIdLine(item) {
-  if (!item.publishedAt && item.status !== 'published') return null;
-  return item.shopWareId
-    ? h('div', { class: 'sub', title: '店铺商品编号（改价时用）' }, `店铺编号 ${item.shopWareId}`)
-    : h('div', { class: 'sub missing', title: '改价前请在“编辑”中填写' }, '店铺编号未填写');
 }
 
 function categoryCell(item) {
@@ -89,7 +83,6 @@ export function renderRow(item, ctx) {
       h('div', { class: 'title' }, item.edits?.title || p?.title || '（未采集）'),
       h('a', { class: 'sub', href: item.url, target: '_blank', rel: 'noreferrer' }, `SKU ${item.skuId}`),
       p?.vc?.spuId && p.vc.spuId !== item.skuId ? h('div', { class: 'sub' }, `SPU ${p.vc.spuId}`) : null,
-      shopIdLine(item),
       localCell(item.local),
     ),
     priceCell(item, st),

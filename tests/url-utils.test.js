@@ -9,9 +9,10 @@ import {
   classifyPageUrl,
   isB2bItemUrl,
   b2bItemUrls,
-  buildPublishUrl,
   imgzoneUrl,
+  ITEM_HOSTS,
 } from '../src/shared/url-utils.js';
+import { readFileSync } from 'node:fs';
 
 test('extractSkuIds finds ids in mixed text and dedupes in order', () => {
   const text = `
@@ -120,23 +121,44 @@ test('classifyPageUrl detects throttle, login and item pages', () => {
     'merchant_block',
   );
   assert.equal(classifyPageUrl('https://item.jd.com/100.html'), 'item');
-  assert.equal(classifyPageUrl('https://wares-jdm.jd.com/popPublish/?categoryId=1'), 'publish');
+  assert.equal(classifyPageUrl('https://wares-jdm.jd.com/vcProductPublish/?bId=1&categoryId=1'), 'publish');
   assert.equal(classifyPageUrl('https://wares-jdm.jd.com/ware/categorySelectNew?source=1'), 'category');
   assert.equal(classifyPageUrl('https://www.baidu.com/'), 'other');
   assert.equal(classifyPageUrl('not a url'), 'other');
 });
 
-test('buildPublishUrl encodes category path', () => {
-  const url = buildPublishUrl({ cateList: [17991, 17994, 18132] });
-  const u = new URL(url);
-  assert.equal(u.origin + u.pathname, 'https://wares-jdm.jd.com/popPublish/');
-  assert.equal(u.searchParams.get('categoryId'), '18132');
-  assert.equal(u.searchParams.get('cateList'), '17991,17994,18132');
-  assert.equal(u.searchParams.get('newFlow'), '1');
+// 2026-11 实测：全球购商品从 item.jd.com 跳到 npcitem.jd.hk，京东大药房跳到 item.jingdonghealth.cn，页面程序和 item.jd.com 相同
+test('classifyPageUrl: 全球购、京东健康跳转后的商品页也是商品页', () => {
+  assert.equal(classifyPageUrl('https://npcitem.jd.hk/100094541482.html'), 'item');
+  assert.equal(classifyPageUrl('https://item.jingdonghealth.cn/100200187696.html'), 'item');
+  assert.equal(classifyPageUrl('https://item.m.jd.com/product/100.html'), 'item');
+  assert.equal(classifyPageUrl('https://www.jd.hk/'), 'other');
+  assert.equal(classifyPageUrl('https://jingdonghealth.cn.evil.com/1.html'), 'other');
 });
 
-test('buildPublishUrl rejects empty category path', () => {
-  assert.throws(() => buildPublishUrl({ cateList: [] }), /类目/);
+test('extractSkuIds / skuFromLink: 识别京东健康商品链接', () => {
+  assert.deepEqual(extractSkuIds('药 https://item.jingdonghealth.cn/100200187696.html?x=1 和 npcitem.jd.hk/100094541482.html'), [
+    '100200187696',
+    '100094541482',
+  ]);
+  assert.equal(skuFromLink('https://item.jingdonghealth.cn/100200187696.html'), '100200187696');
+});
+
+// 商品页域名、插件权限、“搬运此商品”按钮三处要一致，否则跳转后的页面注入不了采集脚本
+test('manifest: 每个商品页域名都有访问权限，并显示“搬运此商品”按钮', () => {
+  const manifest = JSON.parse(readFileSync(new URL('../manifest.json', import.meta.url), 'utf8'));
+  const covers = (patterns, host) =>
+    patterns.some((p) => {
+      const m = p.match(/^https:\/\/([^/]+)\/\*$/);
+      if (!m) return false;
+      const ph = m[1];
+      return ph === host || (ph.startsWith('*.') && host.endsWith(ph.slice(1)));
+    });
+  const buttonMatches = manifest.content_scripts.flatMap((c) => c.matches);
+  for (const host of ITEM_HOSTS) {
+    assert.ok(covers(manifest.host_permissions, host), `host_permissions 缺 ${host}`);
+    if (host !== 'item.m.jd.com') assert.ok(covers(buttonMatches, host), `content_scripts 缺 ${host}`);
+  }
 });
 
 test('imgzoneUrl prefixes jfs path', () => {

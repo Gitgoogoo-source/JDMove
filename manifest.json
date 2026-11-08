@@ -2,13 +2,15 @@
   "manifest_version": 3,
   "name": "京东搬运助手 JDMove",
   "version": "0.1.0",
-  "description": "采集京东、京东万商商品详情页（标题/属性/主图/详情图/规格），批量填写到自己的京东 POP 店铺发布页。",
+  "description": "采集京东、京东万商商品详情页（标题/属性/主图/详情图/规格），批量填写到京东 VC 自营（供应商后台）发布页并保存草稿。",
   "minimum_chrome_version": "116",
   "incognito": "spanning",
   "permissions": ["storage", "unlimitedStorage", "tabs", "scripting"],
   "host_permissions": [
     "https://item.jd.com/*",
     "https://item.m.jd.com/*",
+    "https://npcitem.jd.hk/*",
+    "https://item.jingdonghealth.cn/*",
     "https://*.jd.com/*",
     "https://*.360buyimg.com/*",
     "https://wares-jdm.jd.com/*"
@@ -25,7 +27,12 @@
   "icons": { "16": "icons/icon16.png", "32": "icons/icon32.png", "48": "icons/icon48.png", "128": "icons/icon128.png" },
   "content_scripts": [
     {
-      "matches": ["https://item.jd.com/*", "https://b2b.jd.com/goods/goods-detail/*"],
+      "matches": [
+        "https://item.jd.com/*",
+        "https://npcitem.jd.hk/*",
+        "https://item.jingdonghealth.cn/*",
+        "https://b2b.jd.com/goods/goods-detail/*"
+      ],
       "js": ["src/content/item-button.js"],
       "css": ["src/content/item-button.css"],
       "run_at": "document_idle"

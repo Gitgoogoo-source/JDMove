@@ -1,13 +1,11 @@
 // 批量任务执行器：在任务面板页面中运行（页面保持打开即可持续执行）
-import { validateSettings, PUBLISH_PLATFORMS } from '../shared/settings.js';
+import { validateSettings } from '../shared/settings.js';
 import { collectFailurePatch, publishResultPatch } from '../shared/store.js';
-import { priceCheckPatch, priceStatus, repricePatch } from '../shared/price-watch.js';
+import { priceCheckPatch, priceStatus } from '../shared/price-watch.js';
 import { throttleRecord } from '../shared/publish-throttle.js';
 import { itemRepo, settingsRepo, throttleRepo, sleep, randomBetween } from './chrome-env.js';
 import { collectUrl, checkPriceUrl, closeCollectTab } from './collector.js';
-import { publishItem } from './publisher.js';
 import { publishVcItem } from './publisher-vc.js';
-import { repriceItem } from './repricer.js';
 import { crawlShop } from './shop-crawler.js';
 
 const MAX_LOG_LINES = 60;
@@ -26,16 +24,17 @@ function priceCheckLine(check, st) {
 const SUMMARIES = {
   pricecheck: (t) =>
     `京东今日价检查结束：成功 ${(t.ok ?? 0) + (t.alert ?? 0)} 个，价格倒挂/预警 ${t.alert ?? 0} 个，失败 ${t.fail ?? 0} 个` +
-    (t.alert ? '（已列在“已发布 → 价格倒挂”中，可勾选后“批量改价”）' : ''),
-  reprice: (t) => `批量改价结束：成功 ${t.ok ?? 0} 个，未完成 ${t.fail ?? 0} 个${t.fail ? '（原因见各商品的状态和日志，需要处理的编辑页已保留）' : ''}`,
+    (t.alert ? '（已列在“已发布 → 价格倒挂”中）' : ''),
 };
 
 /**
  * @param {{onChange: () => void, onLog: (line: string) => void,
- *   saveLocal?: (item: object) => Promise<{dir: string, saved: number, failed: string[]}|null>}} hooks
- *   saveLocal 把商品写到本地存储位置；未设置存储位置时返回 null
+ *   saveLocal?: (item: object, opts?: {raw?: object}) => Promise<{dir: string, saved: number, failed: string[]}|null>}} hooks
+ *   saveLocal 把商品写到本地存储位置（刚采集时带上页面原始数据 raw）；未设置存储位置时返回 null
+ * @param {{publish?: (item: object, settings: object, log: (msg: string) => void) => Promise<object>}} [deps]
+ *   publish：发布单个商品，默认 VC 自营发布流程（测试时替换）
  */
-export function createQueueRunner({ onChange, onLog, saveLocal = async () => null }) {
+export function createQueueRunner({ onChange, onLog, saveLocal = async () => null }, { publish = publishVcItem } = {}) {
   let state = { running: false, mode: null, currentId: null, stopRequested: false, pauseReason: '', pausedMode: null };
   const setState = (patch) => {
     state = { ...state, ...patch };
@@ -59,9 +58,9 @@ export function createQueueRunner({ onChange, onLog, saveLocal = async () => nul
     while (Date.now() < end && !state.stopRequested) await sleep(250);
   }
 
-  async function saveLocalOne(item) {
+  async function saveLocalOne(item, raw = null) {
     try {
-      const res = await saveLocal(item);
+      const res = await saveLocal(item, raw ? { raw } : undefined);
       if (!res) return 'skip';
       await itemRepo.update(item.id, { local: { dir: res.dir, savedAt: Date.now(), failed: res.failed.length } });
       const miss = res.failed.length ? `，${res.failed.length} 张下载失败：${res.failed.join('、')}` : '';
@@ -82,7 +81,7 @@ export function createQueueRunner({ onChange, onLog, saveLocal = async () => nul
       const msg = res.warnings.length ? `采集完成，但${res.warnings.join('、')}` : '采集完成';
       await itemRepo.update(saved.id, { message: msg });
       onLog(`[${item.id}] ${msg}：${res.product.title}`);
-      await saveLocalOne(saved);
+      await saveLocalOne(saved, res.raw);
       return 'ok';
     }
     const patch = collectFailurePatch(item, res);
@@ -98,13 +97,11 @@ export function createQueueRunner({ onChange, onLog, saveLocal = async () => nul
   async function publishOne(item, settings) {
     await itemRepo.update(item.id, { status: 'publishing', message: '' });
     const { log } = itemLogger(item.id);
-    // 设置里选的店铺后台：VC 自营和 POP 的发布页、表单完全不同
-    const publish = settings.publish.platform === 'vc' ? publishVcItem : publishItem;
     const res = await publish(item, settings, log);
     const patch = publishResultPatch(item, res);
     await itemRepo.update(item.id, patch);
     log(`结果：${res.message}${patch.publishedAt ? '（已移到“已发布”）' : ''}`);
-    // 京麦限流时店铺暂时不能提交任何新商品：整批暂停，记下建议的冷却时间
+    // 限流时店铺暂时不能保存任何新商品：整批暂停，记下建议的冷却时间
     if (res.status === 'throttle') {
       await throttleRepo.set(throttleRecord({ message: res.message, now: Date.now(), cooldownMin: settings.publish.throttleCooldownMin }));
       setState({ pauseReason: res.message, pausedMode: 'publish' });
@@ -133,40 +130,24 @@ export function createQueueRunner({ onChange, onLog, saveLocal = async () => nul
     return st.alert ? 'alert' : 'ok';
   }
 
-  async function repriceOne(item, settings, price, verify) {
-    const { log } = itemLogger(item.id);
-    const res = await repriceItem(item, price, settings, log, { verify });
-    if (res.status === 'login') {
-      setState({ pauseReason: res.message, pausedMode: 'reprice' });
-      return 'pause';
-    }
-    await itemRepo.update(item.id, repricePatch(item, { ...res, price }));
-    const done = res.status === 'ok' && !res.draft;
-    log(done ? `改价完成：¥${price}` : res.draft ? `新价格 ¥${price} 已保存为草稿` : `改价未完成：${res.message}`);
-    return done ? 'ok' : 'fail';
-  }
-
   /** 每种批量任务：单条处理函数 + 两条之间的间隔（秒） */
-  function modeRunner(mode, settings, { prices = {}, verify = true } = {}) {
+  function modeRunner(mode, settings) {
     const pw = settings.priceWatch;
     const runners = {
       collect: [(item) => collectOne(item, settings), () => randomBetween(settings.collect.minDelaySec, settings.collect.maxDelaySec)],
       publish: [(item) => publishOne(item, settings), () => settings.publish.delaySec],
       save: [(item) => saveLocalOne(item), () => 0],
       pricecheck: [(item) => priceCheckOne(item, settings), () => randomBetween(pw.minDelaySec, pw.maxDelaySec)],
-      reprice: [(item) => repriceOne(item, settings, prices[item.id], verify), () => settings.publish.delaySec],
     };
     const [handle, delay] = runners[mode];
     return { handle, delay };
   }
 
-  async function run(mode, ids, opts) {
+  async function run(mode, ids) {
     if (state.running) return;
     const { value: settings } = validateSettings(await settingsRepo.get());
-    const { handle, delay } = modeRunner(mode, settings, opts);
+    const { handle, delay } = modeRunner(mode, settings);
     setState({ running: true, mode, stopRequested: false, pauseReason: '', pausedMode: null });
-    // 默认发布平台已改为 VC 自营：每批发布都写明发到哪种后台，店铺是 POP 时可以及时去设置里改回
-    if (mode === 'publish') onLog(`发布到：${PUBLISH_PLATFORMS[settings.publish.platform]}（可在设置 →「发布到」中切换）`);
     let paused = false;
     let aborted = false;
     let tally = {};
@@ -257,12 +238,6 @@ export function createQueueRunner({ onChange, onLog, saveLocal = async () => nul
     publish: (ids) => run('publish', ids),
     saveLocal: (ids) => run('save', ids),
     checkPrices: (ids) => run('pricecheck', ids),
-    /**
-     * @param {{id: string, price: number}[]} plan 每个商品的新售价
-     * @param {{verify?: boolean}} [opts] verify：改价前核对编辑页上的原价与记录的售价一致
-     */
-    reprice: (plan, { verify = true } = {}) =>
-      run('reprice', plan.map((p) => p.id), { prices: Object.fromEntries(plan.map((p) => [p.id, p.price])), verify }),
     stop: () => setState({ stopRequested: true }),
   };
 }

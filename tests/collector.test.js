@@ -127,6 +127,24 @@ test('collectFromTab: 重试时页面变成频控页则按频控暂停', async (
   assert.equal(res.status, 'throttle');
 });
 
+test('collectFromTab: 采集成功时带回页面原始数据（写进本地“原始数据.json”）', async () => {
+  const { page } = pageSequence([loaded]);
+  const fake = installFakeChrome({ page });
+  fake.seedTab({ id: 5, url: ITEM_URL });
+  const res = await collectFromTab(5, opts);
+  assert.equal(res.raw.skuId, '100035179134');
+  assert.equal(res.raw.detailState, 'ok');
+});
+
+// 2026-11 实测：全球购商品 item.jd.com/100094541482.html 会跳到 npcitem.jd.hk，以前报“当前页面不是京东商品详情页”
+test('collectUrl: 全球购商品跳到 npcitem.jd.hk 后照常采集', async () => {
+  const { page } = pageSequence([{ ...loaded, url: 'https://npcitem.jd.hk/100035179134.html' }]);
+  installFakeChrome({ page, resolveUrl: (u) => u.replace('https://item.jd.com/', 'https://npcitem.jd.hk/') });
+  const res = await collectUrl(ITEM_URL, opts);
+  assert.equal(res.status, 'ok', res.message);
+  assert.equal(res.product.skuId, '100035179134');
+});
+
 const B2B_URL = 'https://b2b.jd.com/goods/goods-detail/100289450311?buId=456';
 const injectedFiles = (fake) => fake.calls.find((c) => c.op === 'inject.files')?.files;
 

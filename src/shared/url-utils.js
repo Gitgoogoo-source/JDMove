@@ -1,7 +1,13 @@
 // 京东链接 / 图片地址相关工具（纯函数）
 
 // 文本里的京东链接（可以没有协议头）；遇到空白、引号或中文标点就结束
-const JD_LINK_RE = /(?:https?:)?(?:\/\/)?(?:[\w-]+\.)*(?:jd\.com|jd\.hk)(?:[/?#][^\s<>"'，。；！？、（）【】]*)?/gi;
+const JD_LINK_RE = /(?:https?:)?(?:\/\/)?(?:[\w-]+\.)*(?:jd\.com|jd\.hk|jingdonghealth\.cn)(?:[/?#][^\s<>"'，。；！？、（）【】]*)?/gi;
+/**
+ * 京东商品详情页的域名（2026-11 实测）：全球购商品从 item.jd.com 跳到 npcitem.jd.hk，
+ * 京东大药房/京东健康跳到 item.jingdonghealth.cn，页面程序和 item.jd.com 相同。
+ * 新增域名时同步 manifest.json 的 host_permissions / content_scripts 和 src/inject/jd-item-extract.js 的 ITEM_HOST_RE
+ */
+export const ITEM_HOSTS = Object.freeze(['item.jd.com', 'item.m.jd.com', 'npcitem.jd.hk', 'item.jingdonghealth.cn']);
 // 商品页路径：/100197331139.html、/product/100197331139.html
 const ITEM_PATH_RE = /^\/(?:product\/)?(\d{6,})\.html$/;
 // 京东万商（B2B 商城）商品页：/goods/goods-detail/100289450311；/trade/ 路径会跳转到这里
@@ -16,10 +22,9 @@ const IMG_HOST = 'https://img14.360buyimg.com';
 // 京东自营商品的 /n0/、/n1/… 图会叠加“JD.COM 京东”水印；/sku/ 返回同一张图未加水印的原图
 const ORIGINAL_PREFIX = `${IMG_HOST}/sku/`;
 const IMGZONE_PREFIX = 'https://img10.360buyimg.com/imgzone/';
-const PUBLISH_BASE = 'https://wares-jdm.jd.com/popPublish/';
 // VC 自营（供应商）发布页：品牌在类目页选定，由 bId 带入；VC 账号打开 popPublish 会被跳回京麦首页
 const VC_PUBLISH_BASE = 'https://wares-jdm.jd.com/vcProductPublish/';
-const PUBLISH_PATH_RE = /^\/(?:popPublish|vcProductPublish)/;
+const PUBLISH_PATH_RE = /^\/vcProductPublish/;
 
 const withScheme = (link) => (/^https?:/i.test(link) ? link : `https://${link.replace(/^\/\//, '')}`);
 
@@ -137,32 +142,12 @@ export function classifyPageUrl(url) {
   if (host === 'bizsafe-intercept.jd.com') return 'merchant_block';
   if (/pc-frequent|risk_handler|safe\.jd\.com/.test(host + u.pathname)) return 'throttle';
   if (/passport\.jd\.com|plogin\.m\.jd\.com/.test(host)) return 'login';
-  if (/^item(\.m)?\.jd\.com$/.test(host)) return 'item';
+  if (ITEM_HOSTS.includes(host)) return 'item';
   if (host === B2B_HOST && u.pathname.startsWith('/account/login')) return 'b2b_login';
   if (b2bSkuOf(u)) return 'item';
   if (host === 'wares-jdm.jd.com' && PUBLISH_PATH_RE.test(u.pathname)) return 'publish';
   if (host === 'wares-jdm.jd.com' && /categorySelect/.test(u.pathname)) return 'category';
   return 'other';
-}
-
-/**
- * 构造发布页地址（直接带类目进入填写页）
- * @param {{cateList: Array<number|string>}} input
- */
-export function buildPublishUrl({ cateList }) {
-  const ids = (cateList ?? []).map(String).filter((s) => /^\d+$/.test(s));
-  if (ids.length === 0) throw new Error('缺少有效的类目ID');
-  const params = new URLSearchParams({
-    categoryId: ids[ids.length - 1],
-    cateList: ids.join(','),
-    newFlow: '1',
-    newSource: 'true',
-    locType: '0',
-    source: '1',
-    publishType: '1',
-    publishPageType: '1',
-  });
-  return `${PUBLISH_BASE}?${params.toString()}`;
 }
 
 const isPositiveId = (v) => /^\d+$/.test(String(v ?? '')) && Number(v) > 0;

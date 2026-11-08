@@ -3,6 +3,7 @@
 import { h } from './dom.js';
 import { VC_PRICE_LABELS } from '../shared/vc-plan.js';
 import { ERP_LABELS, ownErp, withErp } from '../shared/vc-erp.js';
+import { vcSourceFields } from '../shared/vc-source.js';
 
 const field = (label, control, hint) => h('label', { class: 'field' }, h('span', {}, label), control, hint ? h('small', {}, hint) : null);
 const ERP_PATTERN = '[A-Za-z0-9._\\-]{1,50}';
@@ -25,13 +26,17 @@ export function vcFields(item, vcSettings = {}) {
   const erpPlaceholder = vcSettings.erpCode ? `留空用设置里的 ${vcSettings.erpCode}` : '留空沿用页面默认值';
   const ownCodes = ownErp(own);
   const erp = Object.fromEntries(Object.keys(ERP_LABELS).map((k) => [k, h('input', { value: ownCodes[k], placeholder: erpPlaceholder, pattern: ERP_PATTERN })]));
-  const model = h('input', { value: own.model ?? '', placeholder: src.model || '源商品没有型号，必填' });
+  // 采集到的可信值（型号可以是货号；0 和占位值不显示，见 vcSourceFields）
+  const trusted = vcSourceFields(item.product);
+  const modelHint = trusted.model ? `${trusted.model}（源商品${trusted.modelFrom}）` : '源商品没有型号和货号，必填';
+  const model = h('input', { value: own.model ?? '', placeholder: modelHint });
   const brandId = numberInput(own.brandId, src.brandId ?? item.product?.brand?.id ?? '必填', '1');
+  const required = trusted.placeholders.length ? '源数据是占位值，必填' : '必填';
   const dims = {
-    lengthMm: numberInput(own.lengthMm, src.lengthMm ?? '必填', '1'),
-    widthMm: numberInput(own.widthMm, src.widthMm ?? '必填', '1'),
-    heightMm: numberInput(own.heightMm, src.heightMm ?? '必填', '1'),
-    weightKg: numberInput(own.weightKg, src.weightKg ?? '必填', '0.001'),
+    lengthMm: numberInput(own.lengthMm, trusted.lengthMm ?? required, '1'),
+    widthMm: numberInput(own.widthMm, trusted.widthMm ?? required, '1'),
+    heightMm: numberInput(own.heightMm, trusted.heightMm ?? required, '1'),
+    weightKg: numberInput(own.weightKg, trusted.weightKg ?? required, '0.001'),
   };
   const packListing = h('input', {
     value: own.packListing ?? '',

@@ -2,22 +2,21 @@
 import { buildItemUrl, isB2bItemUrl } from './url-utils.js';
 import { mergeSettings } from './settings.js';
 import { isArchived } from './brand-folders.js';
-import { normalizeWareId } from './price-watch.js';
 
 const ITEMS_KEY = 'items';
 const SETTINGS_KEY = 'settings';
 // 发布成功过的 SKU（skuId → 发布时间）：任务删除后仍保留，重新添加链接/抓取店铺时据此去重
 const PUBLISHED_KEY = 'publishedSkus';
-// 最近一次京麦提交接口限流（被拒时间、建议冷却到的时间）
+// 最近一次保存接口限流（被拒时间、建议冷却到的时间）
 export const THROTTLE_KEY = 'publishThrottle';
 
 /**
  * @typedef {'pending'|'collecting'|'collected'|'publishing'|'published'|'failed'|'need_action'} ItemStatus
  * @typedef {{id: string, skuId: string, url: string, status: ItemStatus, product: object|null,
  *   edits: object, target: object|null, message: string, log: string[], createdAt: number, updatedAt: number,
- *   publishedAt?: number, salePrice?: number, shopWareId?: string, priceCheck?: object, reprice?: object}} Item
- *   publishedAt：最近一次发布成功的时间，有值的条目显示在“已发布”页；salePrice：店铺里的售价（发布/改价时记录）；
- *   shopWareId：店铺商品编号（改价时打开编辑页用）；priceCheck：最近一次京东今日价检查；reprice：最近一次改价结果
+ *   publishedAt?: number, salePrice?: number, priceCheck?: object}} Item
+ *   publishedAt：最近一次发布成功（保存草稿）的时间，有值的条目显示在“已发布”页；salePrice：发布时填的 VC 京东价；
+ *   priceCheck：最近一次京东今日价检查
  */
 
 /** @returns {Item} */
@@ -83,28 +82,28 @@ export const editsEqual = (a, b) => JSON.stringify(canonical(a ?? {}) ?? {}) ===
 
 /**
  * 发布结果写回条目的字段：发布成功时记下 publishedAt，条目随之移到“已发布”页；
- * 同时记下店铺里的售价和商品编号（以后检查价格倒挂、改价用）。重新发布会生成新商品，
- * 没拿到新编号时清掉旧编号，避免改价改到旧商品上
+ * 同时记下发布时的 VC 京东价（检查京东今日价时对比）
  * @param {Item} item
- * @param {{status: string, message: string, target?: object, price?: number, wareId?: string}} res publishItem 的结果
+ * @param {{status: string, message: string, target?: object, price?: number}} res publishVcItem 的结果
  */
 export function publishResultPatch(item, res, now = Date.now()) {
-  // 京麦限流时没有提交成功：回到“已采集”，冷却后点“发布选中”会重新发布；
+  // 限流时没有保存成功：回到“已采集”，冷却后点“发布选中”会重新发布；
   // “已发布”页里重新发布的商品按失败处理，仍留在“已发布”页
   const throttled = isArchived(item) ? 'failed' : 'collected';
   const status = { filled: 'need_action', throttle: throttled }[res.status] ?? res.status;
   const patch = { status, message: res.message, target: res.target ?? item.target };
   if (status !== 'published') return patch;
   const price = res.price > 0 ? { salePrice: res.price } : {};
-  return { ...patch, publishedAt: now, ...price, shopWareId: normalizeWareId(res.wareId) };
+  return { ...patch, publishedAt: now, ...price };
 }
 
 export const RETURNED_NOTE = '已从“已发布”退回任务列表（店铺里的商品不受影响）';
-// 店铺里那件商品的记录：退回任务列表后不再对应任何店铺商品，重新发布会生成新商品
+// 店铺里那件商品的记录：退回任务列表后不再对应任何店铺商品，重新发布会生成新商品。
+// shopWareId、reprice 是旧版本（POP 店铺、批量改价）留下的，退回时一并清掉
 const SHOP_FIELDS = ['publishedAt', 'salePrice', 'shopWareId', 'priceCheck', 'reprice'];
 
 /**
- * 已发布商品退回任务列表的“已采集”：保留商品数据、编辑和本地保存记录，清掉店铺售价/编号/价格检查
+ * 已发布商品退回任务列表的“已采集”：保留商品数据、编辑和本地保存记录，清掉店铺售价/价格检查
  * @param {Item} item
  * @returns {Item}
  */

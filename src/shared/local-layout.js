@@ -5,6 +5,8 @@ import { toOriginalImageUrl, isB2bItemUrl } from './url-utils.js';
 export const IMAGE_DIRS = { main: '主图', detail: '详情图' };
 export const INFO_JSON = '商品信息.json';
 export const INFO_TXT = '商品信息.txt';
+// 采集时页面返回的原始数据（含完整商品主数据）：排查采集问题、以后补字段不用重新采集；只在采集时写，“保存到本地”不覆盖
+export const RAW_JSON = '原始数据.json';
 
 const MAX_NAME_LENGTH = 80;
 const IMAGE_EXTS = new Set(['jpg', 'jpeg', 'png', 'webp', 'gif', 'avif', 'bmp']);
@@ -52,11 +54,17 @@ function infoText(item, product, now) {
   return `${lines.join('\n')}\n`;
 }
 
+const rawFile = (raw, now) => ({
+  name: RAW_JSON,
+  text: JSON.stringify({ app: 'jdmove', kind: 'raw', collectedAt: now.toISOString(), raw }, null, 2),
+});
+
 /**
  * @param {object} item 已采集的任务条目
+ * @param {{now?: Date, raw?: object|null}} [opts] raw：刚采集时页面返回的原始数据，有就多写一个 原始数据.json
  * @returns {{brand: string, skuDir: string, images: {dir: string, name: string, url: string}[], files: {name: string, text: string}[]}}
  */
-export function buildLocalPlan(item, { now = new Date() } = {}) {
+export function buildLocalPlan(item, { now = new Date(), raw = null } = {}) {
   const product = item?.product;
   if (!product) throw new Error('尚未采集，无法保存到本地');
   // 早先采集的数据里存的是带水印的 /n0/ 地址，下载前统一换成无水印原图
@@ -85,6 +93,7 @@ export function buildLocalPlan(item, { now = new Date() } = {}) {
     files: [
       { name: INFO_JSON, text: JSON.stringify(json, null, 2) },
       { name: INFO_TXT, text: infoText(item, product, now) },
+      ...(raw ? [rawFile(raw, now)] : []),
     ],
   };
 }

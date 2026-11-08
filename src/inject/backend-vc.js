@@ -10,6 +10,21 @@
   const { componentChain, commitInput } = B.mediaUtil;
 
   // ---------- 状态 ----------
+  // 发布页打不开时整页换成“信息展示异常”：.err-page .err-msg 是原因 + 时间（“您选择的类目不是末级类目; 2026-11-08 19:02:12”）
+  const ERR_MSG_SEL = '.err-page .err-msg';
+  const ERR_TIME_RE = /[;；]\s*\d{4}-\d{2}-\d{2}[\d\s:]*$/;
+  const NOT_LEAF_RE = /不是末级类目/;
+
+  function pageErrorText() {
+    const el = qsa(ERR_MSG_SEL).find(visible);
+    return el ? textOf(el).replace(ERR_TIME_RE, '').trim() : '';
+  }
+
+  /**
+   * @returns {{page: string, ready: boolean, pageError: string, notLeaf: boolean, publishDisabled: boolean|null,
+   *   publishDisabledMsg: string, categoryText: string, brandId: unknown, loginRequired: boolean}}
+   *   pageError：页面显示的打不开原因；notLeaf：原因是类目不是末级类目
+   */
   function vcStatus() {
     const path = location.pathname;
     const page = /^\/vcProductPublish/.test(path) ? 'vc_publish' : /categorySelect/.test(path) ? 'category' : 'other';
@@ -17,9 +32,12 @@
     const fields = api ? api.fields() : [];
     const store = B.pinia() && B.pinia().state.value['publish-product'];
     const cat = (document.body.innerText.match(/商品类目\s*\n*\s*([^\n]+)/) || [])[1] || '';
+    const pageError = page === 'vc_publish' ? pageErrorText() : '';
     return {
       page,
       ready: fields.includes('imageList') && fields.includes('productTitle'),
+      pageError,
+      notLeaf: NOT_LEAF_RE.test(pageError),
       publishDisabled: store ? !!store.publishDisabled : null,
       publishDisabledMsg: store ? store.publishDisabledMsg || '' : '',
       categoryText: cat.trim(),

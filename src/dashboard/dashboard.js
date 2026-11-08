@@ -5,14 +5,13 @@ import { renderFolders, renderCrumb } from './archive-view.js';
 import { editItem } from './editor.js';
 import { editSettings } from './settings-dialog.js';
 import { createStorageController } from './storage-ui.js';
-import { openRepriceDialog } from './reprice-dialog.js';
 import { openVcImportDialog } from './vc-import-dialog.js';
 import { importEdit } from '../shared/vc-import.js';
 import { extractSkuIds, b2bItemUrls } from '../shared/url-utils.js';
 import { parseShopInput } from '../shared/shop-url.js';
 import { itemRepo, settingsRepo, throttleRepo } from '../lib/chrome-env.js';
 import { EDITED_NOTE, THROTTLE_KEY, editsEqual, pickRecollect } from '../shared/store.js';
-import { PUBLISH_ACTIONS, REPRICE_ACTIONS, validateSettings } from '../shared/settings.js';
+import { PUBLISH_ACTIONS } from '../shared/settings.js';
 import { ALERT_FOLDER_KEY, alertItems, priceStatus, checkedToday } from '../shared/price-watch.js';
 import { groupPublishedByBrand, filterFolders, isArchived, taskItems } from '../shared/brand-folders.js';
 import { createQueueRunner } from '../lib/queue.js';
@@ -21,7 +20,7 @@ import { cooldownNotice } from '../shared/publish-throttle.js';
 const MAX_LOG = 400;
 let items = [];
 let settings = null;
-// 最近一次京麦提交接口限流的记录（冷却期内发布前提醒）
+// 最近一次保存接口限流的记录（冷却期内发布前提醒）
 let throttle = null;
 let selected = new Set();
 let logLines = [];
@@ -29,18 +28,15 @@ let lastShopUrl = '';
 // 'tasks'：任务列表；'archive'：已发布按品牌归档，folderKey 为空时显示文件夹列表
 let view = { mode: 'tasks', folderKey: null };
 
-const MODE_LABELS = { collect: '采集', publish: '发布', shop: '抓取店铺', save: '保存到本地', pricecheck: '检查京东今日价', reprice: '改价' };
+const MODE_LABELS = { collect: '采集', publish: '发布', shop: '抓取店铺', save: '保存到本地', pricecheck: '检查京东今日价' };
 const RESUME_HINTS = {
   collect: '处理完成后重新点击“采集选中/重新采集选中/发布选中”即可继续。',
   shop: '处理完成后重新点击“抓取店铺”即可（已加入的商品不会重复添加）。',
   pricecheck: '处理完成后重新点击“检查京东今日价”即可继续（今天已检查过的商品会自动跳过）。',
-  reprice: '在工作窗口重新登录商家后台后，重新点击“批量改价”即可继续。',
-  publish: '没有提交成功的商品仍在任务列表里，等京麦恢复后重新点击“发布选中”即可继续。',
+  publish: '没有保存成功的商品仍在任务列表里，等限流冷却结束后重新点击“发布选中”即可继续。',
 };
 const ALERT_FOLDER_NAME = '价格倒挂';
-const ALERT_EMPTY_TEXT = '没有价格倒挂的商品。每天点击“检查京东今日价”更新价格后，京东今日价高于店铺售价的商品会列在这里。';
-// 新售价与当前售价相差超过这个比例时，开始改价前再确认一次（防止输错）
-const BIG_CHANGE_RATIO = 0.3;
+const ALERT_EMPTY_TEXT = '没有价格倒挂的商品。每天点击“检查京东今日价”更新价格后，京东今日价高于发布时填的 VC 京东价的商品会列在这里。';
 // 检查一个商品大约需要的打开页面时间（秒），用于估算总耗时
 const PRICE_CHECK_PAGE_SEC = 4;
 // 限流冷却横幅的刷新间隔：冷却结束后自动消失
@@ -56,7 +52,7 @@ function appendLog(line) {
 }
 
 const storage = createStorageController({ onLog: appendLog, onChange: () => renderState() });
-const runner = createQueueRunner({ onChange: renderState, onLog: appendLog, saveLocal: (item) => storage.save(item) });
+const runner = createQueueRunner({ onChange: renderState, onLog: appendLog, saveLocal: (item, opts) => storage.save(item, opts) });
 
 const TASKS_EMPTY_TEXT = $('#empty').textContent;
 const TASKS_DONE_TEXT = '没有待处理的任务。发布成功的商品已移到“已发布”页，点击上方“已发布”查看。';
@@ -100,7 +96,7 @@ function renderState() {
   const el = $('#runState');
   el.textContent = st.running ? `${MODE_LABELS[st.mode] ?? ''}中：${st.currentId ?? ''}${st.stopRequested ? '（正在停止）' : ''}` : '空闲';
   el.classList.toggle('busy', st.running);
-  for (const id of ['btnCollect', 'btnRecollect', 'btnPublish', 'btnDelete', 'btnAdd', 'btnShop', 'btnSettings', 'btnImport', 'btnSaveLocal', 'btnStorage', 'btnPriceCheck', 'btnReprice', 'btnReturn', 'btnVcImport']) {
+  for (const id of ['btnCollect', 'btnRecollect', 'btnPublish', 'btnDelete', 'btnAdd', 'btnShop', 'btnSettings', 'btnImport', 'btnSaveLocal', 'btnStorage', 'btnPriceCheck', 'btnReturn', 'btnVcImport']) {
     $(`#${id}`).disabled = st.running;
   }
   $('#btnStorage').textContent = storage.label();
@@ -115,8 +111,8 @@ function renderState() {
 /** 冷却期内发布前确认；不在冷却期或用户确认继续时返回 true，取消时写日志 */
 function confirmPublishDuringCooldown() {
   const notice = cooldownNotice(throttle, Date.now());
-  if (!notice || confirm(`${notice}\n\n冷却期内京麦多半仍会拒绝提交。仍要现在发布吗？`)) return true;
-  appendLog('已取消发布：京麦限流冷却中');
+  if (!notice || confirm(`${notice}\n\n冷却期内多半仍会被拒绝保存。仍要现在发布吗？`)) return true;
+  appendLog('已取消发布：限流冷却中');
   return false;
 }
 
@@ -189,8 +185,6 @@ function render() {
     `任务 ${tasks.length} · 待采集 ${count('pending')} · 已采集 ${count('collected')} · 需处理 ${count('need_action')} · 失败 ${count('failed')} · 已发布 ${archived}` +
     (inverted ? `（价格倒挂 ${inverted}）` : '');
   $('#btnArchive').textContent = archived ? `已发布（${archived}）` : '已发布';
-  // 这 5 项只在发布到 VC 自营时用到
-  $('#btnVcImport').hidden = settings?.publish?.platform !== 'vc';
   $('#checkAll').checked = list.length > 0 && list.every((i) => selected.has(i.id));
   renderState();
 }
@@ -309,11 +303,7 @@ async function handleEdit(id) {
   if (!item) return;
   const res = await editItem(item, { onLog: appendLog, settings });
   if (!res) return;
-  if (res.shopWareId !== undefined && res.shopWareId !== (item.shopWareId ?? '')) {
-    if (!(await itemRepo.update(id, { shopWareId: res.shopWareId }))) return appendLog(`[${id}] 条目已不存在，修改未保存`);
-    appendLog(res.shopWareId ? `[${id}] 店铺商品编号已设为 ${res.shopWareId}` : `[${id}] 已清除店铺商品编号`);
-  }
-  // 只改了店铺商品编号时不动编辑内容，避免已发布商品被误标为“已修改，尚未重新发布”
+  // 没改内容时不保存，避免已发布商品被误标为“已修改，尚未重新发布”
   if (!editsEqual(item.edits, res.edits)) {
     const saved = await itemRepo.saveEdits(id, res.edits);
     if (!saved) return appendLog(`[${id}] 条目已不存在，修改未保存`);
@@ -414,47 +404,13 @@ function handlePriceCheck() {
   runner.checkPrices(pool.map((i) => i.id));
 }
 
-/** 改价前保存弹窗里填写的编辑页地址和店铺商品编号 */
-async function saveRepriceInputs(res, pool) {
-  if (res.template !== settings.priceWatch.editUrlTemplate) {
-    await settingsRepo.save({ ...settings, priceWatch: { ...settings.priceWatch, editUrlTemplate: res.template } });
-    appendLog(`已保存商品编辑页地址：${res.template}`);
-  }
-  const before = new Map(pool.map((i) => [i.id, i.shopWareId ?? '']));
-  const changed = res.rows.filter((r) => r.wareId !== before.get(r.id));
-  for (const r of changed) await itemRepo.update(r.id, { shopWareId: r.wareId });
-  if (changed.length) appendLog(`已保存 ${changed.length} 个店铺商品编号`);
-}
-
-async function handleReprice() {
-  const scope = archiveScope();
-  const chosen = scope.filter((i) => selected.has(i.id));
-  const pool = chosen.length ? chosen : alertItems(scope, settings);
-  if (!pool.length) return appendLog('请先打开文件夹勾选要改价的商品（没有勾选时默认对价格倒挂的商品改价）');
-  const res = await openRepriceDialog(pool, settings);
-  if (!res) return;
-  await saveRepriceInputs(res, pool);
-  const plan = res.rows.filter((r) => r.price > 0 && r.wareId).map(({ id, price }) => ({ id, price }));
-  if (!plan.length) return appendLog('没有填写新售价，未改价');
-  const byId = new Map(pool.map((i) => [i.id, i]));
-  const big = plan.filter(({ id, price }) => {
-    const sale = priceStatus(byId.get(id), settings).sale;
-    return sale > 0 && Math.abs(price - sale) / sale > BIG_CHANGE_RATIO;
-  });
-  if (big.length && !confirm(`有 ${big.length} 个商品的新售价与当前售价相差超过 ${BIG_CHANGE_RATIO * 100}%，确定继续改价？`)) return;
-  const { value: latest } = validateSettings(await settingsRepo.get());
-  const verifyNote = res.verify ? '' : '，不核对原价';
-  appendLog(`开始批量改价：${plan.length} 个商品（改价后：${REPRICE_ACTIONS[latest.priceWatch.repriceAction]}${verifyNote}）`);
-  runner.reprice(plan, { verify: res.verify });
-}
-
 /** 已发布商品退回任务列表的“已采集”状态（只改插件里的记录，不动店铺） */
 async function handleReturnToTasks() {
   const pool = archiveScope().filter((i) => selected.has(i.id));
   if (!pool.length) return appendLog('请先打开文件夹，勾选要退回任务列表的商品');
   const head = pool.length === 1 ? `确定把 SKU ${pool[0].skuId} 退回任务列表？` : `确定把选中的 ${pool.length} 个商品退回任务列表？`;
   const note =
-    '\n退回后状态为“已采集”，可以重新编辑、采集或发布；会清掉这里记录的店铺售价、店铺商品编号和京东今日价检查结果。' +
+    '\n退回后状态为“已采集”，可以重新编辑、采集或发布；会清掉这里记录的售价和京东今日价检查结果。' +
     '\n只改插件里的记录，店铺里已发布的商品不会被删除或修改；重新发布会在店铺里生成一个新商品。';
   if (!confirm(`${head}${note}`)) return;
   const res = await itemRepo.returnToTasks(pool.map((i) => i.id));
@@ -505,7 +461,6 @@ function bind() {
   $('#filter').addEventListener('change', render);
   $('#btnArchive').addEventListener('click', () => setView({ mode: view.mode === 'archive' ? 'tasks' : 'archive', folderKey: null }));
   $('#btnPriceCheck').addEventListener('click', handlePriceCheck);
-  $('#btnReprice').addEventListener('click', handleReprice);
   $('#btnReturn').addEventListener('click', handleReturnToTasks);
   $('#folderSearch').addEventListener('input', render);
   $('#checkAll').addEventListener('change', (e) => {

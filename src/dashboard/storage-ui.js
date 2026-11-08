@@ -79,6 +79,6 @@ export function createStorageController({ onLog, onChange }) {
     removeFolder: (item) => (current.state === 'granted' ? removeItemFolder(current.handle, item) : Promise.resolve(null)),
 
     /** 交给任务执行器使用；没有权限时返回 null（跳过本地保存） */
-    save: (item) => (current.state === 'granted' ? saveItemToFolder(current.handle, item) : Promise.resolve(null)),
+    save: (item, opts) => (current.state === 'granted' ? saveItemToFolder(current.handle, item, opts) : Promise.resolve(null)),
   };
 }
