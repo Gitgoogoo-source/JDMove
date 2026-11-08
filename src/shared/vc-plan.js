@@ -11,6 +11,7 @@ import { parseSpecText, quantitiesByUnit } from './vc-spec.js';
 import { vcFormEntries, vcWeightKg } from './vc-form-values.js';
 import { ERP_LABELS, vcErpCodes } from './vc-erp.js';
 import { vcSourceFields } from './vc-source.js';
+import { vcTemplateAttrs, vcTemplateLimits } from './vc-templates.js';
 
 export { vcWeightKg };
 
@@ -158,22 +159,50 @@ const vcPrices = (edits) => Object.fromEntries(Object.keys(VC_PRICE_LABELS).map(
 const planTitle = (product, edits, settings) =>
   edits.title?.trim() || vcTitle(product?.vc?.titleNoBrand || product?.title, product?.brand?.name, settings.title);
 
-/** 价格、长宽高、毛重的格式和范围（缺项上面单独报，这里只报写进去页面也会拦的值） */
-function formatBlockers(product, edits) {
+/** 价格、长宽高、毛重的格式和范围（缺项上面单独报，这里只报写进去页面也会拦的值）；limits：按类目的上下限（上架模板） */
+function formatBlockers(product, edits, limits) {
   const logistics = {
     length: vcField(product, edits, 'lengthMm'),
     wide: vcField(product, edits, 'widthMm'),
     height: vcField(product, edits, 'heightMm'),
     weight: vcWeightKg(vcField(product, edits, 'weightKg')),
   };
-  return vcFormEntries({ prices: vcPrices(edits), logistics }).errors.filter((e) => !e.startsWith('缺少'));
+  return vcFormEntries({ prices: vcPrices(edits), logistics }, limits).errors.filter((e) => !e.startsWith('缺少'));
+}
+
+const PROP_BLOCKER_PREFIX = '必填属性未匹配';
+
+/** 属性取值来源：编辑里的属性覆盖 > 源商品参数；默认值：内置 < 设置里的属性默认值 < 属性覆盖 */
+function propSource(product, edits, settings) {
+  const attrDefaults = { ...BUILTIN_ATTR_DEFAULTS, ...parseAttrDefaults(settings.attrDefaultsText) };
+  const overrides = edits.attrOverrides ?? {};
+  const overrideParams = Object.entries(overrides).map(([name, value]) => ({ name, value }));
+  return {
+    attrDefaults,
+    overrides,
+    source: { ...product, params: [...overrideParams, ...(product?.params ?? [])] },
+    defaults: { ...attrDefaults, ...overrides },
+  };
+}
+
+const propBlocker = (missing, where = '') =>
+  `${PROP_BLOCKER_PREFIX}${where}：${missing.join('、')}（源商品页没有这些信息，请在「编辑 → 属性覆盖」或设置的「属性默认值」中填写）`;
+
+/** 按上架模板检查必填商品属性（和发布页上的匹配逻辑相同），打开页面之前就拦下 */
+function templatePropBlockers(product, edits, settings, template) {
+  if (!template) return [];
+  const { source, defaults } = propSource(product, edits, settings);
+  const { missingRequired } = buildPropPlan(vcTemplateAttrs(template), source, { defaults });
+  return missingRequired.length ? [propBlocker(missingRequired, `（上架模板「${template.categoryName}」）`)] : [];
 }
 
 /**
- * 打开发布页之前就能判断的缺项（不需要表单结构），缺了就不打开页面
+ * 打开发布页之前就能判断的缺项，缺了就不打开页面。有上架模板（templates/vc/）时，长宽高/毛重按模板里该类目的上下限检查，
+ * 并按模板检查必填商品属性
+ * @param {{product: object, edits?: object, settings: object, template?: object|null}} input
  * @returns {{blockers: string[]}}
  */
-export function vcPreflight({ product, edits = {}, settings }) {
+export function vcPreflight({ product, edits = {}, settings, template = null }) {
   const title = planTitle(product, edits, settings);
   const { mainImageUrls } = publishImagePlan({ product, edits, settings });
   const blockers = [
@@ -182,7 +211,8 @@ export function vcPreflight({ product, edits = {}, settings }) {
     ...(vcField(product, edits, 'model') ? [] : [`缺少型号（${modelHint(product)}）`]),
     ...(mainImageUrls.length ? [] : ['缺少主图']),
     ...(product?.detailImages?.length ? [] : ['缺少详情图（采集时没有拿到详情图，请重新采集后再发布）']),
-    ...formatBlockers(product, edits),
+    ...formatBlockers(product, edits, vcTemplateLimits(template)),
+    ...templatePropBlockers(product, edits, settings, template),
   ];
   return { blockers };
 }
@@ -290,19 +320,18 @@ function planWarnings({ props, erp, prices, unit, upc, dangerGoods }) {
 }
 
 /**
- * @param {{product: object, edits?: object, settings: object, schema: {attrs?: object[]}}} input
+ * @param {{product: object, edits?: object, settings: object, schema: {attrs?: object[]}, template?: object|null}} input
+ *   schema：发布页上读到的表单结构（属性以它为准）；template：上架模板（长宽高/毛重的上下限）
  */
-export function buildVcPublishPlan({ product, edits = {}, settings, schema }) {
-  const { blockers } = vcPreflight({ product, edits, settings });
-  const attrDefaults = { ...BUILTIN_ATTR_DEFAULTS, ...parseAttrDefaults(settings.attrDefaultsText) };
-  const overrides = edits.attrOverrides ?? {};
-  const overrideParams = Object.entries(overrides).map(([name, value]) => ({ name, value }));
-  const source = { ...product, params: [...overrideParams, ...(product.params ?? [])] };
-
-  const props = buildPropPlan(schema?.attrs ?? [], source, { defaults: { ...attrDefaults, ...overrides } });
-  if (props.missingRequired.length) {
-    blockers.push(`必填属性未匹配：${props.missingRequired.join('、')}（源商品页没有这些信息，请在「编辑 → 属性覆盖」或设置的「属性默认值」中填写）`);
-  }
+export function buildVcPublishPlan({ product, edits = {}, settings, schema, template = null }) {
+  const pre = vcPreflight({ product, edits, settings, template });
+  const { attrDefaults, overrides, source, defaults } = propSource(product, edits, settings);
+  const props = buildPropPlan(schema?.attrs ?? [], source, { defaults });
+  // 属性以发布页上实际读到的为准：模板里的属性检查结果换成页面的
+  const blockers = [
+    ...pre.blockers.filter((b) => !b.startsWith(PROP_BLOCKER_PREFIX)),
+    ...(props.missingRequired.length ? [propBlocker(props.missingRequired)] : []),
+  ];
   const title = planTitle(product, edits, settings);
   const spec = parseSpecText(specTextOf(product));
   const unit = settings.vc.saleUnit ? { unit: settings.vc.saleUnit, fromSettings: true } : inferSaleUnit(product, spec);
@@ -314,7 +343,7 @@ export function buildVcPublishPlan({ product, edits = {}, settings, schema }) {
   const { mainImageUrls, detailImageUrls } = publishImagePlan({ product, edits, settings });
   const model = vcField(product, edits, 'model');
   const logistics = logisticsOf(product, edits, settings, source, unit.unit);
-  const form = vcFormEntries({ model, prices, logistics });
+  const form = vcFormEntries({ model, prices, logistics }, vcTemplateLimits(template));
   // 缺项和价格/长宽高的格式 vcPreflight 已经报过
   const formBlockers = form.errors.filter((e) => !e.startsWith('缺少') && !blockers.includes(e));
 

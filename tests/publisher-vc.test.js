@@ -428,3 +428,24 @@ test('publishVcItem: 类目页要求登录时标为需处理', async () => {
   assert.ok(fake.ops().includes('tabs.remove'));
   assert.ok(!page.methods().includes('vcChildCategories'));
 });
+
+test('publishVcItem: 按类目路径读上架模板写进日志；超出模板里该类目的上限时不打开发布页', async () => {
+  const page = vcPage();
+  const fake = installFakeChrome({ backend: page.backend });
+  const lines = [];
+  const asked = [];
+  const template = {
+    categoryName: '抽纸',
+    path: [{ name: '家庭清洁/纸品' }, { name: '清洁纸品' }, { name: '抽纸' }],
+    capturedAt: '2026-11-09T00:00:00.000Z',
+    baseFields: [{ field: 'length', min: 1, max: 400 }],
+    productProps: [],
+  };
+  const loadTemplate = async (cateList) => (asked.push(cateList), template);
+  const res = await publishVcItem(vcItem(), settings(), (l) => lines.push(l), { imageMakers: makers, loadTemplate });
+  assert.deepEqual(asked, [['15901', '15902', '15908', '31403']]);
+  assert.ok(lines.includes('上架模板：家庭清洁/纸品 > 清洁纸品 > 抽纸（2026-11-09 录制）'));
+  assert.equal(res.status, 'need_action');
+  assert.match(res.message, /长“408”超出页面允许的范围（1~400mm/);
+  assert.ok(!fake.ops().includes('tabs.create'));
+});

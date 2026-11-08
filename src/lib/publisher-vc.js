@@ -8,6 +8,7 @@ import { forgetLeaf, resolveLeafTarget, sharedLeafCache } from './vc-leaf.js';
 import { startImagePrep } from './image-prep.js';
 import { createStopwatch } from '../shared/stopwatch.js';
 import { detectSaveThrottle } from '../shared/publish-throttle.js';
+import { loadVcTemplate } from './vc-templates.js';
 
 const LOGIN_MSG = '商家后台需要重新登录';
 const NOT_OPENED_MSG = 'VC 发布页没有打开：品牌可能没有授权，或类目不在账号的产品线里（可在「编辑」中指定类目ID和品牌ID）';
@@ -232,7 +233,7 @@ async function publishInVcTab(tab, item, settings, log, target, ctx) {
 
     const schema = await callVcBackend(tab.id, 'getFormSchema');
     if (!schema?.ok) throw new Error(schema?.error || '读取表单结构失败');
-    const plan = buildVcPublishPlan({ product: item.product, edits: item.edits, settings, schema });
+    const plan = buildVcPublishPlan({ product: item.product, edits: item.edits, settings, schema, template: ctx.template });
     plan.warnings.forEach((w) => log(w));
     if (plan.blockers.length) return { status: 'need_action', message: plan.blockers.join('；'), target };
 
@@ -277,17 +278,39 @@ async function retryWithLeaf(tab, item, settings, log, leafArgs, ctx) {
 }
 
 /**
+ * 类目的上架模板（templates/vc/，按类目ID路径从末级往上找）；没有模板或读取失败时返回 null，按原来的默认规则发布
+ */
+async function templateFor(target, log, loadTemplate) {
+  try {
+    const template = await loadTemplate(target.cateList);
+    if (template) log(`上架模板：${template.path.map((p) => p.name).join(' > ')}（${template.capturedAt.slice(0, 10)} 录制）`);
+    else log('这个类目没有上架模板，按默认规则检查');
+    return template;
+  } catch (e) {
+    log(`上架模板读取失败（${e.message}），按默认规则检查`);
+    return null;
+  }
+}
+
+/**
  * 发布单个条目到 VC 自营店铺
  * @param {{imageMakers?: {main?: Function, detail?: Function, transparent?: Function}, landTimeoutMs?: number,
- *   leafCache?: Map<string, object[]>}} [deps] leafCache：读到的子类目（类目ID → 子类目），默认整个运行期共用一份
+ *   leafCache?: Map<string, object[]>, loadTemplate?: (cateList: string[]) => Promise<object|null>}} [deps]
+ *   leafCache：读到的子类目（类目ID → 子类目），默认整个运行期共用一份；loadTemplate：读上架模板（测试时替换）
  * @returns {Promise<{status: 'published'|'filled'|'need_action'|'failed'|'throttle', message: string, target?: object, tabId?: number,
  *   price?: number}>} price：京东价（记作店铺售价，检查京东今日价时对比）；tabId：需要人工检查时保留的发布页
  */
-export async function publishVcItem(item, settings, log, { imageMakers, landTimeoutMs = LAND_TIMEOUT_MS, leafCache = sharedLeafCache } = {}) {
+export async function publishVcItem(
+  item,
+  settings,
+  log,
+  { imageMakers, landTimeoutMs = LAND_TIMEOUT_MS, leafCache = sharedLeafCache, loadTemplate = loadVcTemplate } = {},
+) {
   if (!item.product) return { status: 'need_action', message: '尚未采集' };
   const picked = vcTarget({ product: item.product, edits: item.edits, settings });
   if (picked.error) return { status: 'need_action', message: picked.error };
-  const { blockers } = vcPreflight({ product: item.product, edits: item.edits, settings });
+  const template = await templateFor(picked.target, log, loadTemplate);
+  const { blockers } = vcPreflight({ product: item.product, edits: item.edits, settings, template });
   if (blockers.length) return { status: 'need_action', message: blockers.join('；'), target: picked.target };
   // 之前已经读到过这个类目的子类目（不是末级类目）：直接换成子类目，不再打开会报错的发布页
   const leafArgs = { product: item.product, edits: item.edits, log, cache: leafCache };
@@ -311,7 +334,7 @@ export async function publishVcItem(item, settings, log, { imageMakers, landTime
     throw e;
   }
   timer.lap('打开页面');
-  const ctx = { timer, images, landTimeoutMs };
+  const ctx = { timer, images, landTimeoutMs, template };
   const first = await publishInVcTab(tab, item, settings, log, target, ctx);
   // 用记下的子类目打开后仍报不是末级类目：清掉记录，从源类目重新选
   if (first.notLeaf && known.changed) forgetLeaf(leafCache, target.cateList);

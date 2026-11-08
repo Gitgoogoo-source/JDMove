@@ -2,7 +2,9 @@
 // 2026-11-08 在 vcProductPublish 上实测：页面输入框产生的值全是字符串（"4.33"、"408"），
 // 插件用 fApi.setValue 写数字时，保存接口被网关拒收（毛重写数字 4.33 → “无效的字符串，请核对后再试 [456]”，
 // 同一个值写字符串 "4.33" 保存成功）。所以每个字段都按页面自己的格式转成字符串再写，格式不对的在打开页面前就拦下。
-// 规则抄自页面校验：价格两位小数、采购价四位小数、长宽高 1~4000/3040/3000 的正整数、毛重 0.01~60000 且最多 3 位小数
+// 规则抄自页面校验：价格两位小数、采购价四位小数、长宽高正整数、毛重最多 3 位小数。
+// 长宽高、毛重的上限按类目不同（上架模板 templates/vc/ 里有，如手帕纸长 ≤ 3000、有芯卷纸长 ≤ 5000），
+// 有模板时用模板的上下限，下面写的是没有模板时的默认值（常规抽纸 31403 的规则）
 
 /**
  * @typedef {{field: string, label: string, value: string, critical: boolean}} VcFormEntry
@@ -37,6 +39,19 @@ const NUMBER_RULES = [
 
 /** 数字字段的页面规则（小数位数、范围）：表格导入价格时按同一套规则校验 */
 export const vcNumberRule = (key) => NUMBER_RULES.find((r) => r.key === key) ?? null;
+
+const finite = (v) => (v != null && Number.isFinite(Number(v)) ? Number(v) : undefined);
+
+/** 按类目的上下限（来自上架模板）覆盖默认规则；模板里没有的沿用默认 */
+function rulesWith(limits = {}) {
+  return NUMBER_RULES.map((r) => {
+    const own = limits[r.key];
+    if (!own) return r;
+    const min = finite(own.min);
+    const max = finite(own.max);
+    return { ...r, ...(min != null ? { min } : {}), ...(max != null ? { max } : {}) };
+  });
+}
 
 /** 文本 / 下拉字段（下拉在页面里按选项文字换成选项值） */
 const TEXT_RULES = [
@@ -78,13 +93,14 @@ function textEntry(plan, rule) {
 /**
  * 计划里的型号、价格、物流售后 → 按页面格式写入的字符串
  * @param {{model?: string, prices?: object, logistics?: object}} plan
+ * @param {Record<string, {min?: number, max?: number}>} [limits] 按类目的上下限（上架模板），键同 NUMBER_RULES 的 key
  * @returns {{entries: VcFormEntry[], errors: string[], warnings: string[]}}
  *   errors：必填字段格式/范围不对（写进去页面也会拦）；warnings：选填字段不对、已跳过
  */
-export function vcFormEntries(plan) {
+export function vcFormEntries(plan, limits = {}) {
   const results = [
     ...TEXT_RULES.slice(0, 1).map((r) => textEntry(plan, r)),
-    ...NUMBER_RULES.map((r) => numberEntry(plan, r)),
+    ...rulesWith(limits).map((r) => numberEntry(plan, r)),
     ...TEXT_RULES.slice(1).map((r) => textEntry(plan, r)),
   ];
   return {

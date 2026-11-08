@@ -1,0 +1,111 @@
+{
+  "version": 1,
+  "updatedAt": "2026-11-08",
+  "templates": [
+    {
+      "categoryId": "52259",
+      "categoryName": "乳霜纸",
+      "path": "家庭清洁/纸品 > 清洁纸品 > 乳霜纸",
+      "isLeaf": true,
+      "publishCategoryId": "52259",
+      "leafIds": [
+        "52259"
+      ],
+      "file": "52259.json"
+    },
+    {
+      "categoryId": "15908",
+      "categoryName": "抽纸",
+      "path": "家庭清洁/纸品 > 清洁纸品 > 抽纸",
+      "isLeaf": false,
+      "publishCategoryId": "31403",
+      "leafIds": [
+        "44478",
+        "44479",
+        "31403",
+        "31402",
+        "31404"
+      ],
+      "file": "15908.json"
+    },
+    {
+      "categoryId": "15909",
+      "categoryName": "卷纸",
+      "path": "家庭清洁/纸品 > 清洁纸品 > 卷纸",
+      "isLeaf": false,
+      "publishCategoryId": "40883",
+      "leafIds": [
+        "44477",
+        "40883",
+        "40884"
+      ],
+      "file": "15909.json"
+    },
+    {
+      "categoryId": "15910",
+      "categoryName": "手帕纸",
+      "path": "家庭清洁/纸品 > 清洁纸品 > 手帕纸",
+      "isLeaf": true,
+      "publishCategoryId": "15910",
+      "leafIds": [
+        "15910"
+      ],
+      "file": "15910.json"
+    },
+    {
+      "categoryId": "15911",
+      "categoryName": "湿巾",
+      "path": "家庭清洁/纸品 > 清洁纸品 > 湿巾",
+      "isLeaf": true,
+      "publishCategoryId": "15911",
+      "leafIds": [
+        "15911"
+      ],
+      "file": "15911.json"
+    },
+    {
+      "categoryId": "15912",
+      "categoryName": "厨房纸巾",
+      "path": "家庭清洁/纸品 > 清洁纸品 > 厨房纸巾",
+      "isLeaf": true,
+      "publishCategoryId": "15912",
+      "leafIds": [
+        "15912"
+      ],
+      "file": "15912.json"
+    },
+    {
+      "categoryId": "15913",
+      "categoryName": "湿厕纸",
+      "path": "家庭清洁/纸品 > 清洁纸品 > 湿厕纸",
+      "isLeaf": true,
+      "publishCategoryId": "15913",
+      "leafIds": [
+        "15913"
+      ],
+      "file": "15913.json"
+    },
+    {
+      "categoryId": "15914",
+      "categoryName": "一次性清洁/护理纸品",
+      "path": "家庭清洁/纸品 > 清洁纸品 > 一次性清洁/护理纸品",
+      "isLeaf": true,
+      "publishCategoryId": "15914",
+      "leafIds": [
+        "15914"
+      ],
+      "file": "15914.json"
+    },
+    {
+      "categoryId": "22378",
+      "categoryName": "洗脸巾/棉柔巾/绵柔巾",
+      "path": "家庭清洁/纸品 > 清洁纸品 > 洗脸巾/棉柔巾/绵柔巾",
+      "isLeaf": true,
+      "publishCategoryId": "22378",
+      "leafIds": [
+        "22378"
+      ],
+      "file": "22378.json"
+    }
+  ]
+}
