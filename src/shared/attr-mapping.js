@@ -1,5 +1,6 @@
 // 源商品参数 -> 目标类目属性 的映射（纯函数）
 import { normalizeName, similarity, splitValues, toHalfWidth } from './text.js';
+import { UNIT_GROUPS, numberSegments, parseNumberParts } from './attr-numbers.js';
 
 // 同义词组：组内任意名称互相视为同一属性
 const SYNONYM_GROUPS = [
@@ -19,16 +20,10 @@ const SYNONYM_GROUPS = [
   ['储存条件', '贮存条件', '储藏方法', '存储方式'],
   ['适用人群', '适用对象'],
   ['国产进口', '国产/进口', '进口/国产', '产地类型'],
+  ['纸张尺寸', '尺寸', '产品尺寸', '单片尺寸', '纸巾尺寸', '湿巾尺寸'],
 ].map((g) => g.map(normalizeName));
 
 const groupOf = (key) => SYNONYM_GROUPS.find((g) => g.includes(key)) ?? null;
-
-const UNIT_GROUPS = [
-  { 天: 1, 日: 1, 个月: 30, 月: 30, 年: 365 },
-  { mg: 0.001, 毫克: 0.001, g: 1, 克: 1, kg: 1000, 千克: 1000, 公斤: 1000, 斤: 500 },
-  { ml: 1, 毫升: 1, l: 1000, 升: 1000 },
-  { mm: 1, 毫米: 1, cm: 10, 厘米: 10, m: 1000, 米: 1000 },
-];
 
 const toNumberString = (n) => String(Math.round(n * 1000) / 1000);
 
@@ -287,6 +282,7 @@ function convertSelect(attr, raw, lenient) {
  */
 function convertForAttr(attr, raw, { lenient = false } = {}) {
   if (attr.kind === 'select') return convertSelect(attr, raw, lenient);
+  if (attr.kind === 'numbers') return parseNumberParts(raw, numberSegments(attr));
   if (attr.kind === 'multi') {
     const hits = splitValues(raw)
       .map((piece) => matchOption(attr.options, piece))
@@ -326,7 +322,8 @@ function planAttr(attr, product, fallback) {
 
 /**
  * 生成商品属性填写计划
- * @param {Array<{field: string, title: string, kind: 'select'|'multi'|'input', required?: boolean, suffix?: string, maxLength?: number, options: Array<{label: string, value: string}>}>} attrs
+ * @param {Array<{field: string, title: string, kind: 'select'|'multi'|'numbers'|'input', required?: boolean, suffix?: string, maxLength?: number, options: Array<{label: string, value: string}>, segments?: Array<{name: string, units: string[]}>}>} attrs
+ *   kind numbers：多段数字（纸张尺寸 长×宽），值为 [{name, unit, value}]
  * @param {object} product 归一化后的商品
  * @param {{defaults?: Record<string, string>}} opts
  */

@@ -20,7 +20,7 @@
   "interpretation": "该类目经营如厕专用湿巾商品，包含：湿厕纸、杀菌湿厕纸、可冲散湿厕纸、便携装湿厕纸商品，该类目为实物类目，仅能挂靠实物商品。",
   "publishCategoryId": "15913",
   "publishCategoryName": "湿厕纸",
-  "capturedAt": "2026-11-08T17:56:40.644Z",
+  "capturedAt": "2026-11-08T18:53:46.968Z",
   "capturedWithBrandId": "17519",
   "baseFields": [
     {
@@ -762,6 +762,20 @@
           "value": "宽"
         }
       ],
+      "segments": [
+        {
+          "name": "长",
+          "units": [
+            "mm"
+          ]
+        },
+        {
+          "name": "宽",
+          "units": [
+            "mm"
+          ]
+        }
+      ],
       "group": "必填属性"
     },
     {
@@ -1125,6 +1139,19 @@
           "value": ""
         }
       ],
+      "segments": [
+        {
+          "name": "",
+          "units": [
+            "包",
+            "盒",
+            "卷",
+            "袋",
+            "桶",
+            "提"
+          ]
+        }
+      ],
       "group": "其他属性"
     },
     {
@@ -1135,6 +1162,17 @@
         {
           "label": "",
           "value": ""
+        }
+      ],
+      "segments": [
+        {
+          "name": "",
+          "units": [
+            "抽",
+            "片",
+            "张",
+            "节"
+          ]
         }
       ],
       "group": "其他属性"

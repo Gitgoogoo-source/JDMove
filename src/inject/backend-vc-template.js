@@ -12,6 +12,8 @@
   const SKIP_FIELD_RE = /^(tips-|\d+$)/;
   // 这几个字段的选项是按品牌/账号给的（标准产品、ERP 候选人），不属于类目模板
   const BRAND_SPECIFIC = new Set(['skuSpuKeyAttrVal', 'buyerInfo', 'salerInfo']);
+  // 这几个字段的页面初始值跟品牌/本次打开有关（标题里的品牌名、详情的装吧ID），不记进模板
+  const NO_DEFAULT = new Set(['brandId', 'productTitle', 'productDesc']);
 
   function walk(visit) {
     const host = document.querySelector('#app');
@@ -87,6 +89,17 @@
     return out;
   }
 
+  /** 多段数字（ShopAttrMultiInputUnit，纸张尺寸 长×宽）：每段的名字和可选单位；页面存 [{name, unit, value}] */
+  function segmentsOf(node) {
+    if (!/multiInputUnit/i.test(String(node.type || ''))) return [];
+    return ((node.props && node.props.options) || [])
+      .filter((o) => o && o.label != null)
+      .map((o) => ({
+        name: String(o.label),
+        units: [...new Set((o.subOptions || []).map((u) => String(u.value ?? u.label ?? '')).filter(Boolean))],
+      }));
+  }
+
   function fieldOf(node, extra = {}) {
     const p = node.props || {};
     const field = String(node.field ?? '');
@@ -99,6 +112,7 @@
       placeholder: typeof p.placeholder === 'string' ? p.placeholder : '',
       ...limitsOf(node),
       options: BRAND_SPECIFIC.has(field) ? [] : optionsOf(node),
+      segments: segmentsOf(node),
       ...extra,
     });
   }
@@ -156,7 +170,7 @@
       .map((f) => {
         const rule = api.getRule(f);
         if (!rule) return null;
-        const init = BRAND_SPECIFIC.has(f) || f === 'brandId' ? undefined : currentValue(api, f);
+        const init = BRAND_SPECIFIC.has(f) || NO_DEFAULT.has(f) ? undefined : currentValue(api, f);
         return fieldOf({ ...rule, field: f }, init === undefined ? {} : { default: init });
       })
       .filter(Boolean);

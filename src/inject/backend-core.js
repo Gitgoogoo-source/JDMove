@@ -151,11 +151,26 @@
   }
 
   // ---------- 表单结构 ----------
+  // 多段数字（ShopAttrMultiInputUnit，纸张尺寸 长×宽）：值是 [{name, unit, value}]，见 src/shared/attr-numbers.js
+  const isMultiNumber = (rule) => /multiInputUnit/i.test(String(rule.type || ''));
+
   function attrKind(rule) {
     const type = String(rule.type || '');
+    if (isMultiNumber(rule)) return 'numbers';
     if (/checkbox|multi/i.test(type)) return 'multi';
     if (/select|radio/i.test(type) || (rule.props && (rule.props.options || []).length)) return 'select';
     return 'input';
+  }
+
+  /** 多段数字的各段：段名（长、宽）和可选单位（每段的 subOptions） */
+  function numberSegments(rule) {
+    if (!isMultiNumber(rule)) return undefined;
+    return ((rule.props && rule.props.options) || [])
+      .filter((o) => o && o.label != null)
+      .map((o) => ({
+        name: String(o.label),
+        units: [...new Set((o.subOptions || []).map((u) => String(u.value ?? u.label ?? '')).filter(Boolean))],
+      }));
   }
 
   function getFormSchema() {
@@ -175,6 +190,7 @@
           suffix: p.suffix || '',
           maxLength: rule.max || 0,
           options: (p.options || []).map((o) => ({ label: o.label, value: String(o.value) })),
+          segments: numberSegments(c),
         };
       }),
     );

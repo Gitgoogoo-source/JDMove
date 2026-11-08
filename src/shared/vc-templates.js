@@ -48,6 +48,7 @@ export function vcTemplateLimits(template) {
 // 和发布页上读表单结构时（backend-core.js getFormSchema / attrKind）同一套判断，打开页面前后的属性匹配结果一致
 function attrKind(attr) {
   const type = String(attr.type || '');
+  if (/multiInputUnit/i.test(type)) return 'numbers';
   if (/checkbox|multi/i.test(type)) return 'multi';
   if (/select|radio/i.test(type) || (attr.options ?? []).length) return 'select';
   return 'input';
@@ -64,6 +65,7 @@ export function vcTemplateAttrs(template) {
     suffix: p.suffix ?? '',
     maxLength: p.maxLength ?? p.max ?? 0,
     options: p.options ?? [],
+    ...(p.segments ? { segments: p.segments } : {}),
   }));
 }
 
@@ -91,6 +93,7 @@ export function vcTemplateSkuAttrs(template) {
     suffix: p.suffix ?? '',
     maxLength: p.maxLength ?? p.max ?? 0,
     options: p.options ?? [],
+    ...(p.segments ? { segments: p.segments } : {}),
   }));
 }
 

@@ -3,6 +3,7 @@
 // 这里照抄抽屉脚本（src/inject/backend-vc-drawer.js 的 plannedValue / pickText / 各控件取数）的规则，结果和发布时一致
 import { BUILTIN_ATTR_DEFAULTS } from './vc-plan.js';
 import { parseAttrDefaults } from './settings.js';
+import { formatNumberParts, numberSegments } from './attr-numbers.js';
 
 /** 属性在编辑里的存法：attrOverrides[属性名]；弹窗里的键是 attr:属性名 */
 export const ATTR_KEY_PREFIX = 'attr:';
@@ -116,6 +117,7 @@ const STATUS_FROM = {
 };
 
 function propDisplay(attr, value) {
+  if (attr.kind === 'numbers') return formatNumberParts(value);
   const labels = new Map((attr.options ?? []).map((o) => [String(o.value), o.label]));
   const list = Array.isArray(value) ? value : [value];
   return list.map((v) => labels.get(String(v)) ?? String(v)).join('、');
@@ -137,8 +139,9 @@ export function reviewPropAttrs(attrs, report, overrides = {}) {
       const from = own ? '手动填写' : STATUS_FROM[r.status]?.(r) ?? '';
       return { ...base, value: propDisplay(attr, r.value), from, state: r.status === 'guessed' && !own ? 'guess' : 'ok', note: '' };
     }
-    if (isMultiNumber(attr)) {
-      return { ...base, ...missing(attr), note: '这种多段数字属性（如长×宽）插件还不能在发布页自动填写' };
+    if (attr.kind === 'numbers' && r.status === 'unmatched') {
+      const need = numberSegments(attr).map((x) => x.name).filter(Boolean).join('×');
+      return { ...base, value: '', from: own ? '手动填写' : r.source ? `采集参数“${r.source}”` : '', state: badState(attr, own), note: `“${r.raw}”里要有 ${need || '对应'} 的数字，如 195×133` };
     }
     if (r.status === 'unmatched') return { ...base, value: '', from: r.source ? `采集参数“${r.source}”` : '', state: badState(attr, own), note: `“${r.raw}”不在可选项里，请选择` };
     return { ...base, ...missing(attr, attr.required ? '源商品没有这个参数' : '') };

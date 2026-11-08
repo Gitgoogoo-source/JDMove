@@ -76,3 +76,35 @@ test('vcPreflight：按模板检查必填商品属性，打开页面前拦下；
   const plan = buildVcPublishPlan({ product: p, edits: VC_EDITS, settings: PLAN_SETTINGS, template: tpl, schema: { attrs: [] } });
   assert.ok(!plan.blockers.some((b) => b.startsWith('必填属性未匹配')));
 });
+
+test('湿厕纸：模板记录了纸张尺寸的长/宽和单位，属性结构是 numbers', () => {
+  const size = vcTemplateAttrs(read('15913.json')).find((a) => a.title === '纸张尺寸');
+  assert.equal(size.kind, 'numbers');
+  assert.ok(size.required);
+  assert.deepEqual(size.segments, [
+    { name: '长', units: ['mm'] },
+    { name: '宽', units: ['mm'] },
+  ]);
+});
+
+test('湿厕纸：采集参数或属性覆盖里有纸张尺寸时不再拦，发布页填 [{name, unit, value}]', () => {
+  const tpl = read('15913.json');
+  const params = [
+    { name: '是否可冲散', value: '可冲散' },
+    { name: '适用人群', value: '通用' },
+  ];
+  const p = paperProduct({ cateIds: ['15901', '15902', '15913'], lengthMm: 300 }, params);
+  const missing = vcPreflight({ product: p, edits: VC_EDITS, settings: PLAN_SETTINGS, template: tpl });
+  assert.match(missing.blockers.find((b) => b.startsWith('必填属性未匹配')), /纸张尺寸/);
+
+  const collected = paperProduct({ cateIds: ['15901', '15902', '15913'], lengthMm: 300 }, [...params, { name: '纸张尺寸', value: '长200mm 宽140mm' }]);
+  assert.deepEqual(vcPreflight({ product: collected, edits: VC_EDITS, settings: PLAN_SETTINGS, template: tpl }).blockers, []);
+
+  const own = { ...VC_EDITS, attrOverrides: { 纸张尺寸: '20×14cm' } };
+  assert.deepEqual(vcPreflight({ product: p, edits: own, settings: PLAN_SETTINGS, template: tpl }).blockers, []);
+  const plan = buildVcPublishPlan({ product: p, edits: own, settings: PLAN_SETTINGS, template: tpl, schema: { attrs: vcTemplateAttrs(tpl) } });
+  assert.deepEqual(plan.props.values['322216'], [
+    { name: '长', unit: 'mm', value: '200' },
+    { name: '宽', unit: 'mm', value: '140' },
+  ]);
+});

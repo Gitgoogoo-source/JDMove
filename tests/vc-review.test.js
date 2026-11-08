@@ -2,6 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { buildPropPlan } from '../src/shared/attr-mapping.js';
 import {
   applyReviewValue,
   applyTemplateChoice,
@@ -15,8 +16,8 @@ import {
   reviewValueError,
   templateChoices,
 } from '../src/shared/vc-review.js';
-import { pickOption, plannedKey, reviewSkuAttrs } from '../src/shared/vc-review-attrs.js';
-import { findCatalogTemplate, vcTemplateCategory, vcTemplateLeaves, vcTemplateSkuAttrs } from '../src/shared/vc-templates.js';
+import { pickOption, plannedKey, reviewPropAttrs, reviewSkuAttrs } from '../src/shared/vc-review-attrs.js';
+import { findCatalogTemplate, vcTemplateCategory, vcTemplateAttrs, vcTemplateLeaves, vcTemplateSkuAttrs } from '../src/shared/vc-templates.js';
 import { vcPreflight } from '../src/shared/vc-plan.js';
 import { mergeSettings } from '../src/shared/settings.js';
 
@@ -87,7 +88,7 @@ test('模板目录：按类目ID路径找模板；末级类目列表和选模板
   assert.deepEqual(vcTemplateLeaves(read('15911.json')), [{ id: '15911', name: '湿巾' }]);
   assert.equal(vcTemplateLeaves(read('15909.json')).length, 3);
   assert.equal(vcTemplateCategory(read('15909.json')).cateList.at(-1), '40883', '默认用录制模板的四级类目');
-  assert.equal(vcTemplateSkuAttrs(read('15908.json')).find((a) => a.title === '纸张尺寸').kind, 'multi');
+  assert.equal(vcTemplateSkuAttrs(read('15908.json')).find((a) => a.title === '纸张尺寸').kind, 'numbers');
 });
 
 test('applyReviewValue：返回新对象；ERP 分开存；属性写进属性覆盖，清空时删掉；数字字段只存正数', () => {
@@ -236,4 +237,18 @@ test('rebaseEdits：保存时只覆盖弹窗里改过的项，弹窗打开期间
   assert.deepEqual(rebaseEdits(base, base, current), current, '弹窗没改的全部保留存储里的');
   const cleared = rebaseEdits({ cateList: ['1'], cateName: 'x', vc: { lengthMm: 5 } }, {}, { cateList: ['1'], cateName: 'x', vc: { lengthMm: 5 } });
   assert.deepEqual(cleared, {}, '弹窗里清掉的项保存后也清掉');
+});
+
+test('reviewPropAttrs：湿厕纸纸张尺寸显示成“200mm × 140mm”；数字不够时标出来', () => {
+  const attrs = vcTemplateAttrs(read('15913.json')).filter((a) => a.title === '纸张尺寸');
+  const okPlan = buildPropPlan(attrs, { params: [{ name: '纸张尺寸', value: '200*140mm' }] });
+  const [ok] = reviewPropAttrs(attrs, okPlan.report);
+  assert.equal(ok.state, 'ok');
+  assert.equal(ok.value, '200mm × 140mm');
+  const badPlan = buildPropPlan(attrs, { params: [{ name: '纸张尺寸', value: '200mm' }] });
+  const [bad] = reviewPropAttrs(attrs, badPlan.report);
+  assert.equal(bad.state, 'error');
+  assert.match(bad.note, /长×宽/);
+  const [none] = reviewPropAttrs(attrs, buildPropPlan(attrs, { params: [] }).report);
+  assert.equal(none.state, 'missing');
 });
