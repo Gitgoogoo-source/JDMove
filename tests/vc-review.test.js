@@ -57,7 +57,7 @@ test('reviewTemplate：按源商品类目（三级、四级都行）自动找模
 
 test('选模板：存成编辑里的类目ID路径，不是末级的三级类目带上选的四级类目；选“自动”清掉手动类目', () => {
   const choices = templateChoices(catalog).flatMap((g) => g.options);
-  assert.equal(choices.length, 15, '7 个末级三级类目 + 抽纸 5 个四级 + 卷纸 3 个四级');
+  assert.equal(choices.length, 656, '211 个末级三级类目 + 96 个三级类目下的 445 个四级类目');
   assert.ok(choices.some((o) => o.value === '15908:44478' && o.label === '抽纸 > 悬挂式抽纸'));
   const before = { title: 'x' };
   const picked = applyTemplateChoice(before, catalog, '15908:44478');

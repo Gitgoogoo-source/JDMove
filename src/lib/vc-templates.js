@@ -1,5 +1,5 @@
 // 读取插件包里的 VC 上架模板（templates/vc/index.json + <三级类目ID>.json），读过的留在内存里
-import { VC_TEMPLATE_DIR, findVcTemplateEntry } from '../shared/vc-templates.js';
+import { VC_TEMPLATE_DIR, findVcTemplateEntry, resolveVcTemplate } from '../shared/vc-templates.js';
 
 const cache = new Map();
 
@@ -13,13 +13,13 @@ async function readJson(file) {
 }
 
 /**
- * 按类目ID（或类目ID路径）取上架模板；没有录制过该类目时返回 null
+ * 按类目ID（或类目ID路径）取上架模板；路径里有四级类目时取该四级类目的模板；没有录制过该类目时返回 null
  * @param {Array<string|number>|string|number} categoryIds
  * @returns {Promise<object|null>}
  */
 export async function loadVcTemplate(categoryIds) {
   const entry = findVcTemplateEntry(await readJson('index.json'), categoryIds);
-  return entry ? readJson(entry.file) : null;
+  return entry ? resolveVcTemplate(entry, await readJson(entry.file), categoryIds) : null;
 }
 
 /**

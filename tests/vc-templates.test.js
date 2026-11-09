@@ -1,20 +1,61 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { findVcTemplateEntry, vcTemplateAttrs, vcTemplateFieldLimits, vcTemplateLimits, vcTemplateRequired } from '../src/shared/vc-templates.js';
+import { findCatalogTemplate, findVcTemplateEntry, vcLeafTemplate, vcTemplateAttrs, vcTemplateCategory, vcTemplateFieldLimits, vcTemplateLimits, vcTemplateRequired } from '../src/shared/vc-templates.js';
 import { buildVcPublishPlan, vcPreflight } from '../src/shared/vc-plan.js';
 import { mergeSettings } from '../src/shared/settings.js';
 
 const read = (f) => JSON.parse(fs.readFileSync(new URL(`../templates/vc/${f}`, import.meta.url), 'utf8'));
 const index = read('index.json');
 
-test('清洁纸品 9 个三级类目都有模板，文件齐全', () => {
-  assert.equal(index.templates.length, 9);
+test('店铺可发布的 307 个三级类目都有模板，文件齐全、四级类目都列出', () => {
+  assert.equal(index.templates.length, 307);
+  assert.equal(new Set(index.templates.map((e) => e.categoryId)).size, 307);
+  const roots = new Set(index.templates.map((e) => e.path.split(' > ')[0]));
+  assert.deepEqual([...roots].sort(), ['个人护理', '休闲食品', '家庭清洁/纸品', '母婴', '水饮冲调', '粮油调味'].sort());
   for (const e of index.templates) {
     const t = read(e.file);
     assert.equal(t.categoryId, e.categoryId);
-    assert.ok(t.productProps.length && t.skuProps.length && t.saleSpec.length, e.categoryName);
+    assert.equal(t.path.length, 3, e.categoryName);
+    assert.ok(t.baseFields.length && t.skuColumns.length && t.saleSpec.length, e.categoryName);
+    assert.ok(e.leafIds.includes(t.publishCategoryId), e.categoryName);
+    if (!t.isLeaf) assert.deepEqual(t.leafChildren.map((c) => c.id), e.leafIds, e.categoryName);
+    for (const id of Object.keys(t.leafTemplates ?? {})) assert.ok(e.leafIds.includes(id) && id !== t.publishCategoryId, `${e.categoryName} ${id}`);
   }
+});
+
+test('其他一级类目也能按类目ID找到模板（牙膏、洗衣液、薯片）', () => {
+  assert.equal(findVcTemplateEntry(index, ['16750', '16755', '16806']).categoryName, '牙膏');
+  assert.equal(findVcTemplateEntry(index, '15924').categoryName, '普通洗衣液');
+  assert.equal(findVcTemplateEntry(index, '37022').categoryName, '薯片');
+  assert.equal(vcTemplateFieldLimits(read('16806.json'), 'length').max, 2000);
+});
+
+const catalog = { entries: index.templates, byId: new Map(index.templates.map((e) => [e.categoryId, read(e.file)])) };
+
+test('四级类目的发布页和录制用的不同时，按四级类目取它自己的商品属性/SKU属性', () => {
+  const tissue = read('15908.json');
+  assert.ok(tissue.leafTemplates['44478'], '悬挂式抽纸和常规抽纸的发布页不同');
+  const hanging = findCatalogTemplate(catalog, ['15901', '15902', '15908', '44478']);
+  assert.equal(hanging.publishCategoryId, '44478');
+  assert.equal(hanging.publishCategoryName, '悬挂式抽纸');
+  for (const [k, v] of Object.entries(tissue.leafTemplates['44478'])) assert.deepEqual(hanging[k], v, k);
+  assert.equal(hanging.leafTemplates, undefined);
+  assert.equal(vcTemplateCategory(hanging).cateList.at(-1), '44478', '默认类目就是这个四级类目');
+
+  const regular = findCatalogTemplate(catalog, ['15901', '15902', '15908', '31403']);
+  assert.equal(regular.publishCategoryId, '31403');
+  assert.deepEqual(regular.productProps, tissue.productProps);
+  assert.equal(findCatalogTemplate(catalog, ['15901', '15902', '15908']), catalog.byId.get('15908'), '只有三级类目时用录制的那份');
+  assert.equal(vcLeafTemplate(tissue, '99999'), tissue, '不是它的四级类目时原样返回');
+  assert.equal(vcLeafTemplate(read('15911.json'), '15911').publishCategoryId, '15911');
+});
+
+test('驱蚊用品：各四级类目的必填商品属性不同，取到的模板各不相同', () => {
+  const mosquito = read('15938.json');
+  const req = (leaf) => JSON.stringify([vcTemplateRequired(vcLeafTemplate(mosquito, leaf)), vcTemplateAttrs(vcLeafTemplate(mosquito, leaf)).map((a) => a.field)]);
+  const leaves = mosquito.leafChildren.map((c) => c.id);
+  assert.ok(new Set(leaves.map(req)).size > 1);
 });
 
 test('三级、四级类目ID和类目路径都能找到模板', () => {

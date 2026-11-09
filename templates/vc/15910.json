@@ -20,8 +20,7 @@
   "interpretation": "该类目经营便携式纸巾品类商品，包含手帕纸、随身纸巾、迷你纸巾、小包装纸巾商品，该类目为实物类目，仅能挂靠实物商品。",
   "publishCategoryId": "15910",
   "publishCategoryName": "手帕纸",
-  "capturedAt": "2026-11-08T17:56:14.371Z",
-  "capturedWithBrandId": "17519",
+  "capturedAt": "2026-11-09T12:36:15.365Z",
   "baseFields": [
     {
       "field": "aiRecImages",
@@ -1000,6 +999,20 @@
         {
           "label": "宽",
           "value": "宽"
+        }
+      ],
+      "segments": [
+        {
+          "name": "长",
+          "units": [
+            "mm"
+          ]
+        },
+        {
+          "name": "宽",
+          "units": [
+            "mm"
+          ]
         }
       ],
       "group": "必填属性"

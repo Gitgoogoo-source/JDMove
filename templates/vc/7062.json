@@ -1,0 +1,2777 @@
+{
+  "version": 1,
+  "categoryId": "7062",
+  "categoryName": "文胸/内裤",
+  "path": [
+    {
+      "id": "1319",
+      "name": "母婴"
+    },
+    {
+      "id": "4997",
+      "name": "妈妈专区"
+    },
+    {
+      "id": "7062",
+      "name": "文胸/内裤"
+    }
+  ],
+  "isLeaf": false,
+  "publishCategoryId": "17813",
+  "publishCategoryName": "哺乳文胸",
+  "leafChildren": [
+    {
+      "id": "17813",
+      "name": "哺乳文胸",
+      "interpretation": "该类目经营哺乳文胸品类商品。该类目为实物类目，仅能挂靠实物商品。"
+    },
+    {
+      "id": "17814",
+      "name": "孕妇内裤",
+      "interpretation": "该类目经营孕产妇内裤品类商品。该类目为实物类目，仅能挂靠实物商品。"
+    },
+    {
+      "id": "17815",
+      "name": "文胸内裤套装",
+      "interpretation": "该类目经营孕产妇内裤套装品类商品。该类目为实物类目，仅能挂靠实物商品。"
+    },
+    {
+      "id": "17816",
+      "name": "孕妇产检裤/生理裤",
+      "interpretation": "该类目经营孕妇产检裤品类商品，包含：孕妇生理裤。该类目为实物类目，仅能挂靠实物商品。"
+    },
+    {
+      "id": "21715",
+      "name": "孕产妇一次性内裤",
+      "interpretation": "该类目经营一次性内裤女、日抛裤女、闪抛裤女、孕产妇一次性内裤商品，该类目为实物类目，仅能挂靠实物商品。"
+    }
+  ],
+  "note": "「文胸/内裤」在 VC 后台不是末级类目，发布时要选四级类目；模板按「哺乳文胸」[17813] 的发布页录制，同一个三级类目下的四级类目共用这份模板；孕妇内裤、文胸内裤套装、孕妇产检裤/生理裤、孕产妇一次性内裤 的发布页和它不同，不同的部分记在 leafTemplates 里（按四级类目ID）",
+  "capturedAt": "2026-11-09T12:34:13.732Z",
+  "baseFields": [
+    {
+      "field": "aiRecImages",
+      "title": "图片信息识别",
+      "type": "ShopAiPublish",
+      "required": true
+    },
+    {
+      "field": "productTitle",
+      "title": "商品标题",
+      "type": "ShopTitle",
+      "required": true,
+      "placeholder": "此标题仅用于批量生成表格中的【商品名称】，列表页SKU展开后显示【商品名称】，没展开显示这个商品标题",
+      "maxLength": 60
+    },
+    {
+      "field": "brandId",
+      "title": "品牌",
+      "type": "ShopBrand",
+      "required": true
+    },
+    {
+      "field": "features.model",
+      "title": "型号",
+      "type": "ShopModel",
+      "required": true,
+      "placeholder": "设置SKU型号请选中【SKU字段配置面板】",
+      "maxLength": 100
+    },
+    {
+      "field": "buyerInfo",
+      "title": "采购员ERP",
+      "type": "ShopSalerErp",
+      "required": true
+    },
+    {
+      "field": "salerInfo",
+      "title": "销售员ERP",
+      "type": "ShopSalerErp",
+      "required": true
+    },
+    {
+      "field": "marketPrice",
+      "title": "市场价(元)",
+      "type": "VcMarketPrice",
+      "required": true,
+      "placeholder": "请输入市场价",
+      "pattern": "/^\\d{0,12}(?:\\.\\d{1,2})?$/"
+    },
+    {
+      "field": "lineationPriceInfo",
+      "title": "价格凭证类型",
+      "type": "ShopLineationPrice",
+      "placeholder": "请设置",
+      "options": [
+        {
+          "label": "商品吊牌价",
+          "value": "2"
+        },
+        {
+          "label": "厂商指导价",
+          "value": "3"
+        },
+        {
+          "label": "建议零售价",
+          "value": "4"
+        },
+        {
+          "label": "定价",
+          "value": "5"
+        },
+        {
+          "label": "其他",
+          "value": "99"
+        }
+      ]
+    },
+    {
+      "field": "jdPrice",
+      "title": "京东价(元)",
+      "type": "ShopSingleJdPrice",
+      "required": true,
+      "placeholder": "请输入京东价",
+      "pattern": "/^\\d{0,12}(?:\\.\\d{1,2})?$/"
+    },
+    {
+      "field": "costPrice",
+      "title": "采购价(元)",
+      "type": "VcCostPrice",
+      "required": true,
+      "placeholder": "请输入采购价",
+      "pattern": "/^\\d{0,12}(?:\\.\\d{1,4})?$/"
+    },
+    {
+      "field": "profitMargin",
+      "title": "毛利",
+      "type": "VcGrossProfit"
+    },
+    {
+      "field": "features.ocrImg",
+      "title": "辅助识别图片",
+      "type": "ShopAttrOcr",
+      "required": true
+    },
+    {
+      "field": "imageList",
+      "title": "方图",
+      "type": "VcImageUpload",
+      "required": true
+    },
+    {
+      "field": "rectangleImageList",
+      "title": "长图",
+      "type": "VcImageUpload"
+    },
+    {
+      "field": "transparentImageList",
+      "title": "透图",
+      "type": "VcImageUpload",
+      "required": true
+    },
+    {
+      "field": "productDesc",
+      "title": "商品详情",
+      "type": "ShopEditor",
+      "required": true,
+      "maxLength": 100000,
+      "options": [
+        {
+          "label": "源码编辑",
+          "value": "0"
+        },
+        {
+          "label": "高级编辑",
+          "value": "1"
+        },
+        {
+          "label": "图文编辑",
+          "value": "2"
+        }
+      ]
+    },
+    {
+      "field": "features.sldays",
+      "title": "保质期（天）",
+      "type": "AdvInput",
+      "placeholder": "请输入",
+      "maxLength": 12
+    },
+    {
+      "field": "length",
+      "title": "[包装]长(mm)",
+      "type": "VcWeakRangeInput",
+      "required": true,
+      "max": 3280,
+      "pattern": "/^[1-9]\\d*$/",
+      "min": 1
+    },
+    {
+      "field": "wide",
+      "title": "[包装]宽(mm)",
+      "type": "VcWeakRangeInput",
+      "required": true,
+      "max": 2240,
+      "pattern": "/^[1-9]\\d*$/",
+      "min": 1
+    },
+    {
+      "field": "height",
+      "title": "[包装]高(mm)",
+      "type": "VcWeakRangeInput",
+      "required": true,
+      "placeholder": "请输入商品高度",
+      "max": 1000,
+      "pattern": "/^[1-9]\\d*$/",
+      "min": 1
+    },
+    {
+      "field": "weight",
+      "title": "商品毛重(kg)",
+      "type": "VcWeakRangeInput",
+      "required": true,
+      "max": 5000,
+      "min": 0.01
+    },
+    {
+      "field": "features.unit",
+      "title": "销售单位",
+      "type": "AdvSelect",
+      "required": true,
+      "placeholder": "请选择",
+      "options": [
+        {
+          "label": "包",
+          "value": "包"
+        },
+        {
+          "label": "辆",
+          "value": "辆"
+        },
+        {
+          "label": "把",
+          "value": "把"
+        },
+        {
+          "label": "袋",
+          "value": "袋"
+        },
+        {
+          "label": "粒",
+          "value": "粒"
+        },
+        {
+          "label": "颗",
+          "value": "颗"
+        },
+        {
+          "label": "枚",
+          "value": "枚"
+        },
+        {
+          "label": "张",
+          "value": "张"
+        },
+        {
+          "label": "吨",
+          "value": "吨"
+        },
+        {
+          "label": "个",
+          "value": "个"
+        },
+        {
+          "label": "本",
+          "value": "本"
+        },
+        {
+          "label": "听",
+          "value": "听"
+        },
+        {
+          "label": "支",
+          "value": "支"
+        },
+        {
+          "label": "箱",
+          "value": "箱"
+        },
+        {
+          "label": "头",
+          "value": "头"
+        },
+        {
+          "label": "架",
+          "value": "架"
+        },
+        {
+          "label": "根",
+          "value": "根"
+        },
+        {
+          "label": "立方米",
+          "value": "立方米"
+        },
+        {
+          "label": "组",
+          "value": "组"
+        },
+        {
+          "label": "捆",
+          "value": "捆"
+        },
+        {
+          "label": "片",
+          "value": "片"
+        },
+        {
+          "label": "升",
+          "value": "升"
+        },
+        {
+          "label": "克",
+          "value": "克"
+        },
+        {
+          "label": "双",
+          "value": "双"
+        },
+        {
+          "label": "千个",
+          "value": "千个"
+        },
+        {
+          "label": "扎",
+          "value": "扎"
+        },
+        {
+          "label": "盏",
+          "value": "盏"
+        },
+        {
+          "label": "罐",
+          "value": "罐"
+        },
+        {
+          "label": "提",
+          "value": "提"
+        },
+        {
+          "label": "盒",
+          "value": "盒"
+        },
+        {
+          "label": "筒",
+          "value": "筒"
+        },
+        {
+          "label": "打",
+          "value": "打"
+        },
+        {
+          "label": "套",
+          "value": "套"
+        },
+        {
+          "label": "块",
+          "value": "块"
+        },
+        {
+          "label": "付",
+          "value": "付"
+        },
+        {
+          "label": "盘",
+          "value": "盘"
+        },
+        {
+          "label": "束",
+          "value": "束"
+        },
+        {
+          "label": "条",
+          "value": "条"
+        },
+        {
+          "label": "卡",
+          "value": "卡"
+        },
+        {
+          "label": "千克",
+          "value": "千克"
+        },
+        {
+          "label": "平方米",
+          "value": "平方米"
+        },
+        {
+          "label": "面",
+          "value": "面"
+        },
+        {
+          "label": "百个",
+          "value": "百个"
+        },
+        {
+          "label": "令",
+          "value": "令"
+        },
+        {
+          "label": "部",
+          "value": "部"
+        },
+        {
+          "label": "只",
+          "value": "只"
+        },
+        {
+          "label": "副",
+          "value": "副"
+        },
+        {
+          "label": "杯",
+          "value": "杯"
+        },
+        {
+          "label": "台",
+          "value": "台"
+        },
+        {
+          "label": "米",
+          "value": "米"
+        },
+        {
+          "label": "轴",
+          "value": "轴"
+        },
+        {
+          "label": "瓶",
+          "value": "瓶"
+        },
+        {
+          "label": "桶",
+          "value": "桶"
+        },
+        {
+          "label": "件",
+          "value": "件"
+        },
+        {
+          "label": "壶",
+          "value": "壶"
+        },
+        {
+          "label": "顶",
+          "value": "顶"
+        },
+        {
+          "label": "卷",
+          "value": "卷"
+        },
+        {
+          "label": "对",
+          "value": "对"
+        },
+        {
+          "label": "批",
+          "value": "批"
+        },
+        {
+          "label": "份",
+          "value": "份"
+        },
+        {
+          "label": "板",
+          "value": "板"
+        },
+        {
+          "label": "装",
+          "value": "装"
+        },
+        {
+          "label": "圈",
+          "value": "圈"
+        },
+        {
+          "label": "幅",
+          "value": "幅"
+        },
+        {
+          "label": "节",
+          "value": "节"
+        },
+        {
+          "label": "册",
+          "value": "册"
+        },
+        {
+          "label": "贴",
+          "value": "贴"
+        },
+        {
+          "label": "封",
+          "value": "封"
+        },
+        {
+          "label": "次",
+          "value": "次"
+        },
+        {
+          "label": "小时",
+          "value": "小时"
+        },
+        {
+          "label": "年",
+          "value": "年"
+        },
+        {
+          "label": "桩",
+          "value": "桩"
+        },
+        {
+          "label": "人",
+          "value": "人"
+        },
+        {
+          "label": "扇",
+          "value": "扇"
+        },
+        {
+          "label": "床",
+          "value": "床"
+        },
+        {
+          "label": "座",
+          "value": "座"
+        },
+        {
+          "label": "管",
+          "value": "管"
+        },
+        {
+          "label": "间",
+          "value": "间"
+        },
+        {
+          "label": "刀",
+          "value": "刀"
+        },
+        {
+          "label": "串",
+          "value": "串"
+        },
+        {
+          "label": "道",
+          "value": "道"
+        },
+        {
+          "label": "分米",
+          "value": "分米"
+        },
+        {
+          "label": "斤",
+          "value": "斤"
+        },
+        {
+          "label": "棵",
+          "value": "棵"
+        },
+        {
+          "label": "盆",
+          "value": "盆"
+        },
+        {
+          "label": "艘",
+          "value": "艘"
+        },
+        {
+          "label": "篮",
+          "value": "篮"
+        },
+        {
+          "label": "坛",
+          "value": "坛"
+        },
+        {
+          "label": "枝",
+          "value": "枝"
+        },
+        {
+          "label": "公斤",
+          "value": "公斤"
+        },
+        {
+          "label": "株",
+          "value": "株"
+        },
+        {
+          "label": "列",
+          "value": "列"
+        },
+        {
+          "label": "朵",
+          "value": "朵"
+        },
+        {
+          "label": "千米",
+          "value": "千米"
+        },
+        {
+          "label": "沓",
+          "value": "沓"
+        },
+        {
+          "label": "具",
+          "value": "具"
+        },
+        {
+          "label": "排",
+          "value": "排"
+        },
+        {
+          "label": "饼",
+          "value": "饼"
+        },
+        {
+          "label": "碗",
+          "value": "碗"
+        },
+        {
+          "label": "g",
+          "value": "g"
+        },
+        {
+          "label": "kg",
+          "value": "kg"
+        },
+        {
+          "label": "L",
+          "value": "L"
+        },
+        {
+          "label": "ml",
+          "value": "ml"
+        },
+        {
+          "label": "毫升",
+          "value": "毫升"
+        },
+        {
+          "label": "克拉",
+          "value": "克拉"
+        },
+        {
+          "label": "平方分米",
+          "value": "平方分米"
+        },
+        {
+          "label": "厘米",
+          "value": "厘米"
+        },
+        {
+          "label": "立方厘米",
+          "value": "立方厘米"
+        },
+        {
+          "label": "加仑",
+          "value": "加仑"
+        },
+        {
+          "label": "GL",
+          "value": "GL"
+        }
+      ]
+    },
+    {
+      "field": "packSpecification",
+      "title": "包装规格",
+      "type": "AdvInput",
+      "required": true
+    },
+    {
+      "field": "features.packType",
+      "title": "商品包装",
+      "type": "AdvSelect",
+      "required": true,
+      "options": [
+        {
+          "label": "普通商品",
+          "value": "1"
+        },
+        {
+          "label": "易碎品",
+          "value": "2"
+        },
+        {
+          "label": "裸瓶液体",
+          "value": "3"
+        },
+        {
+          "label": "带包装液体",
+          "value": "4"
+        }
+      ]
+    },
+    {
+      "field": "dangerGoods",
+      "title": "是否危险商品",
+      "type": "AdvMultiSelect",
+      "options": [
+        {
+          "label": "爆炸品",
+          "value": "1"
+        },
+        {
+          "label": "压缩液化气体",
+          "value": "2"
+        },
+        {
+          "label": "易燃液体",
+          "value": "4"
+        },
+        {
+          "label": "自燃物品及易燃固体和遇湿易燃物品",
+          "value": "8"
+        },
+        {
+          "label": "氧化剂和有机过氧化物",
+          "value": "16"
+        },
+        {
+          "label": "毒害品和感染性物品",
+          "value": "32"
+        },
+        {
+          "label": "放射性物品",
+          "value": "64"
+        },
+        {
+          "label": "腐蚀品",
+          "value": "128"
+        },
+        {
+          "label": "杂类（包含危害环境物质）",
+          "value": "256"
+        }
+      ]
+    },
+    {
+      "field": "warranty",
+      "title": "质保期",
+      "type": "ShopWarranty",
+      "required": true,
+      "placeholder": "请选择质保期",
+      "options": [
+        {
+          "label": "无质保",
+          "value": "无质保"
+        }
+      ]
+    },
+    {
+      "field": "packListing",
+      "title": "包装清单",
+      "type": "AdvInput",
+      "required": true,
+      "placeholder": "请输入，注意：格式为 USB线*1，AV线*1，配带*1，说明书*1，保修卡*1；应用在售后退换货场景，请勿填写干燥剂、油光纸、网格套等无需用户返回的耗材",
+      "maxLength": 800
+    }
+  ],
+  "productProps": [
+    {
+      "field": "158914",
+      "title": "适用季节",
+      "type": "ShopAttrSelect",
+      "required": true,
+      "options": [
+        {
+          "label": "春秋",
+          "value": "808197"
+        },
+        {
+          "label": "夏季",
+          "value": "808198"
+        },
+        {
+          "label": "其他",
+          "value": "1590025"
+        },
+        {
+          "label": "冬季",
+          "value": "808199"
+        },
+        {
+          "label": "四季通用",
+          "value": "808200"
+        }
+      ],
+      "group": "必填属性"
+    },
+    {
+      "field": "146001",
+      "title": "插片",
+      "type": "ShopAttrSelect",
+      "required": true,
+      "options": [
+        {
+          "label": "无插片",
+          "value": "740936"
+        },
+        {
+          "label": "水袋",
+          "value": "740937"
+        },
+        {
+          "label": "乳胶垫",
+          "value": "2201780"
+        },
+        {
+          "label": "柔珠",
+          "value": "740938"
+        },
+        {
+          "label": "棉垫",
+          "value": "740939"
+        },
+        {
+          "label": "空气垫",
+          "value": "740940"
+        },
+        {
+          "label": "精油垫",
+          "value": "740941"
+        },
+        {
+          "label": "插片袋",
+          "value": "740942"
+        },
+        {
+          "label": "海绵垫",
+          "value": "1468663"
+        }
+      ],
+      "group": "必填属性"
+    },
+    {
+      "field": "146006",
+      "title": "罩杯款式",
+      "type": "ShopAttrSelect",
+      "required": true,
+      "options": [
+        {
+          "label": "三角杯",
+          "value": "740971"
+        },
+        {
+          "label": "1/4罩杯",
+          "value": "1461780"
+        },
+        {
+          "label": "全罩杯",
+          "value": "740972"
+        },
+        {
+          "label": "其他",
+          "value": "1590132"
+        },
+        {
+          "label": "5/8罩杯",
+          "value": "740973"
+        },
+        {
+          "label": "3/4罩杯",
+          "value": "740974"
+        },
+        {
+          "label": "1/2罩杯",
+          "value": "740975"
+        }
+      ],
+      "group": "必填属性"
+    },
+    {
+      "field": "146005",
+      "title": "模杯厚度",
+      "type": "ShopAttrSelect",
+      "required": true,
+      "options": [
+        {
+          "label": "中模杯",
+          "value": "740964"
+        },
+        {
+          "label": "厚模杯",
+          "value": "740967"
+        },
+        {
+          "label": "超薄杯",
+          "value": "740968"
+        },
+        {
+          "label": "薄模杯",
+          "value": "740969"
+        },
+        {
+          "label": "薄棉杯",
+          "value": "740970"
+        },
+        {
+          "label": "上薄下厚模杯",
+          "value": "740966"
+        },
+        {
+          "label": "中厚杯",
+          "value": "740965"
+        }
+      ],
+      "group": "必填属性"
+    },
+    {
+      "field": "145998",
+      "title": "内衣有无钢托",
+      "type": "ShopAttrSelect",
+      "required": true,
+      "options": [
+        {
+          "label": "有钢托",
+          "value": "740916"
+        },
+        {
+          "label": "无钢托",
+          "value": "740917"
+        }
+      ],
+      "group": "必填属性"
+    },
+    {
+      "field": "145999",
+      "title": "罩杯里料",
+      "type": "ShopAttrSelect",
+      "required": true,
+      "options": [
+        {
+          "label": "桑蚕丝",
+          "value": "740918"
+        },
+        {
+          "label": "粘纤(粘胶纤维)",
+          "value": "740919"
+        },
+        {
+          "label": "粘胶",
+          "value": "740920"
+        },
+        {
+          "label": "棉",
+          "value": "740921"
+        },
+        {
+          "label": "涤纶(聚酯纤维)",
+          "value": "740922"
+        },
+        {
+          "label": "硅胶",
+          "value": "740923"
+        },
+        {
+          "label": "涤棉",
+          "value": "740924"
+        },
+        {
+          "label": "磁疗布",
+          "value": "740925"
+        },
+        {
+          "label": "氨纶(聚氨酯弹性纤维)",
+          "value": "740926"
+        },
+        {
+          "label": "锦纶/尼龙(聚酰胺纤维)",
+          "value": "1457737"
+        },
+        {
+          "label": "莫代尔",
+          "value": "1457961"
+        }
+      ],
+      "group": "必填属性"
+    },
+    {
+      "field": "146002",
+      "title": "搭扣",
+      "type": "ShopAttrSelect",
+      "options": [
+        {
+          "label": "无搭扣",
+          "value": "740943"
+        },
+        {
+          "label": "前搭扣",
+          "value": "740944"
+        },
+        {
+          "label": "混合搭扣",
+          "value": "740945"
+        },
+        {
+          "label": "后五排搭扣",
+          "value": "740946"
+        },
+        {
+          "label": "后四排搭扣",
+          "value": "740947"
+        },
+        {
+          "label": "后双排搭扣",
+          "value": "740948"
+        },
+        {
+          "label": "后三排搭扣",
+          "value": "740949"
+        },
+        {
+          "label": "后六排搭扣",
+          "value": "740950"
+        },
+        {
+          "label": "后单排搭扣",
+          "value": "740951"
+        },
+        {
+          "label": "后八排搭扣",
+          "value": "740952"
+        },
+        {
+          "label": "侧搭扣",
+          "value": "740953"
+        }
+      ],
+      "group": "重要属性"
+    },
+    {
+      "field": "146003",
+      "title": "肩带",
+      "type": "ShopAttrSelect",
+      "options": [
+        {
+          "label": "系带",
+          "value": "740954"
+        },
+        {
+          "label": "无肩带",
+          "value": "740955"
+        },
+        {
+          "label": "可拆卸双肩带",
+          "value": "740956"
+        },
+        {
+          "label": "可拆卸挂脖肩带",
+          "value": "740957"
+        },
+        {
+          "label": "固定双肩带",
+          "value": "740958"
+        },
+        {
+          "label": "固定挂脖肩带",
+          "value": "740959"
+        },
+        {
+          "label": "Y型背带",
+          "value": "740960"
+        }
+      ],
+      "group": "重要属性"
+    },
+    {
+      "field": "146004",
+      "title": "内衣开扣方式",
+      "type": "ShopAttrSelect",
+      "options": [
+        {
+          "label": "无开扣",
+          "value": "740961"
+        },
+        {
+          "label": "上开扣式",
+          "value": "740962"
+        },
+        {
+          "label": "前开扣式",
+          "value": "740963"
+        }
+      ],
+      "group": "重要属性"
+    },
+    {
+      "field": "145854",
+      "title": "流行元素",
+      "type": "ShopAttrMultiSelect",
+      "max": 3,
+      "options": [
+        {
+          "label": "印花",
+          "value": "740234"
+        },
+        {
+          "label": "背心式",
+          "value": "2160858"
+        },
+        {
+          "label": "条纹",
+          "value": "2160868"
+        },
+        {
+          "label": "纯白花边",
+          "value": "2160872"
+        },
+        {
+          "label": "简约",
+          "value": "2160874"
+        },
+        {
+          "label": "蕾丝边",
+          "value": "2160875"
+        },
+        {
+          "label": "一片式",
+          "value": "740235"
+        },
+        {
+          "label": "提花",
+          "value": "740236"
+        },
+        {
+          "label": "镂空",
+          "value": "740238"
+        },
+        {
+          "label": "蝴蝶结",
+          "value": "740242"
+        },
+        {
+          "label": "荷叶边",
+          "value": "740243"
+        },
+        {
+          "label": "光面",
+          "value": "740244"
+        },
+        {
+          "label": "刺绣",
+          "value": "740246"
+        },
+        {
+          "label": "3D",
+          "value": "740247"
+        }
+      ],
+      "group": "重要属性"
+    },
+    {
+      "field": "422181",
+      "title": "国补备案型号",
+      "type": "ShopAttrInput",
+      "max": 300,
+      "group": "其他属性"
+    },
+    {
+      "field": "145823",
+      "title": "面料",
+      "type": "ShopAttrMultiSelect",
+      "options": [
+        {
+          "label": "混纺",
+          "value": "1505804"
+        },
+        {
+          "label": "竹纤维",
+          "value": "740194"
+        },
+        {
+          "label": "无纺布",
+          "value": "1514030"
+        },
+        {
+          "label": "涤棉",
+          "value": "2160877"
+        },
+        {
+          "label": "LYCRA莱卡",
+          "value": "2160879"
+        },
+        {
+          "label": "桑蚕丝",
+          "value": "740195"
+        },
+        {
+          "label": "再生纤维素纤维",
+          "value": "740196"
+        },
+        {
+          "label": "莫代尔",
+          "value": "740200"
+        },
+        {
+          "label": "粘胶纤维",
+          "value": "1462794"
+        },
+        {
+          "label": "腈纶(聚丙烯腈纤维)",
+          "value": "740204"
+        },
+        {
+          "label": "锦纶/尼龙(聚酰胺纤维)",
+          "value": "740205"
+        },
+        {
+          "label": "涤纶(聚酯纤维)",
+          "value": "740207"
+        },
+        {
+          "label": "棉",
+          "value": "740208"
+        },
+        {
+          "label": "氨纶(聚氨酯弹性纤维)",
+          "value": "740210"
+        },
+        {
+          "label": "其他",
+          "value": "1602770"
+        }
+      ],
+      "group": "其他属性"
+    }
+  ],
+  "saleSpec": [
+    {
+      "field": "1094",
+      "title": "规格",
+      "fields": [
+        {
+          "field": "8888",
+          "title": "规格",
+          "type": "SaleVcUnstructured",
+          "placeholder": "规格",
+          "max": 30
+        }
+      ]
+    },
+    {
+      "field": "1095",
+      "title": "自定义",
+      "fields": [
+        {
+          "field": "8888",
+          "title": "自定义",
+          "type": "SaleVcUnstructured",
+          "placeholder": "自定义",
+          "max": 30
+        }
+      ]
+    },
+    {
+      "field": "999999999",
+      "title": "自定义",
+      "fields": [
+        {
+          "field": "8888",
+          "title": "自定义",
+          "type": "SaleVcUnstructured",
+          "placeholder": "自定义",
+          "max": 30
+        }
+      ]
+    }
+  ],
+  "skuColumns": [
+    {
+      "field": "skuName",
+      "title": "商品名称",
+      "type": "SkuTitle",
+      "required": true,
+      "maxLength": 60
+    },
+    {
+      "field": "skuProps",
+      "title": "SKU属性",
+      "type": "ShopSkuAttributeCommon"
+    },
+    {
+      "field": "features.shortTitle",
+      "title": "短标题",
+      "type": "VcShortTitle",
+      "placeholder": "建议8个汉字/16个字符以上",
+      "maxLength": 30,
+      "min": 16
+    },
+    {
+      "field": "itemNum",
+      "title": "货号",
+      "type": "ShopItemnum",
+      "placeholder": "请输入货号",
+      "maxLength": 50,
+      "pattern": "/^(?!.*[\\u4e00-\\u9fa5]).*$/"
+    },
+    {
+      "field": "upcInfo",
+      "title": "商品条形码",
+      "type": "VcBarCodeInfo",
+      "placeholder": "多个商品条形码请以英文分号间隔，最多输入10个"
+    },
+    {
+      "field": "imgAll",
+      "title": "图片设置",
+      "type": "ImgAll",
+      "required": true
+    }
+  ],
+  "skuProps": [],
+  "leafTemplates": {
+    "17814": {
+      "productProps": [
+        {
+          "field": "158914",
+          "title": "适用季节",
+          "type": "ShopAttrSelect",
+          "required": true,
+          "options": [
+            {
+              "label": "春秋",
+              "value": "808197"
+            },
+            {
+              "label": "夏季",
+              "value": "808198"
+            },
+            {
+              "label": "其他",
+              "value": "1590025"
+            },
+            {
+              "label": "冬季",
+              "value": "808199"
+            },
+            {
+              "label": "四季通用",
+              "value": "808200"
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "146106",
+          "title": "内裤款式",
+          "type": "ShopAttrSelect",
+          "required": true,
+          "options": [
+            {
+              "label": "三角裤",
+              "value": "741608"
+            },
+            {
+              "label": "平角裤",
+              "value": "741609"
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "146104",
+          "title": "腰型",
+          "type": "ShopAttrSelect",
+          "required": true,
+          "options": [
+            {
+              "label": "自然腰",
+              "value": "741599"
+            },
+            {
+              "label": "高腰",
+              "value": "741600"
+            },
+            {
+              "label": "低腰",
+              "value": "741601"
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "145854",
+          "title": "流行元素",
+          "type": "ShopAttrMultiSelect",
+          "max": 3,
+          "options": [
+            {
+              "label": "印花",
+              "value": "740234"
+            },
+            {
+              "label": "背心式",
+              "value": "2160858"
+            },
+            {
+              "label": "条纹",
+              "value": "2160868"
+            },
+            {
+              "label": "纯白花边",
+              "value": "2160872"
+            },
+            {
+              "label": "简约",
+              "value": "2160874"
+            },
+            {
+              "label": "蕾丝边",
+              "value": "2160875"
+            },
+            {
+              "label": "一片式",
+              "value": "740235"
+            },
+            {
+              "label": "提花",
+              "value": "740236"
+            },
+            {
+              "label": "镂空",
+              "value": "740238"
+            },
+            {
+              "label": "蝴蝶结",
+              "value": "740242"
+            },
+            {
+              "label": "荷叶边",
+              "value": "740243"
+            },
+            {
+              "label": "光面",
+              "value": "740244"
+            },
+            {
+              "label": "刺绣",
+              "value": "740246"
+            },
+            {
+              "label": "3D",
+              "value": "740247"
+            }
+          ],
+          "group": "重要属性"
+        },
+        {
+          "field": "422181",
+          "title": "国补备案型号",
+          "type": "ShopAttrInput",
+          "max": 300,
+          "group": "其他属性"
+        },
+        {
+          "field": "145823",
+          "title": "面料",
+          "type": "ShopAttrMultiSelect",
+          "options": [
+            {
+              "label": "混纺",
+              "value": "1505804"
+            },
+            {
+              "label": "竹纤维",
+              "value": "740194"
+            },
+            {
+              "label": "无纺布",
+              "value": "1514030"
+            },
+            {
+              "label": "涤棉",
+              "value": "2160877"
+            },
+            {
+              "label": "LYCRA莱卡",
+              "value": "2160879"
+            },
+            {
+              "label": "桑蚕丝",
+              "value": "740195"
+            },
+            {
+              "label": "再生纤维素纤维",
+              "value": "740196"
+            },
+            {
+              "label": "莫代尔",
+              "value": "740200"
+            },
+            {
+              "label": "粘胶纤维",
+              "value": "1462794"
+            },
+            {
+              "label": "腈纶(聚丙烯腈纤维)",
+              "value": "740204"
+            },
+            {
+              "label": "锦纶/尼龙(聚酰胺纤维)",
+              "value": "740205"
+            },
+            {
+              "label": "涤纶(聚酯纤维)",
+              "value": "740207"
+            },
+            {
+              "label": "棉",
+              "value": "740208"
+            },
+            {
+              "label": "氨纶(聚氨酯弹性纤维)",
+              "value": "740210"
+            },
+            {
+              "label": "其他",
+              "value": "1602770"
+            }
+          ],
+          "group": "其他属性"
+        }
+      ],
+      "saleSpec": [
+        {
+          "field": "29442",
+          "title": "款式",
+          "fields": [
+            {
+              "field": "8888",
+              "title": "款式",
+              "type": "SaleVcUnstructured",
+              "placeholder": "款式",
+              "max": 30
+            }
+          ]
+        },
+        {
+          "field": "29443",
+          "title": "尺码",
+          "fields": [
+            {
+              "field": "8888",
+              "title": "尺码",
+              "type": "SaleVcUnstructured",
+              "placeholder": "尺码",
+              "max": 30
+            }
+          ]
+        },
+        {
+          "field": "999999999",
+          "title": "自定义",
+          "fields": [
+            {
+              "field": "8888",
+              "title": "自定义",
+              "type": "SaleVcUnstructured",
+              "placeholder": "自定义",
+              "max": 30
+            }
+          ]
+        }
+      ],
+      "skuColumns": [
+        {
+          "field": "skuName",
+          "title": "商品名称",
+          "type": "SkuTitle",
+          "required": true,
+          "maxLength": 60
+        },
+        {
+          "field": "skuProps",
+          "title": "SKU属性",
+          "type": "ShopSkuAttributeCommon",
+          "required": true
+        },
+        {
+          "field": "features.shortTitle",
+          "title": "短标题",
+          "type": "VcShortTitle",
+          "placeholder": "建议8个汉字/16个字符以上",
+          "maxLength": 30,
+          "min": 16
+        },
+        {
+          "field": "itemNum",
+          "title": "货号",
+          "type": "ShopItemnum",
+          "placeholder": "请输入货号",
+          "maxLength": 50,
+          "pattern": "/^(?!.*[\\u4e00-\\u9fa5]).*$/"
+        },
+        {
+          "field": "upcInfo",
+          "title": "商品条形码",
+          "type": "VcBarCodeInfo",
+          "placeholder": "多个商品条形码请以英文分号间隔，最多输入10个"
+        },
+        {
+          "field": "imgAll",
+          "title": "图片设置",
+          "type": "ImgAll",
+          "required": true
+        }
+      ],
+      "skuProps": [
+        {
+          "field": "146102",
+          "title": "尺码",
+          "type": "ShopAttrSelect",
+          "required": true,
+          "options": [
+            {
+              "label": "XXL",
+              "value": "741592"
+            },
+            {
+              "label": "6XL",
+              "value": "1481733"
+            },
+            {
+              "label": "XS",
+              "value": "1489161"
+            },
+            {
+              "label": "7XL",
+              "value": "2160856"
+            },
+            {
+              "label": "XL",
+              "value": "741593"
+            },
+            {
+              "label": "S",
+              "value": "741594"
+            },
+            {
+              "label": "M",
+              "value": "741595"
+            },
+            {
+              "label": "L",
+              "value": "741596"
+            },
+            {
+              "label": "均码",
+              "value": "741591"
+            },
+            {
+              "label": "XXXL",
+              "value": "951055"
+            },
+            {
+              "label": "XXXXL",
+              "value": "1071253"
+            },
+            {
+              "label": "XXXXXL",
+              "value": "1078227"
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "146103",
+          "title": "腰围调节",
+          "type": "ShopAttrSelect",
+          "required": true,
+          "options": [
+            {
+              "label": "可调节",
+              "value": "741597"
+            },
+            {
+              "label": "不可调节",
+              "value": "741598"
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "146105",
+          "title": "包装规格",
+          "type": "ShopAttrSelect",
+          "required": true,
+          "options": [
+            {
+              "label": "6条及以上",
+              "value": "741602"
+            },
+            {
+              "label": "5条",
+              "value": "741603"
+            },
+            {
+              "label": "4条",
+              "value": "741604"
+            },
+            {
+              "label": "3条",
+              "value": "741605"
+            },
+            {
+              "label": "2条",
+              "value": "741606"
+            },
+            {
+              "label": "1条",
+              "value": "741607"
+            }
+          ],
+          "group": "必填属性"
+        }
+      ]
+    },
+    "17815": {
+      "productProps": [
+        {
+          "field": "158914",
+          "title": "适用季节",
+          "type": "ShopAttrSelect",
+          "required": true,
+          "options": [
+            {
+              "label": "春秋",
+              "value": "808197"
+            },
+            {
+              "label": "夏季",
+              "value": "808198"
+            },
+            {
+              "label": "其他",
+              "value": "1590025"
+            },
+            {
+              "label": "冬季",
+              "value": "808199"
+            },
+            {
+              "label": "四季通用",
+              "value": "808200"
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "146054",
+          "title": "腰型",
+          "type": "ShopAttrSelect",
+          "required": true,
+          "options": [
+            {
+              "label": "自然腰",
+              "value": "741234"
+            },
+            {
+              "label": "高腰",
+              "value": "741235"
+            },
+            {
+              "label": "低腰",
+              "value": "741236"
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "146055",
+          "title": "罩杯里料",
+          "type": "ShopAttrSelect",
+          "required": true,
+          "options": [
+            {
+              "label": "桑蚕丝",
+              "value": "741237"
+            },
+            {
+              "label": "粘纤(粘胶纤维)",
+              "value": "741238"
+            },
+            {
+              "label": "粘胶",
+              "value": "741239"
+            },
+            {
+              "label": "棉",
+              "value": "741240"
+            },
+            {
+              "label": "涤纶(聚酯纤维)",
+              "value": "741241"
+            },
+            {
+              "label": "硅胶",
+              "value": "741242"
+            },
+            {
+              "label": "涤棉",
+              "value": "741243"
+            },
+            {
+              "label": "磁疗布",
+              "value": "741244"
+            },
+            {
+              "label": "氨纶(聚氨酯弹性纤维)",
+              "value": "741245"
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "146052",
+          "title": "内衣有无钢托",
+          "type": "ShopAttrSelect",
+          "required": true,
+          "options": [
+            {
+              "label": "有钢托",
+              "value": "741230"
+            },
+            {
+              "label": "无钢托",
+              "value": "741231"
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "146058",
+          "title": "插片",
+          "type": "ShopAttrSelect",
+          "required": true,
+          "options": [
+            {
+              "label": "无插片",
+              "value": "741262"
+            },
+            {
+              "label": "水袋",
+              "value": "741263"
+            },
+            {
+              "label": "柔珠",
+              "value": "741264"
+            },
+            {
+              "label": "棉垫",
+              "value": "741265"
+            },
+            {
+              "label": "空气垫",
+              "value": "741266"
+            },
+            {
+              "label": "精油垫",
+              "value": "741267"
+            },
+            {
+              "label": "插片袋",
+              "value": "741268"
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "146057",
+          "title": "内裤款式",
+          "type": "ShopAttrSelect",
+          "required": true,
+          "options": [
+            {
+              "label": "三角裤",
+              "value": "741260"
+            },
+            {
+              "label": "平角裤",
+              "value": "741261"
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "146062",
+          "title": "模杯厚度",
+          "type": "ShopAttrSelect",
+          "required": true,
+          "options": [
+            {
+              "label": "中模杯",
+              "value": "741290"
+            },
+            {
+              "label": "中厚杯",
+              "value": "741291"
+            },
+            {
+              "label": "上薄下厚模杯",
+              "value": "741292"
+            },
+            {
+              "label": "厚模杯",
+              "value": "741293"
+            },
+            {
+              "label": "超薄杯",
+              "value": "741294"
+            },
+            {
+              "label": "薄模杯",
+              "value": "741295"
+            },
+            {
+              "label": "薄棉杯",
+              "value": "741296"
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "146056",
+          "title": "功能",
+          "type": "ShopAttrMultiSelect",
+          "max": 3,
+          "options": [
+            {
+              "label": "吸汗",
+              "value": "741246"
+            },
+            {
+              "label": "无痕",
+              "value": "741247"
+            },
+            {
+              "label": "托腹",
+              "value": "741248"
+            },
+            {
+              "label": "提臀",
+              "value": "741249"
+            },
+            {
+              "label": "塑身",
+              "value": "741250"
+            },
+            {
+              "label": "收腹",
+              "value": "741251"
+            },
+            {
+              "label": "上托",
+              "value": "741252"
+            },
+            {
+              "label": "抗菌",
+              "value": "741253"
+            },
+            {
+              "label": "聚拢",
+              "value": "741254"
+            },
+            {
+              "label": "丰胸",
+              "value": "741255"
+            },
+            {
+              "label": "定型",
+              "value": "741256"
+            },
+            {
+              "label": "侧收",
+              "value": "741257"
+            },
+            {
+              "label": "哺乳",
+              "value": "741258"
+            }
+          ],
+          "group": "重要属性"
+        },
+        {
+          "field": "146061",
+          "title": "内衣开扣方式",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "无开扣",
+              "value": "741287"
+            },
+            {
+              "label": "上开扣式",
+              "value": "741288"
+            },
+            {
+              "label": "前开扣式",
+              "value": "741289"
+            }
+          ],
+          "group": "重要属性"
+        },
+        {
+          "field": "145854",
+          "title": "流行元素",
+          "type": "ShopAttrMultiSelect",
+          "max": 3,
+          "options": [
+            {
+              "label": "印花",
+              "value": "740234"
+            },
+            {
+              "label": "背心式",
+              "value": "2160858"
+            },
+            {
+              "label": "条纹",
+              "value": "2160868"
+            },
+            {
+              "label": "纯白花边",
+              "value": "2160872"
+            },
+            {
+              "label": "简约",
+              "value": "2160874"
+            },
+            {
+              "label": "蕾丝边",
+              "value": "2160875"
+            },
+            {
+              "label": "一片式",
+              "value": "740235"
+            },
+            {
+              "label": "提花",
+              "value": "740236"
+            },
+            {
+              "label": "镂空",
+              "value": "740238"
+            },
+            {
+              "label": "蝴蝶结",
+              "value": "740242"
+            },
+            {
+              "label": "荷叶边",
+              "value": "740243"
+            },
+            {
+              "label": "光面",
+              "value": "740244"
+            },
+            {
+              "label": "刺绣",
+              "value": "740246"
+            },
+            {
+              "label": "3D",
+              "value": "740247"
+            }
+          ],
+          "group": "重要属性"
+        },
+        {
+          "field": "422181",
+          "title": "国补备案型号",
+          "type": "ShopAttrInput",
+          "max": 300,
+          "group": "其他属性"
+        },
+        {
+          "field": "145823",
+          "title": "面料",
+          "type": "ShopAttrMultiSelect",
+          "options": [
+            {
+              "label": "混纺",
+              "value": "1505804"
+            },
+            {
+              "label": "竹纤维",
+              "value": "740194"
+            },
+            {
+              "label": "无纺布",
+              "value": "1514030"
+            },
+            {
+              "label": "涤棉",
+              "value": "2160877"
+            },
+            {
+              "label": "LYCRA莱卡",
+              "value": "2160879"
+            },
+            {
+              "label": "桑蚕丝",
+              "value": "740195"
+            },
+            {
+              "label": "再生纤维素纤维",
+              "value": "740196"
+            },
+            {
+              "label": "莫代尔",
+              "value": "740200"
+            },
+            {
+              "label": "粘胶纤维",
+              "value": "1462794"
+            },
+            {
+              "label": "腈纶(聚丙烯腈纤维)",
+              "value": "740204"
+            },
+            {
+              "label": "锦纶/尼龙(聚酰胺纤维)",
+              "value": "740205"
+            },
+            {
+              "label": "涤纶(聚酯纤维)",
+              "value": "740207"
+            },
+            {
+              "label": "棉",
+              "value": "740208"
+            },
+            {
+              "label": "氨纶(聚氨酯弹性纤维)",
+              "value": "740210"
+            },
+            {
+              "label": "其他",
+              "value": "1602770"
+            }
+          ],
+          "group": "其他属性"
+        }
+      ],
+      "skuColumns": [
+        {
+          "field": "skuName",
+          "title": "商品名称",
+          "type": "SkuTitle",
+          "required": true,
+          "maxLength": 60
+        },
+        {
+          "field": "skuProps",
+          "title": "SKU属性",
+          "type": "ShopSkuAttributeCommon",
+          "required": true
+        },
+        {
+          "field": "features.shortTitle",
+          "title": "短标题",
+          "type": "VcShortTitle",
+          "placeholder": "建议8个汉字/16个字符以上",
+          "maxLength": 30,
+          "min": 16
+        },
+        {
+          "field": "itemNum",
+          "title": "货号",
+          "type": "ShopItemnum",
+          "placeholder": "请输入货号",
+          "maxLength": 50,
+          "pattern": "/^(?!.*[\\u4e00-\\u9fa5]).*$/"
+        },
+        {
+          "field": "upcInfo",
+          "title": "商品条形码",
+          "type": "VcBarCodeInfo",
+          "placeholder": "多个商品条形码请以英文分号间隔，最多输入10个"
+        },
+        {
+          "field": "imgAll",
+          "title": "图片设置",
+          "type": "ImgAll",
+          "required": true
+        }
+      ],
+      "skuProps": [
+        {
+          "field": "146053",
+          "title": "腰围调节",
+          "type": "ShopAttrSelect",
+          "required": true,
+          "options": [
+            {
+              "label": "可调节",
+              "value": "741232"
+            },
+            {
+              "label": "不可调节",
+              "value": "741233"
+            }
+          ],
+          "group": "必填属性"
+        }
+      ]
+    },
+    "17816": {
+      "productProps": [
+        {
+          "field": "146434",
+          "title": "腰型",
+          "type": "ShopAttrSelect",
+          "required": true,
+          "options": [
+            {
+              "label": "高腰",
+              "value": "743368"
+            },
+            {
+              "label": "自然腰",
+              "value": "743369"
+            },
+            {
+              "label": "低腰",
+              "value": "743370"
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "158914",
+          "title": "适用季节",
+          "type": "ShopAttrSelect",
+          "required": true,
+          "options": [
+            {
+              "label": "春秋",
+              "value": "808197"
+            },
+            {
+              "label": "夏季",
+              "value": "808198"
+            },
+            {
+              "label": "其他",
+              "value": "1590025"
+            },
+            {
+              "label": "冬季",
+              "value": "808199"
+            },
+            {
+              "label": "四季通用",
+              "value": "808200"
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "146433",
+          "title": "防水强度",
+          "type": "ShopAttrSelect",
+          "required": true,
+          "options": [
+            {
+              "label": "防水",
+              "value": "813702"
+            },
+            {
+              "label": "不防水",
+              "value": "813703"
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "146431",
+          "title": "款式",
+          "type": "ShopAttrSelect",
+          "required": true,
+          "options": [
+            {
+              "label": "前开",
+              "value": "743361"
+            },
+            {
+              "label": "三方三开",
+              "value": "743362"
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "145854",
+          "title": "流行元素",
+          "type": "ShopAttrMultiSelect",
+          "max": 3,
+          "options": [
+            {
+              "label": "印花",
+              "value": "740234"
+            },
+            {
+              "label": "背心式",
+              "value": "2160858"
+            },
+            {
+              "label": "条纹",
+              "value": "2160868"
+            },
+            {
+              "label": "纯白花边",
+              "value": "2160872"
+            },
+            {
+              "label": "简约",
+              "value": "2160874"
+            },
+            {
+              "label": "蕾丝边",
+              "value": "2160875"
+            },
+            {
+              "label": "一片式",
+              "value": "740235"
+            },
+            {
+              "label": "提花",
+              "value": "740236"
+            },
+            {
+              "label": "镂空",
+              "value": "740238"
+            },
+            {
+              "label": "蝴蝶结",
+              "value": "740242"
+            },
+            {
+              "label": "荷叶边",
+              "value": "740243"
+            },
+            {
+              "label": "光面",
+              "value": "740244"
+            },
+            {
+              "label": "刺绣",
+              "value": "740246"
+            },
+            {
+              "label": "3D",
+              "value": "740247"
+            }
+          ],
+          "group": "重要属性"
+        },
+        {
+          "field": "422181",
+          "title": "国补备案型号",
+          "type": "ShopAttrInput",
+          "max": 300,
+          "group": "其他属性"
+        },
+        {
+          "field": "145823",
+          "title": "面料",
+          "type": "ShopAttrMultiSelect",
+          "options": [
+            {
+              "label": "混纺",
+              "value": "1505804"
+            },
+            {
+              "label": "竹纤维",
+              "value": "740194"
+            },
+            {
+              "label": "无纺布",
+              "value": "1514030"
+            },
+            {
+              "label": "涤棉",
+              "value": "2160877"
+            },
+            {
+              "label": "LYCRA莱卡",
+              "value": "2160879"
+            },
+            {
+              "label": "桑蚕丝",
+              "value": "740195"
+            },
+            {
+              "label": "再生纤维素纤维",
+              "value": "740196"
+            },
+            {
+              "label": "莫代尔",
+              "value": "740200"
+            },
+            {
+              "label": "粘胶纤维",
+              "value": "1462794"
+            },
+            {
+              "label": "腈纶(聚丙烯腈纤维)",
+              "value": "740204"
+            },
+            {
+              "label": "锦纶/尼龙(聚酰胺纤维)",
+              "value": "740205"
+            },
+            {
+              "label": "涤纶(聚酯纤维)",
+              "value": "740207"
+            },
+            {
+              "label": "棉",
+              "value": "740208"
+            },
+            {
+              "label": "氨纶(聚氨酯弹性纤维)",
+              "value": "740210"
+            },
+            {
+              "label": "其他",
+              "value": "1602770"
+            }
+          ],
+          "group": "其他属性"
+        }
+      ],
+      "skuColumns": [
+        {
+          "field": "skuName",
+          "title": "商品名称",
+          "type": "SkuTitle",
+          "required": true,
+          "maxLength": 60
+        },
+        {
+          "field": "skuProps",
+          "title": "SKU属性",
+          "type": "ShopSkuAttributeCommon",
+          "required": true
+        },
+        {
+          "field": "features.shortTitle",
+          "title": "短标题",
+          "type": "VcShortTitle",
+          "placeholder": "建议8个汉字/16个字符以上",
+          "maxLength": 30,
+          "min": 16
+        },
+        {
+          "field": "itemNum",
+          "title": "货号",
+          "type": "ShopItemnum",
+          "placeholder": "请输入货号",
+          "maxLength": 50,
+          "pattern": "/^(?!.*[\\u4e00-\\u9fa5]).*$/"
+        },
+        {
+          "field": "upcInfo",
+          "title": "商品条形码",
+          "type": "VcBarCodeInfo",
+          "placeholder": "多个商品条形码请以英文分号间隔，最多输入10个"
+        },
+        {
+          "field": "imgAll",
+          "title": "图片设置",
+          "type": "ImgAll",
+          "required": true
+        }
+      ],
+      "skuProps": [
+        {
+          "field": "146432",
+          "title": "是否可调节",
+          "type": "ShopAttrSelect",
+          "required": true,
+          "options": [
+            {
+              "label": "可调节",
+              "value": "813704"
+            },
+            {
+              "label": "不可调节",
+              "value": "813705"
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "146430",
+          "title": "尺码",
+          "type": "ShopAttrSelect",
+          "required": true,
+          "options": [
+            {
+              "label": "S",
+              "value": "743355"
+            },
+            {
+              "label": "M",
+              "value": "743356"
+            },
+            {
+              "label": "XXXL",
+              "value": "1638196"
+            },
+            {
+              "label": "L",
+              "value": "743357"
+            },
+            {
+              "label": "XXXXL",
+              "value": "1638197"
+            },
+            {
+              "label": "XL",
+              "value": "743358"
+            },
+            {
+              "label": "XXXXXL",
+              "value": "1638198"
+            },
+            {
+              "label": "XXL",
+              "value": "743359"
+            },
+            {
+              "label": "XXXXXXL",
+              "value": "1638199"
+            },
+            {
+              "label": "均码",
+              "value": "743360"
+            }
+          ],
+          "group": "必填属性"
+        }
+      ]
+    },
+    "21715": {
+      "productProps": [
+        {
+          "field": "158914",
+          "title": "适用季节",
+          "type": "ShopAttrSelect",
+          "required": true,
+          "options": [
+            {
+              "label": "春秋",
+              "value": "808197"
+            },
+            {
+              "label": "夏季",
+              "value": "808198"
+            },
+            {
+              "label": "其他",
+              "value": "1590025"
+            },
+            {
+              "label": "冬季",
+              "value": "808199"
+            },
+            {
+              "label": "四季通用",
+              "value": "808200"
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "164240",
+          "title": "材质",
+          "type": "ShopAttrSelect",
+          "required": true,
+          "options": [
+            {
+              "label": "棉",
+              "value": "837924"
+            },
+            {
+              "label": "粘胶纤维(粘纤)",
+              "value": "1486193"
+            },
+            {
+              "label": "锦纶/尼龙(聚酰胺纤维)",
+              "value": "1498295"
+            },
+            {
+              "label": "天然彩棉",
+              "value": "1511802"
+            },
+            {
+              "label": "其他",
+              "value": "1590251"
+            },
+            {
+              "label": "无纺布",
+              "value": "837925"
+            },
+            {
+              "label": "涤纶(聚酯纤维)",
+              "value": "837926"
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "145854",
+          "title": "流行元素",
+          "type": "ShopAttrMultiSelect",
+          "max": 3,
+          "options": [
+            {
+              "label": "印花",
+              "value": "740234"
+            },
+            {
+              "label": "背心式",
+              "value": "2160858"
+            },
+            {
+              "label": "条纹",
+              "value": "2160868"
+            },
+            {
+              "label": "纯白花边",
+              "value": "2160872"
+            },
+            {
+              "label": "简约",
+              "value": "2160874"
+            },
+            {
+              "label": "蕾丝边",
+              "value": "2160875"
+            },
+            {
+              "label": "一片式",
+              "value": "740235"
+            },
+            {
+              "label": "提花",
+              "value": "740236"
+            },
+            {
+              "label": "镂空",
+              "value": "740238"
+            },
+            {
+              "label": "蝴蝶结",
+              "value": "740242"
+            },
+            {
+              "label": "荷叶边",
+              "value": "740243"
+            },
+            {
+              "label": "光面",
+              "value": "740244"
+            },
+            {
+              "label": "刺绣",
+              "value": "740246"
+            },
+            {
+              "label": "3D",
+              "value": "740247"
+            }
+          ],
+          "group": "重要属性"
+        },
+        {
+          "field": "422181",
+          "title": "国补备案型号",
+          "type": "ShopAttrInput",
+          "max": 300,
+          "group": "其他属性"
+        },
+        {
+          "field": "145823",
+          "title": "面料",
+          "type": "ShopAttrMultiSelect",
+          "options": [
+            {
+              "label": "混纺",
+              "value": "1505804"
+            },
+            {
+              "label": "竹纤维",
+              "value": "740194"
+            },
+            {
+              "label": "无纺布",
+              "value": "1514030"
+            },
+            {
+              "label": "涤棉",
+              "value": "2160877"
+            },
+            {
+              "label": "LYCRA莱卡",
+              "value": "2160879"
+            },
+            {
+              "label": "桑蚕丝",
+              "value": "740195"
+            },
+            {
+              "label": "再生纤维素纤维",
+              "value": "740196"
+            },
+            {
+              "label": "莫代尔",
+              "value": "740200"
+            },
+            {
+              "label": "粘胶纤维",
+              "value": "1462794"
+            },
+            {
+              "label": "腈纶(聚丙烯腈纤维)",
+              "value": "740204"
+            },
+            {
+              "label": "锦纶/尼龙(聚酰胺纤维)",
+              "value": "740205"
+            },
+            {
+              "label": "涤纶(聚酯纤维)",
+              "value": "740207"
+            },
+            {
+              "label": "棉",
+              "value": "740208"
+            },
+            {
+              "label": "氨纶(聚氨酯弹性纤维)",
+              "value": "740210"
+            },
+            {
+              "label": "其他",
+              "value": "1602770"
+            }
+          ],
+          "group": "其他属性"
+        }
+      ]
+    }
+  }
+}

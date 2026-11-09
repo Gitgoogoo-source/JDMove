@@ -20,8 +20,7 @@
   "interpretation": "该类目经营洗脸巾、绵柔巾、压缩毛巾类商品，包含：纯棉洗脸巾、无纺布洗脸巾、卷筒式洗脸巾、抽取式洗脸巾、悬挂式洗脸巾、一次性洗脸巾、绵柔巾、棉柔巾、清洁巾、洁面巾、洗面巾、压缩毛巾、化妆棉等商品，该类目为实物类目，仅能挂靠实物商品",
   "publishCategoryId": "22378",
   "publishCategoryName": "洗脸巾/棉柔巾/绵柔巾",
-  "capturedAt": "2026-11-08T17:56:44.619Z",
-  "capturedWithBrandId": "17519",
+  "capturedAt": "2026-11-09T12:36:22.730Z",
   "baseFields": [
     {
       "field": "aiRecImages",
@@ -974,6 +973,22 @@
           "value": "宽"
         }
       ],
+      "segments": [
+        {
+          "name": "长",
+          "units": [
+            "cm",
+            "mm"
+          ]
+        },
+        {
+          "name": "宽",
+          "units": [
+            "cm",
+            "mm"
+          ]
+        }
+      ],
       "group": "必填属性"
     },
     {
@@ -996,6 +1011,17 @@
           "value": ""
         }
       ],
+      "segments": [
+        {
+          "name": "",
+          "units": [
+            "片",
+            "克",
+            "粒",
+            "抽"
+          ]
+        }
+      ],
       "group": "其他属性"
     },
     {
@@ -1006,6 +1032,16 @@
         {
           "label": "",
           "value": ""
+        }
+      ],
+      "segments": [
+        {
+          "name": "",
+          "units": [
+            "包",
+            "盒",
+            "提"
+          ]
         }
       ],
       "group": "其他属性"

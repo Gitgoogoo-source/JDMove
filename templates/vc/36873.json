@@ -1,0 +1,1041 @@
+{
+  "version": 1,
+  "categoryId": "36873",
+  "categoryName": "香榧子",
+  "path": [
+    {
+      "id": "36574",
+      "name": "休闲食品"
+    },
+    {
+      "id": "36824",
+      "name": "坚果炒货"
+    },
+    {
+      "id": "36873",
+      "name": "香榧子"
+    }
+  ],
+  "isLeaf": false,
+  "publishCategoryId": "36938",
+  "publishCategoryName": "香榧子仁",
+  "leafChildren": [
+    {
+      "id": "36938",
+      "name": "香榧子仁",
+      "interpretation": "该类目经营坚果-香榧子仁。该类目为实物类目，仅能挂靠实物商品。"
+    },
+    {
+      "id": "36940",
+      "name": "带壳香榧子",
+      "interpretation": "该类目经营坚果-带壳香榧子。该类目为实物类目，仅能挂靠实物商品。"
+    }
+  ],
+  "note": "「香榧子」在 VC 后台不是末级类目，发布时要选四级类目；模板按「香榧子仁」[36938] 的发布页录制，同一个三级类目下的四级类目共用这份模板",
+  "capturedAt": "2026-11-09T12:41:53.669Z",
+  "baseFields": [
+    {
+      "field": "aiRecImages",
+      "title": "图片信息识别",
+      "type": "ShopAiPublish",
+      "required": true
+    },
+    {
+      "field": "productTitle",
+      "title": "商品标题",
+      "type": "ShopTitle",
+      "required": true,
+      "placeholder": "此标题仅用于批量生成表格中的【商品名称】，列表页SKU展开后显示【商品名称】，没展开显示这个商品标题",
+      "maxLength": 60
+    },
+    {
+      "field": "brandId",
+      "title": "品牌",
+      "type": "ShopBrand",
+      "required": true
+    },
+    {
+      "field": "features.model",
+      "title": "型号",
+      "type": "ShopModel",
+      "required": true,
+      "placeholder": "设置SKU型号请选中【SKU字段配置面板】",
+      "maxLength": 100
+    },
+    {
+      "field": "buyerInfo",
+      "title": "采购员ERP",
+      "type": "ShopSalerErp",
+      "required": true
+    },
+    {
+      "field": "salerInfo",
+      "title": "销售员ERP",
+      "type": "ShopSalerErp",
+      "required": true
+    },
+    {
+      "field": "marketPrice",
+      "title": "市场价(元)",
+      "type": "VcMarketPrice",
+      "required": true,
+      "placeholder": "请输入市场价",
+      "pattern": "/^\\d{0,12}(?:\\.\\d{1,2})?$/"
+    },
+    {
+      "field": "lineationPriceInfo",
+      "title": "价格凭证类型",
+      "type": "ShopLineationPrice",
+      "placeholder": "请设置",
+      "options": [
+        {
+          "label": "商品吊牌价",
+          "value": "2"
+        },
+        {
+          "label": "厂商指导价",
+          "value": "3"
+        },
+        {
+          "label": "建议零售价",
+          "value": "4"
+        },
+        {
+          "label": "定价",
+          "value": "5"
+        },
+        {
+          "label": "其他",
+          "value": "99"
+        }
+      ]
+    },
+    {
+      "field": "jdPrice",
+      "title": "京东价(元)",
+      "type": "ShopSingleJdPrice",
+      "required": true,
+      "placeholder": "请输入京东价",
+      "pattern": "/^\\d{0,12}(?:\\.\\d{1,2})?$/"
+    },
+    {
+      "field": "costPrice",
+      "title": "采购价(元)",
+      "type": "VcCostPrice",
+      "required": true,
+      "placeholder": "请输入采购价",
+      "pattern": "/^\\d{0,12}(?:\\.\\d{1,4})?$/"
+    },
+    {
+      "field": "profitMargin",
+      "title": "毛利",
+      "type": "VcGrossProfit"
+    },
+    {
+      "field": "imageList",
+      "title": "方图",
+      "type": "VcImageUpload",
+      "required": true
+    },
+    {
+      "field": "transparentImageList",
+      "title": "透图",
+      "type": "VcImageUpload",
+      "required": true
+    },
+    {
+      "field": "productDesc",
+      "title": "商品详情",
+      "type": "ShopEditor",
+      "required": true,
+      "maxLength": 100000,
+      "options": [
+        {
+          "label": "源码编辑",
+          "value": "0"
+        },
+        {
+          "label": "高级编辑",
+          "value": "1"
+        },
+        {
+          "label": "图文编辑",
+          "value": "2"
+        }
+      ]
+    },
+    {
+      "field": "features.sldays",
+      "title": "保质期（天）",
+      "type": "AdvInput",
+      "placeholder": "请输入",
+      "maxLength": 12
+    },
+    {
+      "field": "length",
+      "title": "[包装]长(mm)",
+      "type": "VcWeakRangeInput",
+      "required": true,
+      "max": 2970,
+      "pattern": "/^[1-9]\\d*$/",
+      "min": 1
+    },
+    {
+      "field": "wide",
+      "title": "[包装]宽(mm)",
+      "type": "VcWeakRangeInput",
+      "required": true,
+      "max": 2230,
+      "pattern": "/^[1-9]\\d*$/",
+      "min": 1
+    },
+    {
+      "field": "height",
+      "title": "[包装]高(mm)",
+      "type": "VcWeakRangeInput",
+      "required": true,
+      "placeholder": "请输入商品高度",
+      "max": 1600,
+      "pattern": "/^[1-9]\\d*$/",
+      "min": 1
+    },
+    {
+      "field": "weight",
+      "title": "商品毛重(kg)",
+      "type": "VcWeakRangeInput",
+      "required": true,
+      "max": 7040,
+      "min": 0.01
+    },
+    {
+      "field": "features.unit",
+      "title": "销售单位",
+      "type": "AdvSelect",
+      "placeholder": "请选择",
+      "options": [
+        {
+          "label": "包",
+          "value": "包"
+        },
+        {
+          "label": "辆",
+          "value": "辆"
+        },
+        {
+          "label": "把",
+          "value": "把"
+        },
+        {
+          "label": "袋",
+          "value": "袋"
+        },
+        {
+          "label": "粒",
+          "value": "粒"
+        },
+        {
+          "label": "颗",
+          "value": "颗"
+        },
+        {
+          "label": "枚",
+          "value": "枚"
+        },
+        {
+          "label": "张",
+          "value": "张"
+        },
+        {
+          "label": "吨",
+          "value": "吨"
+        },
+        {
+          "label": "个",
+          "value": "个"
+        },
+        {
+          "label": "本",
+          "value": "本"
+        },
+        {
+          "label": "听",
+          "value": "听"
+        },
+        {
+          "label": "支",
+          "value": "支"
+        },
+        {
+          "label": "箱",
+          "value": "箱"
+        },
+        {
+          "label": "头",
+          "value": "头"
+        },
+        {
+          "label": "架",
+          "value": "架"
+        },
+        {
+          "label": "根",
+          "value": "根"
+        },
+        {
+          "label": "立方米",
+          "value": "立方米"
+        },
+        {
+          "label": "组",
+          "value": "组"
+        },
+        {
+          "label": "捆",
+          "value": "捆"
+        },
+        {
+          "label": "片",
+          "value": "片"
+        },
+        {
+          "label": "升",
+          "value": "升"
+        },
+        {
+          "label": "克",
+          "value": "克"
+        },
+        {
+          "label": "双",
+          "value": "双"
+        },
+        {
+          "label": "千个",
+          "value": "千个"
+        },
+        {
+          "label": "扎",
+          "value": "扎"
+        },
+        {
+          "label": "盏",
+          "value": "盏"
+        },
+        {
+          "label": "罐",
+          "value": "罐"
+        },
+        {
+          "label": "提",
+          "value": "提"
+        },
+        {
+          "label": "盒",
+          "value": "盒"
+        },
+        {
+          "label": "筒",
+          "value": "筒"
+        },
+        {
+          "label": "打",
+          "value": "打"
+        },
+        {
+          "label": "套",
+          "value": "套"
+        },
+        {
+          "label": "块",
+          "value": "块"
+        },
+        {
+          "label": "付",
+          "value": "付"
+        },
+        {
+          "label": "盘",
+          "value": "盘"
+        },
+        {
+          "label": "束",
+          "value": "束"
+        },
+        {
+          "label": "条",
+          "value": "条"
+        },
+        {
+          "label": "卡",
+          "value": "卡"
+        },
+        {
+          "label": "千克",
+          "value": "千克"
+        },
+        {
+          "label": "平方米",
+          "value": "平方米"
+        },
+        {
+          "label": "面",
+          "value": "面"
+        },
+        {
+          "label": "百个",
+          "value": "百个"
+        },
+        {
+          "label": "令",
+          "value": "令"
+        },
+        {
+          "label": "部",
+          "value": "部"
+        },
+        {
+          "label": "只",
+          "value": "只"
+        },
+        {
+          "label": "副",
+          "value": "副"
+        },
+        {
+          "label": "杯",
+          "value": "杯"
+        },
+        {
+          "label": "台",
+          "value": "台"
+        },
+        {
+          "label": "米",
+          "value": "米"
+        },
+        {
+          "label": "轴",
+          "value": "轴"
+        },
+        {
+          "label": "瓶",
+          "value": "瓶"
+        },
+        {
+          "label": "桶",
+          "value": "桶"
+        },
+        {
+          "label": "件",
+          "value": "件"
+        },
+        {
+          "label": "壶",
+          "value": "壶"
+        },
+        {
+          "label": "顶",
+          "value": "顶"
+        },
+        {
+          "label": "卷",
+          "value": "卷"
+        },
+        {
+          "label": "对",
+          "value": "对"
+        },
+        {
+          "label": "批",
+          "value": "批"
+        },
+        {
+          "label": "份",
+          "value": "份"
+        },
+        {
+          "label": "板",
+          "value": "板"
+        },
+        {
+          "label": "装",
+          "value": "装"
+        },
+        {
+          "label": "圈",
+          "value": "圈"
+        },
+        {
+          "label": "幅",
+          "value": "幅"
+        },
+        {
+          "label": "节",
+          "value": "节"
+        },
+        {
+          "label": "册",
+          "value": "册"
+        },
+        {
+          "label": "贴",
+          "value": "贴"
+        },
+        {
+          "label": "封",
+          "value": "封"
+        },
+        {
+          "label": "次",
+          "value": "次"
+        },
+        {
+          "label": "小时",
+          "value": "小时"
+        },
+        {
+          "label": "年",
+          "value": "年"
+        },
+        {
+          "label": "桩",
+          "value": "桩"
+        },
+        {
+          "label": "人",
+          "value": "人"
+        },
+        {
+          "label": "扇",
+          "value": "扇"
+        },
+        {
+          "label": "床",
+          "value": "床"
+        },
+        {
+          "label": "座",
+          "value": "座"
+        },
+        {
+          "label": "管",
+          "value": "管"
+        },
+        {
+          "label": "间",
+          "value": "间"
+        },
+        {
+          "label": "刀",
+          "value": "刀"
+        },
+        {
+          "label": "串",
+          "value": "串"
+        },
+        {
+          "label": "道",
+          "value": "道"
+        },
+        {
+          "label": "分米",
+          "value": "分米"
+        },
+        {
+          "label": "斤",
+          "value": "斤"
+        },
+        {
+          "label": "棵",
+          "value": "棵"
+        },
+        {
+          "label": "盆",
+          "value": "盆"
+        },
+        {
+          "label": "艘",
+          "value": "艘"
+        },
+        {
+          "label": "篮",
+          "value": "篮"
+        },
+        {
+          "label": "坛",
+          "value": "坛"
+        },
+        {
+          "label": "枝",
+          "value": "枝"
+        },
+        {
+          "label": "公斤",
+          "value": "公斤"
+        },
+        {
+          "label": "株",
+          "value": "株"
+        },
+        {
+          "label": "列",
+          "value": "列"
+        },
+        {
+          "label": "朵",
+          "value": "朵"
+        },
+        {
+          "label": "千米",
+          "value": "千米"
+        },
+        {
+          "label": "沓",
+          "value": "沓"
+        },
+        {
+          "label": "具",
+          "value": "具"
+        },
+        {
+          "label": "排",
+          "value": "排"
+        },
+        {
+          "label": "饼",
+          "value": "饼"
+        },
+        {
+          "label": "碗",
+          "value": "碗"
+        },
+        {
+          "label": "g",
+          "value": "g"
+        },
+        {
+          "label": "kg",
+          "value": "kg"
+        },
+        {
+          "label": "L",
+          "value": "L"
+        },
+        {
+          "label": "ml",
+          "value": "ml"
+        },
+        {
+          "label": "毫升",
+          "value": "毫升"
+        },
+        {
+          "label": "克拉",
+          "value": "克拉"
+        },
+        {
+          "label": "平方分米",
+          "value": "平方分米"
+        },
+        {
+          "label": "厘米",
+          "value": "厘米"
+        },
+        {
+          "label": "立方厘米",
+          "value": "立方厘米"
+        },
+        {
+          "label": "加仑",
+          "value": "加仑"
+        },
+        {
+          "label": "GL",
+          "value": "GL"
+        }
+      ]
+    },
+    {
+      "field": "packSpecification",
+      "title": "包装规格",
+      "type": "AdvInput"
+    },
+    {
+      "field": "features.packType",
+      "title": "商品包装",
+      "type": "AdvSelect",
+      "required": true,
+      "options": [
+        {
+          "label": "普通商品",
+          "value": "1"
+        },
+        {
+          "label": "易碎品",
+          "value": "2"
+        },
+        {
+          "label": "裸瓶液体",
+          "value": "3"
+        },
+        {
+          "label": "带包装液体",
+          "value": "4"
+        }
+      ]
+    },
+    {
+      "field": "dangerGoods",
+      "title": "是否危险商品",
+      "type": "AdvMultiSelect",
+      "options": [
+        {
+          "label": "爆炸品",
+          "value": "1"
+        },
+        {
+          "label": "压缩液化气体",
+          "value": "2"
+        },
+        {
+          "label": "易燃液体",
+          "value": "4"
+        },
+        {
+          "label": "自燃物品及易燃固体和遇湿易燃物品",
+          "value": "8"
+        },
+        {
+          "label": "氧化剂和有机过氧化物",
+          "value": "16"
+        },
+        {
+          "label": "毒害品和感染性物品",
+          "value": "32"
+        },
+        {
+          "label": "放射性物品",
+          "value": "64"
+        },
+        {
+          "label": "腐蚀品",
+          "value": "128"
+        },
+        {
+          "label": "杂类（包含危害环境物质）",
+          "value": "256"
+        }
+      ]
+    },
+    {
+      "field": "warranty",
+      "title": "质保期",
+      "type": "ShopWarranty",
+      "required": true,
+      "placeholder": "请选择质保期",
+      "options": [
+        {
+          "label": "无质保",
+          "value": "无质保"
+        }
+      ]
+    },
+    {
+      "field": "packListing",
+      "title": "包装清单",
+      "type": "AdvInput",
+      "required": true,
+      "placeholder": "请输入，注意：格式为 USB线*1，AV线*1，配带*1，说明书*1，保修卡*1；应用在售后退换货场景，请勿填写干燥剂、油光纸、网格套等无需用户返回的耗材",
+      "maxLength": 800
+    }
+  ],
+  "productProps": [
+    {
+      "field": "258546",
+      "title": "特产品类",
+      "type": "ShopAttrSelect",
+      "options": [
+        {
+          "label": "东阳香榧",
+          "value": "1497559"
+        },
+        {
+          "label": "枫桥香榧",
+          "value": "1497562"
+        },
+        {
+          "label": "嵊州香榧",
+          "value": "1497572"
+        },
+        {
+          "label": "黟县香榧",
+          "value": "1497567"
+        }
+      ],
+      "group": "其他属性"
+    },
+    {
+      "field": "255239",
+      "title": "国产/进口",
+      "type": "ShopAttrSelect",
+      "options": [
+        {
+          "label": "国产",
+          "value": "1472086"
+        },
+        {
+          "label": "进口",
+          "value": "1472088"
+        }
+      ],
+      "group": "其他属性"
+    }
+  ],
+  "saleSpec": [
+    {
+      "field": "32770",
+      "title": "规格",
+      "fields": [
+        {
+          "field": "8888",
+          "title": "规格",
+          "type": "SaleVcUnstructured",
+          "placeholder": "规格",
+          "max": 30
+        }
+      ]
+    },
+    {
+      "field": "33438",
+      "title": "自定义",
+      "fields": [
+        {
+          "field": "8888",
+          "title": "自定义",
+          "type": "SaleVcUnstructured",
+          "placeholder": "自定义",
+          "max": 30
+        }
+      ]
+    },
+    {
+      "field": "999999999",
+      "title": "自定义",
+      "fields": [
+        {
+          "field": "8888",
+          "title": "自定义",
+          "type": "SaleVcUnstructured",
+          "placeholder": "自定义",
+          "max": 30
+        }
+      ]
+    }
+  ],
+  "skuColumns": [
+    {
+      "field": "skuName",
+      "title": "商品名称",
+      "type": "SkuTitle",
+      "required": true,
+      "maxLength": 60
+    },
+    {
+      "field": "skuProps",
+      "title": "SKU属性",
+      "type": "ShopSkuAttributeCommon",
+      "required": true
+    },
+    {
+      "field": "features.shortTitle",
+      "title": "短标题",
+      "type": "VcShortTitle",
+      "placeholder": "建议8个汉字/16个字符以上",
+      "maxLength": 30,
+      "min": 16
+    },
+    {
+      "field": "itemNum",
+      "title": "货号",
+      "type": "ShopItemnum",
+      "placeholder": "请输入货号",
+      "maxLength": 50,
+      "pattern": "/^(?!.*[\\u4e00-\\u9fa5]).*$/"
+    },
+    {
+      "field": "nutrientInfo",
+      "title": "食品安全",
+      "type": "VcNutrientContent"
+    },
+    {
+      "field": "upcInfo",
+      "title": "商品条形码",
+      "type": "VcBarCodeInfo",
+      "placeholder": "多个商品条形码请以英文分号间隔，最多输入10个"
+    },
+    {
+      "field": "imgAll",
+      "title": "图片设置",
+      "type": "ImgAll",
+      "required": true
+    }
+  ],
+  "skuProps": [
+    {
+      "field": "254243",
+      "title": "保质期",
+      "type": "ShopAttrMultiInputUnit",
+      "required": true,
+      "options": [
+        {
+          "label": "",
+          "value": ""
+        }
+      ],
+      "segments": [
+        {
+          "name": "",
+          "units": [
+            "天",
+            "个月",
+            "年"
+          ]
+        }
+      ],
+      "group": "必填属性"
+    },
+    {
+      "field": "255218",
+      "title": "口味",
+      "type": "ShopAttrSelect",
+      "required": true,
+      "options": [
+        {
+          "label": "原味",
+          "value": "1472112"
+        },
+        {
+          "label": "椒盐味",
+          "value": "1472116"
+        },
+        {
+          "label": "奶香味",
+          "value": "1472121"
+        },
+        {
+          "label": "蛋黄味",
+          "value": "2184426"
+        },
+        {
+          "label": "芥末味",
+          "value": "2184430"
+        },
+        {
+          "label": "其他",
+          "value": "1593188"
+        }
+      ],
+      "group": "必填属性"
+    },
+    {
+      "field": "255256",
+      "title": "包装形式",
+      "type": "ShopAttrSelect",
+      "required": true,
+      "options": [
+        {
+          "label": "散装",
+          "value": "3573183"
+        },
+        {
+          "label": "礼盒装",
+          "value": "3573188"
+        },
+        {
+          "label": "罐装",
+          "value": "1472063"
+        },
+        {
+          "label": "箱装",
+          "value": "1472069"
+        },
+        {
+          "label": "普通盒装",
+          "value": "1472073"
+        },
+        {
+          "label": "袋装",
+          "value": "1472077"
+        },
+        {
+          "label": "瓶装",
+          "value": "1472082"
+        }
+      ],
+      "group": "必填属性"
+    },
+    {
+      "field": "255277",
+      "title": "总净含量",
+      "type": "ShopAttrSelect",
+      "required": true,
+      "options": [
+        {
+          "label": "≤200g",
+          "value": "1472093"
+        },
+        {
+          "label": "201-300g",
+          "value": "1472097"
+        },
+        {
+          "label": "301-500g",
+          "value": "1472101"
+        },
+        {
+          "label": "501g-1kg",
+          "value": "1472104"
+        },
+        {
+          "label": ">1kg",
+          "value": "1472108"
+        }
+      ],
+      "group": "必填属性"
+    },
+    {
+      "field": "254253",
+      "title": "总净含量",
+      "type": "ShopAttrMultiInputUnit",
+      "required": true,
+      "options": [
+        {
+          "label": "",
+          "value": ""
+        }
+      ],
+      "segments": [
+        {
+          "name": "",
+          "units": [
+            "g",
+            "kg"
+          ]
+        }
+      ],
+      "group": "必填属性"
+    },
+    {
+      "field": "324293",
+      "title": "原料产地",
+      "type": "ShopAttrAddress",
+      "group": "其他属性"
+    },
+    {
+      "field": "288451",
+      "title": "产地",
+      "type": "ShopAttrAddress",
+      "group": "其他属性"
+    }
+  ]
+}

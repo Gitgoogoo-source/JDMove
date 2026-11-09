@@ -6,7 +6,7 @@ import { normalizeHeader, parsePrice, skuFromCell } from './vc-import.js';
 import { VC_PRICE_LABELS } from './vc-plan.js';
 import { applyReviewValue, applyTemplateChoice, currentChoice, reviewOwnValue, reviewTemplate, reviewValueError, REVIEW_FIELDS, templateChoices } from './vc-review.js';
 import { attrKey, pickOption } from './vc-review-attrs.js';
-import { vcTemplateAttrs, vcTemplateLabel, vcTemplateSkuAttrs } from './vc-templates.js';
+import { vcTemplateAttrs, vcTemplateLabel, vcTemplateLeafLabel, vcTemplateSkuAttrs } from './vc-templates.js';
 
 export const NOT_APPLICABLE = '—';
 const ATTR_HEADER_RE = /^\s*属性\s*[:：]\s*(.+?)\s*$/;
@@ -89,8 +89,9 @@ export function reviewSheets({ rows, catalog }) {
       ...titles.map((t) => (own.has(t) ? reviewOwnValue(edits, attrKey(t)) : NOT_APPLICABLE)),
     ];
   });
-  const used = [...new Map(rows.filter((r) => r.match.template).map((r) => [r.match.template.categoryId, r.match.template])).values()];
-  const options = used.flatMap((t) => templateAttrs(t).map((a) => [t.categoryName, a.title, a.where, a.required ? '必填' : '', attrFormat(a)]));
+  // 同一个三级类目下不同的四级类目，发布页可能不同，各列一份
+  const used = [...new Map(rows.filter((r) => r.match.template).map((r) => [`${r.match.template.categoryId}:${r.match.template.publishCategoryId}`, r.match.template])).values()];
+  const options = used.flatMap((t) => templateAttrs(t).map((a) => [vcTemplateLeafLabel(t), a.title, a.where, a.required ? '必填' : '', attrFormat(a)]));
   const choices = templateChoices(catalog).flatMap((g) => g.options.map((o) => o.label));
   const attrStart = FIXED_COLUMNS + REVIEW_FIELDS.length;
   const textColumns = [1, ...REVIEW_FIELDS.map((f, i) => (f.input === 'text' ? FIXED_COLUMNS + i : -1)).filter((i) => i >= 0), ...titles.map((_, i) => attrStart + i)];

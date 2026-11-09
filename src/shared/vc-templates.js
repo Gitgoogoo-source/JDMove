@@ -103,6 +103,34 @@ export function vcTemplateSkuAttrs(template) {
  */
 
 /**
+ * 不是末级的三级类目：取某个四级类目用的模板。四级类目的发布页和录制用的那个不一样时，
+ * 模板的 leafTemplates[四级类目ID] 里记着不同的部分（基本信息字段/商品属性/规格/SKU 表/SKU属性），覆盖上去；
+ * 返回的模板 publishCategoryId 是这个四级类目。不是这个模板的四级类目（或末级三级类目）时原样返回。
+ * @param {object|null|undefined} template
+ * @param {string|number|null|undefined} leafId
+ * @returns {object|null|undefined}
+ */
+export function vcLeafTemplate(template, leafId) {
+  const leaf = template?.isLeaf ? null : template?.leafChildren?.find((c) => c.id === String(leafId ?? ''));
+  if (!leaf) return template;
+  const { leafTemplates, ...base } = template;
+  return { ...base, ...(leafTemplates?.[leaf.id] ?? {}), publishCategoryId: leaf.id, publishCategoryName: leaf.name };
+}
+
+/**
+ * 按类目ID路径取模板：类目路径里有这个模板的四级类目时，用该四级类目的模板（见 vcLeafTemplate）
+ * @param {{leafIds: string[], categoryId: string}} entry 模板索引条目
+ * @param {object|null} template 条目对应的模板
+ * @param {Array<string|number>|string|number} categoryIds
+ */
+export function resolveVcTemplate(entry, template, categoryIds) {
+  if (!entry || !template) return template ?? null;
+  const ids = (Array.isArray(categoryIds) ? categoryIds : [categoryIds]).map(String);
+  const leafId = ids.find((id) => id !== entry.categoryId && entry.leafIds.includes(id));
+  return vcLeafTemplate(template, leafId);
+}
+
+/**
  * 在模板目录里按类目ID路径找模板（从末级往上找）
  * @param {VcTemplateCatalog|null|undefined} catalog
  * @param {Array<string|number>|string|number} categoryIds
@@ -110,8 +138,12 @@ export function vcTemplateSkuAttrs(template) {
  */
 export function findCatalogTemplate(catalog, categoryIds) {
   const entry = findVcTemplateEntry({ templates: catalog?.entries ?? [] }, categoryIds);
-  return entry ? catalog.byId.get(entry.categoryId) ?? null : null;
+  return entry ? resolveVcTemplate(entry, catalog.byId.get(entry.categoryId) ?? null, categoryIds) : null;
 }
+
+/** 模板的显示名（带四级类目）：抽纸 > 常规抽纸；末级三级类目就是类目名 */
+export const vcTemplateLeafLabel = (template) =>
+  !template || template.isLeaf || !template.publishCategoryName ? template?.categoryName ?? '' : `${template.categoryName} > ${template.publishCategoryName}`;
 
 /** 模板可以发布的末级类目：末级三级类目是它自己；不是末级的（抽纸、卷纸）是录制时读到的四级类目 */
 export function vcTemplateLeaves(template) {

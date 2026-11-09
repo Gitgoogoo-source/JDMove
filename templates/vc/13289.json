@@ -1,0 +1,2834 @@
+{
+  "version": 1,
+  "categoryId": "13289",
+  "categoryName": "婴童口腔护理",
+  "path": [
+    {
+      "id": "1319",
+      "name": "母婴"
+    },
+    {
+      "id": "1527",
+      "name": "婴童洗护"
+    },
+    {
+      "id": "13289",
+      "name": "婴童口腔护理"
+    }
+  ],
+  "isLeaf": false,
+  "publishCategoryId": "34514",
+  "publishCategoryName": "婴童牙线",
+  "leafChildren": [
+    {
+      "id": "34514",
+      "name": "婴童牙线",
+      "interpretation": "该类目经营0-6岁婴童牙线品类商品。该类目为实物类目，仅能挂靠实物商品。"
+    },
+    {
+      "id": "34513",
+      "name": "婴童漱口水",
+      "interpretation": "该类目经营0-6岁婴童漱口水品类商品。该类目为实物类目，仅能挂靠实物商品。"
+    },
+    {
+      "id": "38575",
+      "name": "婴童舌苔刷",
+      "interpretation": "该类目经营0-12岁婴童舌苔刷品类商品。该类目为实物类目，仅能挂靠实物商品。"
+    },
+    {
+      "id": "38576",
+      "name": "婴童口腔护理套装",
+      "interpretation": "该类目经营婴童口腔护理套装品类商品，包含：婴童口腔护理礼盒。该类目为实物类目，仅能挂靠实物商品。"
+    },
+    {
+      "id": "38577",
+      "name": "婴童牙刷",
+      "interpretation": "该类目经营0-12岁婴童牙刷品类商品，包含：婴童手动牙刷、宝宝牙刷、儿童电动牙刷。该类目为实物类目，仅能挂靠实物商品。"
+    },
+    {
+      "id": "29625",
+      "name": "婴童口腔护理用具",
+      "interpretation": "该类目经营婴童口腔护理用具品类商品，包含：婴童手动牙刷、婴儿口腔清洁棉棒。该类目为实物类目，仅能挂靠实物商品。"
+    },
+    {
+      "id": "29624",
+      "name": "婴童牙膏",
+      "interpretation": "该类目经营婴童牙膏品类商品。该类目为实物类目，仅能挂靠实物商品。"
+    },
+    {
+      "id": "34516",
+      "name": "婴童口喷",
+      "interpretation": "该类目经营0-6岁婴童口腔清洁喷雾品类商品。该类目为实物类目，仅能挂靠实物商品。"
+    },
+    {
+      "id": "34515",
+      "name": "婴童护牙素",
+      "interpretation": "该类目经营0-6岁婴童护牙素品类商品，包含：儿童护齿喷雾。该类目为实物类目，仅能挂靠实物商品。"
+    }
+  ],
+  "note": "「婴童口腔护理」在 VC 后台不是末级类目，发布时要选四级类目；模板按「婴童牙线」[34514] 的发布页录制，同一个三级类目下的四级类目共用这份模板；婴童牙膏、婴童口腔护理用具、婴童漱口水、婴童护牙素、婴童口喷、婴童舌苔刷、婴童口腔护理套装、婴童牙刷 的发布页和它不同，不同的部分记在 leafTemplates 里（按四级类目ID）",
+  "capturedAt": "2026-11-09T12:35:53.226Z",
+  "baseFields": [
+    {
+      "field": "aiRecImages",
+      "title": "图片信息识别",
+      "type": "ShopAiPublish",
+      "required": true
+    },
+    {
+      "field": "productTitle",
+      "title": "商品标题",
+      "type": "ShopTitle",
+      "required": true,
+      "placeholder": "此标题仅用于批量生成表格中的【商品名称】，列表页SKU展开后显示【商品名称】，没展开显示这个商品标题",
+      "maxLength": 60
+    },
+    {
+      "field": "brandId",
+      "title": "品牌",
+      "type": "ShopBrand",
+      "required": true
+    },
+    {
+      "field": "features.model",
+      "title": "型号",
+      "type": "ShopModel",
+      "required": true,
+      "placeholder": "设置SKU型号请选中【SKU字段配置面板】",
+      "maxLength": 100
+    },
+    {
+      "field": "buyerInfo",
+      "title": "采购员ERP",
+      "type": "ShopSalerErp",
+      "required": true
+    },
+    {
+      "field": "salerInfo",
+      "title": "销售员ERP",
+      "type": "ShopSalerErp",
+      "required": true
+    },
+    {
+      "field": "marketPrice",
+      "title": "市场价(元)",
+      "type": "VcMarketPrice",
+      "required": true,
+      "placeholder": "请输入市场价",
+      "pattern": "/^\\d{0,12}(?:\\.\\d{1,2})?$/"
+    },
+    {
+      "field": "lineationPriceInfo",
+      "title": "价格凭证类型",
+      "type": "ShopLineationPrice",
+      "placeholder": "请设置",
+      "options": [
+        {
+          "label": "商品吊牌价",
+          "value": "2"
+        },
+        {
+          "label": "厂商指导价",
+          "value": "3"
+        },
+        {
+          "label": "建议零售价",
+          "value": "4"
+        },
+        {
+          "label": "定价",
+          "value": "5"
+        },
+        {
+          "label": "其他",
+          "value": "99"
+        }
+      ]
+    },
+    {
+      "field": "jdPrice",
+      "title": "京东价(元)",
+      "type": "ShopSingleJdPrice",
+      "required": true,
+      "placeholder": "请输入京东价",
+      "pattern": "/^\\d{0,12}(?:\\.\\d{1,2})?$/"
+    },
+    {
+      "field": "costPrice",
+      "title": "采购价(元)",
+      "type": "VcCostPrice",
+      "required": true,
+      "placeholder": "请输入采购价",
+      "pattern": "/^\\d{0,12}(?:\\.\\d{1,4})?$/"
+    },
+    {
+      "field": "profitMargin",
+      "title": "毛利",
+      "type": "VcGrossProfit"
+    },
+    {
+      "field": "imageList",
+      "title": "方图",
+      "type": "VcImageUpload",
+      "required": true
+    },
+    {
+      "field": "rectangleImageList",
+      "title": "长图",
+      "type": "VcImageUpload"
+    },
+    {
+      "field": "transparentImageList",
+      "title": "透图",
+      "type": "VcImageUpload",
+      "required": true
+    },
+    {
+      "field": "productDesc",
+      "title": "商品详情",
+      "type": "ShopEditor",
+      "required": true,
+      "maxLength": 100000,
+      "options": [
+        {
+          "label": "源码编辑",
+          "value": "0"
+        },
+        {
+          "label": "高级编辑",
+          "value": "1"
+        },
+        {
+          "label": "图文编辑",
+          "value": "2"
+        }
+      ]
+    },
+    {
+      "field": "features.sldays",
+      "title": "保质期（天）",
+      "type": "AdvInput",
+      "placeholder": "请输入",
+      "maxLength": 12
+    },
+    {
+      "field": "length",
+      "title": "[包装]长(mm)",
+      "type": "VcWeakRangeInput",
+      "required": true,
+      "max": 2320,
+      "pattern": "/^[1-9]\\d*$/",
+      "min": 1
+    },
+    {
+      "field": "wide",
+      "title": "[包装]宽(mm)",
+      "type": "VcWeakRangeInput",
+      "required": true,
+      "max": 1400,
+      "pattern": "/^[1-9]\\d*$/",
+      "min": 1
+    },
+    {
+      "field": "height",
+      "title": "[包装]高(mm)",
+      "type": "VcWeakRangeInput",
+      "required": true,
+      "placeholder": "请输入商品高度",
+      "max": 1000,
+      "pattern": "/^[1-9]\\d*$/",
+      "min": 1
+    },
+    {
+      "field": "weight",
+      "title": "商品毛重(kg)",
+      "type": "VcWeakRangeInput",
+      "required": true,
+      "max": 3300,
+      "min": 0.01
+    },
+    {
+      "field": "features.unit",
+      "title": "销售单位",
+      "type": "AdvSelect",
+      "required": true,
+      "placeholder": "请选择",
+      "options": [
+        {
+          "label": "包",
+          "value": "包"
+        },
+        {
+          "label": "辆",
+          "value": "辆"
+        },
+        {
+          "label": "把",
+          "value": "把"
+        },
+        {
+          "label": "袋",
+          "value": "袋"
+        },
+        {
+          "label": "粒",
+          "value": "粒"
+        },
+        {
+          "label": "颗",
+          "value": "颗"
+        },
+        {
+          "label": "枚",
+          "value": "枚"
+        },
+        {
+          "label": "张",
+          "value": "张"
+        },
+        {
+          "label": "吨",
+          "value": "吨"
+        },
+        {
+          "label": "个",
+          "value": "个"
+        },
+        {
+          "label": "本",
+          "value": "本"
+        },
+        {
+          "label": "听",
+          "value": "听"
+        },
+        {
+          "label": "支",
+          "value": "支"
+        },
+        {
+          "label": "箱",
+          "value": "箱"
+        },
+        {
+          "label": "头",
+          "value": "头"
+        },
+        {
+          "label": "架",
+          "value": "架"
+        },
+        {
+          "label": "根",
+          "value": "根"
+        },
+        {
+          "label": "立方米",
+          "value": "立方米"
+        },
+        {
+          "label": "组",
+          "value": "组"
+        },
+        {
+          "label": "捆",
+          "value": "捆"
+        },
+        {
+          "label": "片",
+          "value": "片"
+        },
+        {
+          "label": "升",
+          "value": "升"
+        },
+        {
+          "label": "克",
+          "value": "克"
+        },
+        {
+          "label": "双",
+          "value": "双"
+        },
+        {
+          "label": "千个",
+          "value": "千个"
+        },
+        {
+          "label": "扎",
+          "value": "扎"
+        },
+        {
+          "label": "盏",
+          "value": "盏"
+        },
+        {
+          "label": "罐",
+          "value": "罐"
+        },
+        {
+          "label": "提",
+          "value": "提"
+        },
+        {
+          "label": "盒",
+          "value": "盒"
+        },
+        {
+          "label": "筒",
+          "value": "筒"
+        },
+        {
+          "label": "打",
+          "value": "打"
+        },
+        {
+          "label": "套",
+          "value": "套"
+        },
+        {
+          "label": "块",
+          "value": "块"
+        },
+        {
+          "label": "付",
+          "value": "付"
+        },
+        {
+          "label": "盘",
+          "value": "盘"
+        },
+        {
+          "label": "束",
+          "value": "束"
+        },
+        {
+          "label": "条",
+          "value": "条"
+        },
+        {
+          "label": "卡",
+          "value": "卡"
+        },
+        {
+          "label": "千克",
+          "value": "千克"
+        },
+        {
+          "label": "平方米",
+          "value": "平方米"
+        },
+        {
+          "label": "面",
+          "value": "面"
+        },
+        {
+          "label": "百个",
+          "value": "百个"
+        },
+        {
+          "label": "令",
+          "value": "令"
+        },
+        {
+          "label": "部",
+          "value": "部"
+        },
+        {
+          "label": "只",
+          "value": "只"
+        },
+        {
+          "label": "副",
+          "value": "副"
+        },
+        {
+          "label": "杯",
+          "value": "杯"
+        },
+        {
+          "label": "台",
+          "value": "台"
+        },
+        {
+          "label": "米",
+          "value": "米"
+        },
+        {
+          "label": "轴",
+          "value": "轴"
+        },
+        {
+          "label": "瓶",
+          "value": "瓶"
+        },
+        {
+          "label": "桶",
+          "value": "桶"
+        },
+        {
+          "label": "件",
+          "value": "件"
+        },
+        {
+          "label": "壶",
+          "value": "壶"
+        },
+        {
+          "label": "顶",
+          "value": "顶"
+        },
+        {
+          "label": "卷",
+          "value": "卷"
+        },
+        {
+          "label": "对",
+          "value": "对"
+        },
+        {
+          "label": "批",
+          "value": "批"
+        },
+        {
+          "label": "份",
+          "value": "份"
+        },
+        {
+          "label": "板",
+          "value": "板"
+        },
+        {
+          "label": "装",
+          "value": "装"
+        },
+        {
+          "label": "圈",
+          "value": "圈"
+        },
+        {
+          "label": "幅",
+          "value": "幅"
+        },
+        {
+          "label": "节",
+          "value": "节"
+        },
+        {
+          "label": "册",
+          "value": "册"
+        },
+        {
+          "label": "贴",
+          "value": "贴"
+        },
+        {
+          "label": "封",
+          "value": "封"
+        },
+        {
+          "label": "次",
+          "value": "次"
+        },
+        {
+          "label": "小时",
+          "value": "小时"
+        },
+        {
+          "label": "年",
+          "value": "年"
+        },
+        {
+          "label": "桩",
+          "value": "桩"
+        },
+        {
+          "label": "人",
+          "value": "人"
+        },
+        {
+          "label": "扇",
+          "value": "扇"
+        },
+        {
+          "label": "床",
+          "value": "床"
+        },
+        {
+          "label": "座",
+          "value": "座"
+        },
+        {
+          "label": "管",
+          "value": "管"
+        },
+        {
+          "label": "间",
+          "value": "间"
+        },
+        {
+          "label": "刀",
+          "value": "刀"
+        },
+        {
+          "label": "串",
+          "value": "串"
+        },
+        {
+          "label": "道",
+          "value": "道"
+        },
+        {
+          "label": "分米",
+          "value": "分米"
+        },
+        {
+          "label": "斤",
+          "value": "斤"
+        },
+        {
+          "label": "棵",
+          "value": "棵"
+        },
+        {
+          "label": "盆",
+          "value": "盆"
+        },
+        {
+          "label": "艘",
+          "value": "艘"
+        },
+        {
+          "label": "篮",
+          "value": "篮"
+        },
+        {
+          "label": "坛",
+          "value": "坛"
+        },
+        {
+          "label": "枝",
+          "value": "枝"
+        },
+        {
+          "label": "公斤",
+          "value": "公斤"
+        },
+        {
+          "label": "株",
+          "value": "株"
+        },
+        {
+          "label": "列",
+          "value": "列"
+        },
+        {
+          "label": "朵",
+          "value": "朵"
+        },
+        {
+          "label": "千米",
+          "value": "千米"
+        },
+        {
+          "label": "沓",
+          "value": "沓"
+        },
+        {
+          "label": "具",
+          "value": "具"
+        },
+        {
+          "label": "排",
+          "value": "排"
+        },
+        {
+          "label": "饼",
+          "value": "饼"
+        },
+        {
+          "label": "碗",
+          "value": "碗"
+        },
+        {
+          "label": "g",
+          "value": "g"
+        },
+        {
+          "label": "kg",
+          "value": "kg"
+        },
+        {
+          "label": "L",
+          "value": "L"
+        },
+        {
+          "label": "ml",
+          "value": "ml"
+        },
+        {
+          "label": "毫升",
+          "value": "毫升"
+        },
+        {
+          "label": "克拉",
+          "value": "克拉"
+        },
+        {
+          "label": "平方分米",
+          "value": "平方分米"
+        },
+        {
+          "label": "厘米",
+          "value": "厘米"
+        },
+        {
+          "label": "立方厘米",
+          "value": "立方厘米"
+        },
+        {
+          "label": "加仑",
+          "value": "加仑"
+        },
+        {
+          "label": "GL",
+          "value": "GL"
+        }
+      ]
+    },
+    {
+      "field": "packSpecification",
+      "title": "包装规格",
+      "type": "AdvInput",
+      "required": true
+    },
+    {
+      "field": "features.packType",
+      "title": "商品包装",
+      "type": "AdvSelect",
+      "required": true,
+      "options": [
+        {
+          "label": "普通商品",
+          "value": "1"
+        },
+        {
+          "label": "易碎品",
+          "value": "2"
+        },
+        {
+          "label": "裸瓶液体",
+          "value": "3"
+        },
+        {
+          "label": "带包装液体",
+          "value": "4"
+        }
+      ]
+    },
+    {
+      "field": "dangerGoods",
+      "title": "是否危险商品",
+      "type": "AdvMultiSelect",
+      "options": [
+        {
+          "label": "爆炸品",
+          "value": "1"
+        },
+        {
+          "label": "压缩液化气体",
+          "value": "2"
+        },
+        {
+          "label": "易燃液体",
+          "value": "4"
+        },
+        {
+          "label": "自燃物品及易燃固体和遇湿易燃物品",
+          "value": "8"
+        },
+        {
+          "label": "氧化剂和有机过氧化物",
+          "value": "16"
+        },
+        {
+          "label": "毒害品和感染性物品",
+          "value": "32"
+        },
+        {
+          "label": "放射性物品",
+          "value": "64"
+        },
+        {
+          "label": "腐蚀品",
+          "value": "128"
+        },
+        {
+          "label": "杂类（包含危害环境物质）",
+          "value": "256"
+        }
+      ]
+    },
+    {
+      "field": "warranty",
+      "title": "质保期",
+      "type": "ShopWarranty",
+      "required": true,
+      "placeholder": "请选择质保期",
+      "options": [
+        {
+          "label": "无质保",
+          "value": "无质保"
+        },
+        {
+          "label": "1年质保",
+          "value": "1年质保"
+        }
+      ]
+    },
+    {
+      "field": "packListing",
+      "title": "包装清单",
+      "type": "AdvInput",
+      "required": true,
+      "placeholder": "请输入，注意：格式为 USB线*1，AV线*1，配带*1，说明书*1，保修卡*1；应用在售后退换货场景，请勿填写干燥剂、油光纸、网格套等无需用户返回的耗材",
+      "maxLength": 800
+    }
+  ],
+  "productProps": [
+    {
+      "field": "99370",
+      "title": "国产/进口",
+      "type": "ShopAttrSelect",
+      "options": [
+        {
+          "label": "进口",
+          "value": "573965"
+        },
+        {
+          "label": "国产",
+          "value": "573966"
+        }
+      ],
+      "group": "其他属性"
+    }
+  ],
+  "saleSpec": [
+    {
+      "field": "29644",
+      "title": "规格",
+      "fields": [
+        {
+          "field": "8888",
+          "title": "规格",
+          "type": "SaleVcUnstructured",
+          "placeholder": "规格",
+          "max": 30
+        }
+      ]
+    },
+    {
+      "field": "29645",
+      "title": "自定义",
+      "fields": [
+        {
+          "field": "8888",
+          "title": "自定义",
+          "type": "SaleVcUnstructured",
+          "placeholder": "自定义",
+          "max": 30
+        }
+      ]
+    },
+    {
+      "field": "999999999",
+      "title": "自定义",
+      "fields": [
+        {
+          "field": "8888",
+          "title": "自定义",
+          "type": "SaleVcUnstructured",
+          "placeholder": "自定义",
+          "max": 30
+        }
+      ]
+    }
+  ],
+  "skuColumns": [
+    {
+      "field": "skuName",
+      "title": "商品名称",
+      "type": "SkuTitle",
+      "required": true,
+      "maxLength": 60
+    },
+    {
+      "field": "skuProps",
+      "title": "SKU属性",
+      "type": "ShopSkuAttributeCommon",
+      "required": true
+    },
+    {
+      "field": "features.shortTitle",
+      "title": "短标题",
+      "type": "VcShortTitle",
+      "placeholder": "建议8个汉字/16个字符以上",
+      "maxLength": 30,
+      "min": 16
+    },
+    {
+      "field": "itemNum",
+      "title": "货号",
+      "type": "ShopItemnum",
+      "placeholder": "请输入货号",
+      "maxLength": 50,
+      "pattern": "/^(?!.*[\\u4e00-\\u9fa5]).*$/"
+    },
+    {
+      "field": "upcInfo",
+      "title": "商品条形码",
+      "type": "VcBarCodeInfo",
+      "placeholder": "多个商品条形码请以英文分号间隔，最多输入10个"
+    },
+    {
+      "field": "imgAll",
+      "title": "图片设置",
+      "type": "ImgAll",
+      "required": true
+    }
+  ],
+  "skuProps": [
+    {
+      "field": "239471",
+      "title": "包装规格",
+      "type": "ShopAttrMultiInputUnit",
+      "required": true,
+      "options": [
+        {
+          "label": "",
+          "value": ""
+        }
+      ],
+      "segments": [
+        {
+          "name": "",
+          "units": [
+            "盒",
+            "桶",
+            "袋",
+            "包"
+          ]
+        }
+      ],
+      "group": "必填属性"
+    },
+    {
+      "field": "239470",
+      "title": "单包支数",
+      "type": "ShopAttrInput",
+      "required": true,
+      "suffix": "支",
+      "max": 25,
+      "pattern": "^(0|[1-9]\\d*)(\\.\\d{1,2})?$",
+      "group": "必填属性"
+    },
+    {
+      "field": "239469",
+      "title": "牙线长度",
+      "type": "ShopAttrInput",
+      "required": true,
+      "suffix": "cm",
+      "max": 25,
+      "pattern": "^(0|[1-9]\\d*)(\\.\\d{1,2})?$",
+      "group": "必填属性"
+    },
+    {
+      "field": "239472",
+      "title": "是否独立包装",
+      "type": "ShopAttrSelect",
+      "options": [
+        {
+          "label": "独立包装",
+          "value": "1361886"
+        },
+        {
+          "label": "非独立包装",
+          "value": "1361887"
+        }
+      ],
+      "group": "重要属性"
+    },
+    {
+      "field": "301306",
+      "title": "国补备案型号",
+      "type": "ShopAttrInput",
+      "max": 300,
+      "group": "其他属性"
+    }
+  ],
+  "leafTemplates": {
+    "29624": {
+      "productProps": [
+        {
+          "field": "194179",
+          "title": "是否含氟",
+          "type": "ShopAttrSelect",
+          "required": true,
+          "options": [
+            {
+              "label": "含氟",
+              "value": "1003664"
+            },
+            {
+              "label": "不含氟",
+              "value": "1003665"
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "287468",
+          "title": "适用年龄",
+          "type": "ShopAttrSelect",
+          "required": true,
+          "options": [
+            {
+              "label": "0-3岁",
+              "value": "2147572"
+            },
+            {
+              "label": "1-12岁",
+              "value": "2177125"
+            },
+            {
+              "label": "0-6岁",
+              "value": "2177126"
+            },
+            {
+              "label": "12岁+",
+              "value": "2182504"
+            },
+            {
+              "label": "2-12岁",
+              "value": "2201542"
+            },
+            {
+              "label": "1-3岁",
+              "value": "2147575"
+            },
+            {
+              "label": "1-6岁",
+              "value": "2147573"
+            },
+            {
+              "label": "2-5岁",
+              "value": "2147574"
+            },
+            {
+              "label": "2-6岁",
+              "value": "2147576"
+            },
+            {
+              "label": "3-12岁",
+              "value": "2147579"
+            },
+            {
+              "label": "3-6岁",
+              "value": "2147577"
+            },
+            {
+              "label": "6-12岁",
+              "value": "2147580"
+            },
+            {
+              "label": "6-9岁",
+              "value": "2147578"
+            },
+            {
+              "label": "10-12岁",
+              "value": "2147581"
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "247090",
+          "title": "功效",
+          "type": "ShopAttrMultiSelect",
+          "required": true,
+          "max": 3,
+          "options": [
+            {
+              "label": "防蛀/固齿",
+              "value": "1425703"
+            },
+            {
+              "label": "其他",
+              "value": "1590044"
+            },
+            {
+              "label": "清新口气",
+              "value": "1425705"
+            },
+            {
+              "label": "清洁",
+              "value": "1425706"
+            },
+            {
+              "label": "牙周护理",
+              "value": "1425707"
+            },
+            {
+              "label": "牙龈护理",
+              "value": "1425708"
+            },
+            {
+              "label": "去牙渍",
+              "value": "1425709"
+            },
+            {
+              "label": "防龋齿",
+              "value": "1425722"
+            },
+            {
+              "label": "修复",
+              "value": "2147559"
+            },
+            {
+              "label": "抗糖",
+              "value": "2147560"
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "247091",
+          "title": "成分",
+          "type": "ShopAttrMultiSelect",
+          "max": 3,
+          "options": [
+            {
+              "label": "木糖醇",
+              "value": "1425710"
+            },
+            {
+              "label": "酵素",
+              "value": "1425711"
+            },
+            {
+              "label": "磷硅酸钾钙",
+              "value": "1498356"
+            },
+            {
+              "label": "羟基磷灰石",
+              "value": "1501457"
+            },
+            {
+              "label": "‌山梨（糖）醇",
+              "value": "2177110"
+            },
+            {
+              "label": "益生菌",
+              "value": "1425712"
+            },
+            {
+              "label": "乳铁蛋白",
+              "value": "1425713"
+            },
+            {
+              "label": "奥拉氟",
+              "value": "1425714"
+            },
+            {
+              "label": "氨基酸",
+              "value": "2147558"
+            }
+          ],
+          "group": "重要属性"
+        },
+        {
+          "field": "99370",
+          "title": "国产/进口",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "进口",
+              "value": "573965"
+            },
+            {
+              "label": "国产",
+              "value": "573966"
+            }
+          ],
+          "group": "其他属性"
+        }
+      ],
+      "saleSpec": [
+        {
+          "field": "29610",
+          "title": "规格",
+          "fields": [
+            {
+              "field": "8888",
+              "title": "规格",
+              "type": "SaleVcUnstructured",
+              "placeholder": "规格",
+              "max": 30
+            }
+          ]
+        },
+        {
+          "field": "29611",
+          "title": "自定义",
+          "fields": [
+            {
+              "field": "8888",
+              "title": "自定义",
+              "type": "SaleVcUnstructured",
+              "placeholder": "自定义",
+              "max": 30
+            }
+          ]
+        },
+        {
+          "field": "999999999",
+          "title": "自定义",
+          "fields": [
+            {
+              "field": "8888",
+              "title": "自定义",
+              "type": "SaleVcUnstructured",
+              "placeholder": "自定义",
+              "max": 30
+            }
+          ]
+        }
+      ],
+      "skuProps": [
+        {
+          "field": "194208",
+          "title": "批准文号/备案编号",
+          "type": "ShopAttrInput",
+          "required": true,
+          "max": 300,
+          "group": "必填属性"
+        },
+        {
+          "field": "194174",
+          "title": "保质期",
+          "type": "ShopAttrInput",
+          "required": true,
+          "suffix": "年",
+          "max": 25,
+          "pattern": "^(0|[1-9]\\d*)(\\.\\d{1,2})?$",
+          "group": "必填属性"
+        },
+        {
+          "field": "194173",
+          "title": "包装规格",
+          "type": "ShopAttrMultiInputUnit",
+          "required": true,
+          "suffix": "支",
+          "options": [
+            {
+              "label": "",
+              "value": ""
+            }
+          ],
+          "segments": [
+            {
+              "name": "",
+              "units": [
+                "支",
+                "瓶"
+              ]
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "194176",
+          "title": "总净含量",
+          "type": "ShopAttrMultiInputUnit",
+          "options": [
+            {
+              "label": "",
+              "value": ""
+            }
+          ],
+          "segments": [
+            {
+              "name": "",
+              "units": [
+                "g",
+                "mL"
+              ]
+            }
+          ],
+          "group": "重要属性"
+        },
+        {
+          "field": "253003",
+          "title": "产品（注册/备案）名称",
+          "type": "ShopAttrInput",
+          "max": 300,
+          "group": "重要属性"
+        },
+        {
+          "field": "194200",
+          "title": "是否儿童化妆品",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "儿童化妆品",
+              "value": "1003697"
+            },
+            {
+              "label": "非儿童化妆品",
+              "value": "1003704"
+            }
+          ],
+          "group": "重要属性"
+        },
+        {
+          "field": "194175",
+          "title": "口味",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "草莓味",
+              "value": "1003652"
+            },
+            {
+              "label": "苹果味",
+              "value": "1003653"
+            },
+            {
+              "label": "树莓味",
+              "value": "1491113"
+            },
+            {
+              "label": "石榴味",
+              "value": "1493806"
+            },
+            {
+              "label": "芒果味",
+              "value": "1511296"
+            },
+            {
+              "label": "可乐味",
+              "value": "1511512"
+            },
+            {
+              "label": "葡萄味",
+              "value": "1003654"
+            },
+            {
+              "label": "香蕉味",
+              "value": "1003655"
+            },
+            {
+              "label": "橙味",
+              "value": "1003656"
+            },
+            {
+              "label": "菠萝味",
+              "value": "1003657"
+            },
+            {
+              "label": "哈密瓜味",
+              "value": "1003658"
+            },
+            {
+              "label": "橘子味",
+              "value": "1003659"
+            },
+            {
+              "label": "桃子味",
+              "value": "1003660"
+            },
+            {
+              "label": "榴莲味",
+              "value": "1003661"
+            },
+            {
+              "label": "原味",
+              "value": "1005459"
+            },
+            {
+              "label": "混合口味",
+              "value": "1005460"
+            },
+            {
+              "label": "樱花味",
+              "value": "1005461"
+            },
+            {
+              "label": "椰子味",
+              "value": "1005462"
+            },
+            {
+              "label": "百香果味",
+              "value": "1005463"
+            },
+            {
+              "label": "薄荷味",
+              "value": "1005464"
+            },
+            {
+              "label": "冰激凌味",
+              "value": "1005465"
+            },
+            {
+              "label": "火龙果味",
+              "value": "1005466"
+            },
+            {
+              "label": "蓝莓味",
+              "value": "1005467"
+            },
+            {
+              "label": "野莓果味",
+              "value": "1005468"
+            },
+            {
+              "label": "猕猴桃味",
+              "value": "1005469"
+            },
+            {
+              "label": "柠檬味",
+              "value": "1005470"
+            },
+            {
+              "label": "牛奶味",
+              "value": "1005471"
+            },
+            {
+              "label": "巧克力味",
+              "value": "1005472"
+            },
+            {
+              "label": "西瓜味",
+              "value": "1005473"
+            },
+            {
+              "label": "西柚味",
+              "value": "1005474"
+            },
+            {
+              "label": "香草味",
+              "value": "1005475"
+            }
+          ],
+          "group": "重要属性"
+        },
+        {
+          "field": "301306",
+          "title": "国补备案型号",
+          "type": "ShopAttrInput",
+          "max": 300,
+          "group": "其他属性"
+        }
+      ]
+    },
+    "29625": {
+      "productProps": [
+        {
+          "field": "207728",
+          "title": "类别",
+          "type": "ShopAttrSelect",
+          "required": true,
+          "options": [
+            {
+              "label": "电动牙刷",
+              "value": "1009391"
+            },
+            {
+              "label": "U型牙刷",
+              "value": "1009392"
+            },
+            {
+              "label": "口呼吸矫正贴",
+              "value": "1487908"
+            },
+            {
+              "label": "舌苔清洁",
+              "value": "1009393"
+            },
+            {
+              "label": "乳牙牙刷",
+              "value": "1009394"
+            },
+            {
+              "label": "电动牙刷刷头",
+              "value": "1009395"
+            },
+            {
+              "label": "普通牙刷",
+              "value": "1009396"
+            },
+            {
+              "label": "指套牙刷",
+              "value": "1009397"
+            },
+            {
+              "label": "漱口杯",
+              "value": "1009398"
+            },
+            {
+              "label": "牙刷套筒",
+              "value": "1009399"
+            },
+            {
+              "label": "洗漱包",
+              "value": "1458496"
+            },
+            {
+              "label": "冲牙器",
+              "value": "4237646"
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "99370",
+          "title": "国产/进口",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "进口",
+              "value": "573965"
+            },
+            {
+              "label": "国产",
+              "value": "573966"
+            }
+          ],
+          "group": "其他属性"
+        }
+      ],
+      "saleSpec": [
+        {
+          "field": "2558",
+          "title": "规格",
+          "fields": [
+            {
+              "field": "8888",
+              "title": "规格",
+              "type": "SaleVcUnstructured",
+              "placeholder": "规格",
+              "max": 30
+            }
+          ]
+        },
+        {
+          "field": "2559",
+          "title": "尺码",
+          "fields": [
+            {
+              "field": "8888",
+              "title": "尺码",
+              "type": "SaleVcUnstructured",
+              "placeholder": "尺码",
+              "max": 30
+            }
+          ]
+        },
+        {
+          "field": "999999999",
+          "title": "自定义",
+          "fields": [
+            {
+              "field": "8888",
+              "title": "自定义",
+              "type": "SaleVcUnstructured",
+              "placeholder": "自定义",
+              "max": 30
+            }
+          ]
+        }
+      ],
+      "skuColumns": [
+        {
+          "field": "skuName",
+          "title": "商品名称",
+          "type": "SkuTitle",
+          "required": true,
+          "maxLength": 60
+        },
+        {
+          "field": "skuProps",
+          "title": "SKU属性",
+          "type": "ShopSkuAttributeCommon"
+        },
+        {
+          "field": "features.shortTitle",
+          "title": "短标题",
+          "type": "VcShortTitle",
+          "placeholder": "建议8个汉字/16个字符以上",
+          "maxLength": 30,
+          "min": 16
+        },
+        {
+          "field": "itemNum",
+          "title": "货号",
+          "type": "ShopItemnum",
+          "placeholder": "请输入货号",
+          "maxLength": 50,
+          "pattern": "/^(?!.*[\\u4e00-\\u9fa5]).*$/"
+        },
+        {
+          "field": "upcInfo",
+          "title": "商品条形码",
+          "type": "VcBarCodeInfo",
+          "placeholder": "多个商品条形码请以英文分号间隔，最多输入10个"
+        },
+        {
+          "field": "imgAll",
+          "title": "图片设置",
+          "type": "ImgAll",
+          "required": true
+        }
+      ],
+      "skuProps": [
+        {
+          "field": "301306",
+          "title": "国补备案型号",
+          "type": "ShopAttrInput",
+          "max": 300,
+          "group": "其他属性"
+        }
+      ]
+    },
+    "34513": {
+      "productProps": [
+        {
+          "field": "99370",
+          "title": "国产/进口",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "进口",
+              "value": "573965"
+            },
+            {
+              "label": "国产",
+              "value": "573966"
+            }
+          ],
+          "group": "其他属性"
+        },
+        {
+          "field": "239468",
+          "title": "是否含氟",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "含氟",
+              "value": "1361884"
+            },
+            {
+              "label": "不含氟",
+              "value": "1361885"
+            }
+          ],
+          "group": "其他属性"
+        }
+      ],
+      "saleSpec": [
+        {
+          "field": "29642",
+          "title": "规格",
+          "fields": [
+            {
+              "field": "8888",
+              "title": "规格",
+              "type": "SaleVcUnstructured",
+              "placeholder": "规格",
+              "max": 30
+            }
+          ]
+        },
+        {
+          "field": "29643",
+          "title": "自定义",
+          "fields": [
+            {
+              "field": "8888",
+              "title": "自定义",
+              "type": "SaleVcUnstructured",
+              "placeholder": "自定义",
+              "max": 30
+            }
+          ]
+        },
+        {
+          "field": "999999999",
+          "title": "自定义",
+          "fields": [
+            {
+              "field": "8888",
+              "title": "自定义",
+              "type": "SaleVcUnstructured",
+              "placeholder": "自定义",
+              "max": 30
+            }
+          ]
+        }
+      ],
+      "skuProps": [
+        {
+          "field": "239463",
+          "title": "单件净含量",
+          "type": "ShopAttrInput",
+          "required": true,
+          "suffix": "ml",
+          "max": 25,
+          "pattern": "^(0|[1-9]\\d*)(\\.\\d{1,2})?$",
+          "group": "必填属性"
+        },
+        {
+          "field": "239466",
+          "title": "口味",
+          "type": "ShopAttrSelect",
+          "required": true,
+          "options": [
+            {
+              "label": "草莓味",
+              "value": "1361871"
+            },
+            {
+              "label": "香蕉牛奶味",
+              "value": "1361879"
+            },
+            {
+              "label": "香橙味",
+              "value": "1361872"
+            },
+            {
+              "label": "青提味",
+              "value": "1479012"
+            },
+            {
+              "label": "苹果味",
+              "value": "1361873"
+            },
+            {
+              "label": "白桃味",
+              "value": "1361874"
+            },
+            {
+              "label": "青柠味",
+              "value": "1361875"
+            },
+            {
+              "label": "葡萄味",
+              "value": "1361876"
+            },
+            {
+              "label": "柠檬味",
+              "value": "1361877"
+            },
+            {
+              "label": "混合果味",
+              "value": "1361878"
+            },
+            {
+              "label": "金凤梨",
+              "value": "1457738"
+            },
+            {
+              "label": "薄荷味",
+              "value": "1461891"
+            },
+            {
+              "label": "树莓味",
+              "value": "1476608"
+            },
+            {
+              "label": "西瓜味",
+              "value": "1442028"
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "239465",
+          "title": "保质期",
+          "type": "ShopAttrMultiInputUnit",
+          "required": true,
+          "options": [
+            {
+              "label": "",
+              "value": ""
+            }
+          ],
+          "segments": [
+            {
+              "name": "",
+              "units": [
+                "年",
+                "个月"
+              ]
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "239464",
+          "title": "包装规格",
+          "type": "ShopAttrMultiInputUnit",
+          "required": true,
+          "options": [
+            {
+              "label": "",
+              "value": ""
+            }
+          ],
+          "segments": [
+            {
+              "name": "",
+              "units": [
+                "瓶",
+                "条"
+              ]
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "239467",
+          "title": "功效",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "清新口气",
+              "value": "1361880"
+            },
+            {
+              "label": "美白",
+              "value": "1361881"
+            },
+            {
+              "label": "抑菌",
+              "value": "1361882"
+            },
+            {
+              "label": "防蛀",
+              "value": "1361883"
+            }
+          ],
+          "group": "其他属性"
+        },
+        {
+          "field": "301306",
+          "title": "国补备案型号",
+          "type": "ShopAttrInput",
+          "max": 300,
+          "group": "其他属性"
+        }
+      ]
+    },
+    "34515": {
+      "productProps": [
+        {
+          "field": "247092",
+          "title": "功效",
+          "type": "ShopAttrMultiSelect",
+          "max": 3,
+          "options": [
+            {
+              "label": "防蛀/固齿",
+              "value": "1425723"
+            },
+            {
+              "label": "防龋齿",
+              "value": "1425724"
+            },
+            {
+              "label": "清新口气",
+              "value": "1425725"
+            },
+            {
+              "label": "清洁",
+              "value": "1425726"
+            },
+            {
+              "label": "牙周护理",
+              "value": "1425727"
+            },
+            {
+              "label": "牙龈护理",
+              "value": "1425728"
+            },
+            {
+              "label": "去牙渍",
+              "value": "1425729"
+            }
+          ],
+          "group": "其他属性"
+        },
+        {
+          "field": "247099",
+          "title": "成分",
+          "type": "ShopAttrMultiSelect",
+          "max": 3,
+          "options": [
+            {
+              "label": "木糖醇",
+              "value": "1425806"
+            },
+            {
+              "label": "酵素",
+              "value": "1425807"
+            },
+            {
+              "label": "益生菌",
+              "value": "1425808"
+            },
+            {
+              "label": "乳铁蛋白",
+              "value": "1425809"
+            },
+            {
+              "label": "奥拉氟",
+              "value": "1425810"
+            }
+          ],
+          "group": "其他属性"
+        },
+        {
+          "field": "99370",
+          "title": "国产/进口",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "进口",
+              "value": "573965"
+            },
+            {
+              "label": "国产",
+              "value": "573966"
+            }
+          ],
+          "group": "其他属性"
+        },
+        {
+          "field": "239452",
+          "title": "是否含氟",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "含氟",
+              "value": "1361835"
+            },
+            {
+              "label": "不含氟",
+              "value": "1361836"
+            }
+          ],
+          "group": "其他属性"
+        }
+      ],
+      "saleSpec": [
+        {
+          "field": "29646",
+          "title": "规格",
+          "fields": [
+            {
+              "field": "8888",
+              "title": "规格",
+              "type": "SaleVcUnstructured",
+              "placeholder": "规格",
+              "max": 30
+            }
+          ]
+        },
+        {
+          "field": "29647",
+          "title": "自定义",
+          "fields": [
+            {
+              "field": "8888",
+              "title": "自定义",
+              "type": "SaleVcUnstructured",
+              "placeholder": "自定义",
+              "max": 30
+            }
+          ]
+        },
+        {
+          "field": "999999999",
+          "title": "自定义",
+          "fields": [
+            {
+              "field": "8888",
+              "title": "自定义",
+              "type": "SaleVcUnstructured",
+              "placeholder": "自定义",
+              "max": 30
+            }
+          ]
+        }
+      ],
+      "skuProps": [
+        {
+          "field": "239456",
+          "title": "包装规格",
+          "type": "ShopAttrInput",
+          "required": true,
+          "suffix": "支",
+          "max": 25,
+          "pattern": "^(0|[1-9]\\d*)(\\.\\d{1,2})?$",
+          "group": "必填属性"
+        },
+        {
+          "field": "239455",
+          "title": "单件净含量",
+          "type": "ShopAttrInput",
+          "required": true,
+          "suffix": "g",
+          "max": 25,
+          "pattern": "^(0|[1-9]\\d*)(\\.\\d{1,2})?$",
+          "group": "必填属性"
+        },
+        {
+          "field": "239454",
+          "title": "保质期",
+          "type": "ShopAttrMultiInputUnit",
+          "required": true,
+          "options": [
+            {
+              "label": "",
+              "value": ""
+            }
+          ],
+          "segments": [
+            {
+              "name": "",
+              "units": [
+                "年",
+                "个月"
+              ]
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "239453",
+          "title": "口味",
+          "type": "ShopAttrSelect",
+          "required": true,
+          "options": [
+            {
+              "label": "葡萄味",
+              "value": "1361838"
+            },
+            {
+              "label": "什果味",
+              "value": "1361849"
+            },
+            {
+              "label": "草莓味",
+              "value": "1361839"
+            },
+            {
+              "label": "香橙味",
+              "value": "1502534"
+            },
+            {
+              "label": "苹果味",
+              "value": "1361840"
+            },
+            {
+              "label": "香蕉味",
+              "value": "1361841"
+            },
+            {
+              "label": "薄荷味",
+              "value": "1361842"
+            },
+            {
+              "label": "酸奶味",
+              "value": "1361843"
+            },
+            {
+              "label": "哈密瓜味",
+              "value": "1361844"
+            },
+            {
+              "label": "香草味",
+              "value": "1361845"
+            },
+            {
+              "label": "蜜桃味",
+              "value": "1361846"
+            },
+            {
+              "label": "混合口味",
+              "value": "1361847"
+            },
+            {
+              "label": "柠檬茶",
+              "value": "1361848"
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "301306",
+          "title": "国补备案型号",
+          "type": "ShopAttrInput",
+          "max": 300,
+          "group": "其他属性"
+        }
+      ]
+    },
+    "34516": {
+      "saleSpec": [
+        {
+          "field": "29648",
+          "title": "规格",
+          "fields": [
+            {
+              "field": "8888",
+              "title": "规格",
+              "type": "SaleVcUnstructured",
+              "placeholder": "规格",
+              "max": 30
+            }
+          ]
+        },
+        {
+          "field": "29649",
+          "title": "自定义",
+          "fields": [
+            {
+              "field": "8888",
+              "title": "自定义",
+              "type": "SaleVcUnstructured",
+              "placeholder": "自定义",
+              "max": 30
+            }
+          ]
+        },
+        {
+          "field": "999999999",
+          "title": "自定义",
+          "fields": [
+            {
+              "field": "8888",
+              "title": "自定义",
+              "type": "SaleVcUnstructured",
+              "placeholder": "自定义",
+              "max": 30
+            }
+          ]
+        }
+      ],
+      "skuProps": [
+        {
+          "field": "239459",
+          "title": "包装规格",
+          "type": "ShopAttrMultiInputUnit",
+          "required": true,
+          "options": [
+            {
+              "label": "",
+              "value": ""
+            }
+          ],
+          "segments": [
+            {
+              "name": "",
+              "units": [
+                "瓶",
+                "支"
+              ]
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "239458",
+          "title": "保质期",
+          "type": "ShopAttrMultiInputUnit",
+          "required": true,
+          "options": [
+            {
+              "label": "",
+              "value": ""
+            }
+          ],
+          "segments": [
+            {
+              "name": "",
+              "units": [
+                "年",
+                "个月"
+              ]
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "239461",
+          "title": "口味",
+          "type": "ShopAttrSelect",
+          "required": true,
+          "options": [
+            {
+              "label": "草莓味",
+              "value": "1361864"
+            },
+            {
+              "label": "甜橙味",
+              "value": "1361865"
+            },
+            {
+              "label": "柠檬薄荷味",
+              "value": "1501415"
+            },
+            {
+              "label": "乌龙蜜桃味",
+              "value": "1501416"
+            },
+            {
+              "label": "蜜桃味",
+              "value": "1361866"
+            },
+            {
+              "label": "葡萄味",
+              "value": "1361867"
+            },
+            {
+              "label": "牛奶味",
+              "value": "1361868"
+            },
+            {
+              "label": "可乐味",
+              "value": "1361869"
+            },
+            {
+              "label": "混合果味",
+              "value": "1361870"
+            },
+            {
+              "label": "蜜瓜味",
+              "value": "1447423"
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "239460",
+          "title": "单件净含量",
+          "type": "ShopAttrInput",
+          "required": true,
+          "suffix": "ml",
+          "max": 25,
+          "pattern": "^(0|[1-9]\\d*)(\\.\\d{1,2})?$",
+          "group": "必填属性"
+        },
+        {
+          "field": "301306",
+          "title": "国补备案型号",
+          "type": "ShopAttrInput",
+          "max": 300,
+          "group": "其他属性"
+        }
+      ]
+    },
+    "38575": {
+      "productProps": [
+        {
+          "field": "258753",
+          "title": "功能",
+          "type": "ShopAttrMultiSelect",
+          "max": 3,
+          "options": [
+            {
+              "label": "舌苔清洁",
+              "value": "1500291"
+            },
+            {
+              "label": "牙缝清洁",
+              "value": "1500292"
+            },
+            {
+              "label": "牙龈按摩",
+              "value": "1500293"
+            }
+          ],
+          "group": "其他属性"
+        },
+        {
+          "field": "258752",
+          "title": "产地",
+          "type": "ShopAttrAddress",
+          "group": "其他属性"
+        },
+        {
+          "field": "99370",
+          "title": "国产/进口",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "进口",
+              "value": "573965"
+            },
+            {
+              "label": "国产",
+              "value": "573966"
+            }
+          ],
+          "group": "其他属性"
+        }
+      ],
+      "saleSpec": [
+        {
+          "field": "2558",
+          "title": "规格",
+          "fields": [
+            {
+              "field": "8888",
+              "title": "规格",
+              "type": "SaleVcUnstructured",
+              "placeholder": "规格",
+              "max": 30
+            }
+          ]
+        },
+        {
+          "field": "2559",
+          "title": "尺码",
+          "fields": [
+            {
+              "field": "8888",
+              "title": "尺码",
+              "type": "SaleVcUnstructured",
+              "placeholder": "尺码",
+              "max": 30
+            }
+          ]
+        },
+        {
+          "field": "999999999",
+          "title": "自定义",
+          "fields": [
+            {
+              "field": "8888",
+              "title": "自定义",
+              "type": "SaleVcUnstructured",
+              "placeholder": "自定义",
+              "max": 30
+            }
+          ]
+        }
+      ],
+      "skuColumns": [
+        {
+          "field": "skuName",
+          "title": "商品名称",
+          "type": "SkuTitle",
+          "required": true,
+          "maxLength": 60
+        },
+        {
+          "field": "skuProps",
+          "title": "SKU属性",
+          "type": "ShopSkuAttributeCommon"
+        },
+        {
+          "field": "features.shortTitle",
+          "title": "短标题",
+          "type": "VcShortTitle",
+          "placeholder": "建议8个汉字/16个字符以上",
+          "maxLength": 30,
+          "min": 16
+        },
+        {
+          "field": "itemNum",
+          "title": "货号",
+          "type": "ShopItemnum",
+          "placeholder": "请输入货号",
+          "maxLength": 50,
+          "pattern": "/^(?!.*[\\u4e00-\\u9fa5]).*$/"
+        },
+        {
+          "field": "upcInfo",
+          "title": "商品条形码",
+          "type": "VcBarCodeInfo",
+          "placeholder": "多个商品条形码请以英文分号间隔，最多输入10个"
+        },
+        {
+          "field": "imgAll",
+          "title": "图片设置",
+          "type": "ImgAll",
+          "required": true
+        }
+      ],
+      "skuProps": [
+        {
+          "field": "258754",
+          "title": "总支数",
+          "type": "ShopAttrMultiInputUnit",
+          "options": [
+            {
+              "label": "",
+              "value": ""
+            }
+          ],
+          "segments": [
+            {
+              "name": "",
+              "units": [
+                "支"
+              ]
+            }
+          ],
+          "group": "其他属性"
+        },
+        {
+          "field": "301306",
+          "title": "国补备案型号",
+          "type": "ShopAttrInput",
+          "max": 300,
+          "group": "其他属性"
+        }
+      ]
+    },
+    "38576": {
+      "productProps": [
+        {
+          "field": "258762",
+          "title": "功能",
+          "type": "ShopAttrMultiSelect",
+          "options": [
+            {
+              "label": "舌苔清洁",
+              "value": "1500309"
+            },
+            {
+              "label": "牙缝清洁",
+              "value": "1500310"
+            },
+            {
+              "label": "牙龈按摩",
+              "value": "1500311"
+            }
+          ],
+          "group": "其他属性"
+        },
+        {
+          "field": "258761",
+          "title": "产地",
+          "type": "ShopAttrAddress",
+          "group": "其他属性"
+        },
+        {
+          "field": "99370",
+          "title": "国产/进口",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "进口",
+              "value": "573965"
+            },
+            {
+              "label": "国产",
+              "value": "573966"
+            }
+          ],
+          "group": "其他属性"
+        },
+        {
+          "field": "258764",
+          "title": "适用对象",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "儿童",
+              "value": "1500317"
+            },
+            {
+              "label": "婴幼儿",
+              "value": "1500318"
+            },
+            {
+              "label": "通用",
+              "value": "1500319"
+            }
+          ],
+          "group": "其他属性"
+        }
+      ],
+      "saleSpec": [
+        {
+          "field": "2558",
+          "title": "规格",
+          "fields": [
+            {
+              "field": "8888",
+              "title": "规格",
+              "type": "SaleVcUnstructured",
+              "placeholder": "规格",
+              "max": 30
+            }
+          ]
+        },
+        {
+          "field": "2559",
+          "title": "尺码",
+          "fields": [
+            {
+              "field": "8888",
+              "title": "尺码",
+              "type": "SaleVcUnstructured",
+              "placeholder": "尺码",
+              "max": 30
+            }
+          ]
+        },
+        {
+          "field": "999999999",
+          "title": "自定义",
+          "fields": [
+            {
+              "field": "8888",
+              "title": "自定义",
+              "type": "SaleVcUnstructured",
+              "placeholder": "自定义",
+              "max": 30
+            }
+          ]
+        }
+      ],
+      "skuColumns": [
+        {
+          "field": "skuName",
+          "title": "商品名称",
+          "type": "SkuTitle",
+          "required": true,
+          "maxLength": 60
+        },
+        {
+          "field": "skuProps",
+          "title": "SKU属性",
+          "type": "ShopSkuAttributeCommon"
+        },
+        {
+          "field": "features.shortTitle",
+          "title": "短标题",
+          "type": "VcShortTitle",
+          "placeholder": "建议8个汉字/16个字符以上",
+          "maxLength": 30,
+          "min": 16
+        },
+        {
+          "field": "itemNum",
+          "title": "货号",
+          "type": "ShopItemnum",
+          "placeholder": "请输入货号",
+          "maxLength": 50,
+          "pattern": "/^(?!.*[\\u4e00-\\u9fa5]).*$/"
+        },
+        {
+          "field": "upcInfo",
+          "title": "商品条形码",
+          "type": "VcBarCodeInfo",
+          "placeholder": "多个商品条形码请以英文分号间隔，最多输入10个"
+        },
+        {
+          "field": "imgAll",
+          "title": "图片设置",
+          "type": "ImgAll",
+          "required": true
+        }
+      ],
+      "skuProps": [
+        {
+          "field": "258763",
+          "title": "内含件数",
+          "type": "ShopAttrMultiInputUnit",
+          "group": "其他属性"
+        },
+        {
+          "field": "301306",
+          "title": "国补备案型号",
+          "type": "ShopAttrInput",
+          "max": 300,
+          "group": "其他属性"
+        }
+      ]
+    },
+    "38577": {
+      "productProps": [
+        {
+          "field": "258755",
+          "title": "产地",
+          "type": "ShopAttrAddress",
+          "group": "其他属性"
+        },
+        {
+          "field": "258759",
+          "title": "牙刷类型",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "乳牙刷/训练牙刷",
+              "value": "1500302"
+            },
+            {
+              "label": "护齿牙刷",
+              "value": "1500303"
+            },
+            {
+              "label": "其他",
+              "value": "1500304"
+            }
+          ],
+          "group": "其他属性"
+        },
+        {
+          "field": "258758",
+          "title": "适用年龄",
+          "type": "ShopAttrMultiSelect",
+          "max": 3,
+          "options": [
+            {
+              "label": "12岁+",
+              "value": "2182505"
+            },
+            {
+              "label": "3岁-6岁",
+              "value": "1500300"
+            },
+            {
+              "label": "6-12岁",
+              "value": "1500301"
+            },
+            {
+              "label": "1-6岁",
+              "value": "2147561"
+            },
+            {
+              "label": "3-12岁",
+              "value": "2147562"
+            },
+            {
+              "label": "2-6岁",
+              "value": "2147563"
+            },
+            {
+              "label": "10-12岁",
+              "value": "2147564"
+            },
+            {
+              "label": "6-9岁",
+              "value": "2147565"
+            },
+            {
+              "label": "2-5岁",
+              "value": "2147566"
+            },
+            {
+              "label": "0-1岁",
+              "value": "2147567"
+            },
+            {
+              "label": "1-3岁",
+              "value": "2147569"
+            },
+            {
+              "label": "0-2岁",
+              "value": "2147568"
+            },
+            {
+              "label": "0-3岁",
+              "value": "2147570"
+            },
+            {
+              "label": "3-6岁",
+              "value": "2147571"
+            }
+          ],
+          "group": "其他属性"
+        },
+        {
+          "field": "258756",
+          "title": "功能",
+          "type": "ShopAttrMultiSelect",
+          "max": 3,
+          "options": [
+            {
+              "label": "舌苔清洁",
+              "value": "1500294"
+            },
+            {
+              "label": "牙缝清洁",
+              "value": "1500295"
+            },
+            {
+              "label": "牙龈按摩",
+              "value": "1500296"
+            }
+          ],
+          "group": "其他属性"
+        },
+        {
+          "field": "258760",
+          "title": "刷头类型",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "指套",
+              "value": "1500305"
+            },
+            {
+              "label": "三面",
+              "value": "1500306"
+            },
+            {
+              "label": "宽薄",
+              "value": "1500307"
+            },
+            {
+              "label": "小刷头",
+              "value": "1500308"
+            }
+          ],
+          "group": "其他属性"
+        },
+        {
+          "field": "99370",
+          "title": "国产/进口",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "进口",
+              "value": "573965"
+            },
+            {
+              "label": "国产",
+              "value": "573966"
+            }
+          ],
+          "group": "其他属性"
+        }
+      ],
+      "saleSpec": [
+        {
+          "field": "2558",
+          "title": "规格",
+          "fields": [
+            {
+              "field": "8888",
+              "title": "规格",
+              "type": "SaleVcUnstructured",
+              "placeholder": "规格",
+              "max": 30
+            }
+          ]
+        },
+        {
+          "field": "2559",
+          "title": "尺码",
+          "fields": [
+            {
+              "field": "8888",
+              "title": "尺码",
+              "type": "SaleVcUnstructured",
+              "placeholder": "尺码",
+              "max": 30
+            }
+          ]
+        },
+        {
+          "field": "999999999",
+          "title": "自定义",
+          "fields": [
+            {
+              "field": "8888",
+              "title": "自定义",
+              "type": "SaleVcUnstructured",
+              "placeholder": "自定义",
+              "max": 30
+            }
+          ]
+        }
+      ],
+      "skuColumns": [
+        {
+          "field": "skuName",
+          "title": "商品名称",
+          "type": "SkuTitle",
+          "required": true,
+          "maxLength": 60
+        },
+        {
+          "field": "skuProps",
+          "title": "SKU属性",
+          "type": "ShopSkuAttributeCommon"
+        },
+        {
+          "field": "features.shortTitle",
+          "title": "短标题",
+          "type": "VcShortTitle",
+          "placeholder": "建议8个汉字/16个字符以上",
+          "maxLength": 30,
+          "min": 16
+        },
+        {
+          "field": "itemNum",
+          "title": "货号",
+          "type": "ShopItemnum",
+          "placeholder": "请输入货号",
+          "maxLength": 50,
+          "pattern": "/^(?!.*[\\u4e00-\\u9fa5]).*$/"
+        },
+        {
+          "field": "upcInfo",
+          "title": "商品条形码",
+          "type": "VcBarCodeInfo",
+          "placeholder": "多个商品条形码请以英文分号间隔，最多输入10个"
+        },
+        {
+          "field": "imgAll",
+          "title": "图片设置",
+          "type": "ImgAll",
+          "required": true
+        }
+      ],
+      "skuProps": [
+        {
+          "field": "258757",
+          "title": "总支数",
+          "type": "ShopAttrMultiInputUnit",
+          "options": [
+            {
+              "label": "",
+              "value": ""
+            }
+          ],
+          "segments": [
+            {
+              "name": "",
+              "units": [
+                "支"
+              ]
+            }
+          ],
+          "group": "其他属性"
+        },
+        {
+          "field": "301306",
+          "title": "国补备案型号",
+          "type": "ShopAttrInput",
+          "max": 300,
+          "group": "其他属性"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,3630 @@
+{
+  "version": 1,
+  "categoryId": "5000",
+  "categoryName": "孕产妇洗护",
+  "path": [
+    {
+      "id": "1319",
+      "name": "母婴"
+    },
+    {
+      "id": "4997",
+      "name": "妈妈专区"
+    },
+    {
+      "id": "5000",
+      "name": "孕产妇洗护"
+    }
+  ],
+  "isLeaf": false,
+  "publishCategoryId": "17830",
+  "publishCategoryName": "孕产妇口腔护理",
+  "leafChildren": [
+    {
+      "id": "17830",
+      "name": "孕产妇口腔护理",
+      "interpretation": "该类目经营孕产妇口腔护理品类商品，包含：孕产妇可用牙膏、孕产妇可用牙粉、孕产妇可用漱口水。该类目为实物类目，仅能挂靠实物商品。"
+    },
+    {
+      "id": "17828",
+      "name": "孕产妇面部护理",
+      "interpretation": "该类目经营孕产妇面部护理品类商品，包含：孕妇可用卸妆、孕妇可用洁面、孕妇可用爽肤水、孕妇可用化妆水、孕妇可用乳液、孕妇可用面霜、孕妇可用喷雾、孕妇可用面膜、孕妇可用防晒、孕妇可用眼部精华、孕妇可用眼霜、孕妇可用眼胶、孕妇可用眼膜、孕妇可用唇部精华、孕妇可用唇膏、孕妇可用唇膜、孕妇可用T区护理、孕妇可用护肤套装、孕妇可用护肤礼盒。该类目为实物类目，仅能挂靠实物商品。"
+    },
+    {
+      "id": "17829",
+      "name": "孕产妇洗发护发",
+      "interpretation": "该类目经营孕产妇洗发护发品类商品，包含：孕产妇可用洗发水、孕产妇可用护发素、孕产妇可用发膜、孕产妇可用营养水、孕产妇可用护发精华、孕产妇可用洗护套装。该类目为实物类目，仅能挂靠实物商品。"
+    },
+    {
+      "id": "17826",
+      "name": "孕产妇彩妆",
+      "interpretation": "该类目经营孕产妇彩妆品类商品，包含：孕产妇可用隔离霜、孕产妇可用妆前乳、孕产妇可用气垫BB霜、孕产妇可用气垫CC霜、孕产妇可用粉底液、孕产妇可用粉底膏、孕产妇可用遮瑕、孕产妇可用蜜粉、孕产妇可用散粉、孕产妇可用粉饼、孕产妇可用腮红、孕产妇可用胭脂、孕产妇可用眼线笔、孕产妇可用眼线液、孕产妇可用眼影、孕产妇可用眉笔、孕产妇可用眉粉、孕产妇可用睫毛膏、孕产妇可用口红、孕产妇可用唇釉、孕产妇可用唇彩、孕产妇可用唇线笔、孕产妇可用彩妆礼盒、孕产妇可用彩妆套装。该类目为实物类目，仅能挂靠实物商品。"
+    },
+    {
+      "id": "17827",
+      "name": "妊娠纹/疤痕护理",
+      "interpretation": "该类目经营妊娠纹护理、疤痕护理品类商品。该类目为实物类目，仅能挂靠实物商品。"
+    },
+    {
+      "id": "17831",
+      "name": "孕产妇身体护理",
+      "interpretation": "该类目经营孕产妇身体护理品类商品，包含：孕产妇可用颈部护理、孕产妇可用纤体塑形、孕产妇可用私密护理、孕产妇可用润肤水、孕产妇可用润肤乳、孕产妇可用润肤霜、孕产妇可用润肤粉、孕产妇可用润肤喷雾、孕产妇可用润肤精油、孕产妇可用沐浴露、孕产妇可用磨砂膏、孕产妇可用香皂、孕产妇可用浴盐、孕产妇可用花露水、孕产妇可用洗手液、孕产妇可用护手霜、孕产妇可用手膜、孕产妇可用足膜、孕产妇可用护足霜、孕产妇可用足贴、孕产妇可用足浴粉、孕产妇可用脱毛膏、孕产妇可用乳头膏、霜、孕产妇可用乳房霜。该类目为实物类目，仅能挂靠实物商品。"
+    },
+    {
+      "id": "17832",
+      "name": "其它孕妇洗护",
+      "interpretation": "该类目经营其他孕妇洗护类商品，如孕妇私处洗护凝胶、孕妇私处护理液。该类目为实物类目，仅能挂靠实物商品。"
+    }
+  ],
+  "note": "「孕产妇洗护」在 VC 后台不是末级类目，发布时要选四级类目；模板按「孕产妇口腔护理」[17830] 的发布页录制，同一个三级类目下的四级类目共用这份模板；孕产妇彩妆、妊娠纹/疤痕护理、孕产妇面部护理、孕产妇洗发护发、孕产妇身体护理、其它孕妇洗护 的发布页和它不同，不同的部分记在 leafTemplates 里（按四级类目ID）",
+  "capturedAt": "2026-11-09T12:33:38.946Z",
+  "baseFields": [
+    {
+      "field": "aiRecImages",
+      "title": "图片信息识别",
+      "type": "ShopAiPublish",
+      "required": true
+    },
+    {
+      "field": "productTitle",
+      "title": "商品标题",
+      "type": "ShopTitle",
+      "required": true,
+      "placeholder": "此标题仅用于批量生成表格中的【商品名称】，列表页SKU展开后显示【商品名称】，没展开显示这个商品标题",
+      "maxLength": 60
+    },
+    {
+      "field": "brandId",
+      "title": "品牌",
+      "type": "ShopBrand",
+      "required": true
+    },
+    {
+      "field": "features.model",
+      "title": "型号",
+      "type": "ShopModel",
+      "required": true,
+      "placeholder": "设置SKU型号请选中【SKU字段配置面板】",
+      "maxLength": 100
+    },
+    {
+      "field": "buyerInfo",
+      "title": "采购员ERP",
+      "type": "ShopSalerErp",
+      "required": true
+    },
+    {
+      "field": "salerInfo",
+      "title": "销售员ERP",
+      "type": "ShopSalerErp",
+      "required": true
+    },
+    {
+      "field": "marketPrice",
+      "title": "市场价(元)",
+      "type": "VcMarketPrice",
+      "required": true,
+      "placeholder": "请输入市场价",
+      "pattern": "/^\\d{0,12}(?:\\.\\d{1,2})?$/"
+    },
+    {
+      "field": "lineationPriceInfo",
+      "title": "价格凭证类型",
+      "type": "ShopLineationPrice",
+      "placeholder": "请设置",
+      "options": [
+        {
+          "label": "商品吊牌价",
+          "value": "2"
+        },
+        {
+          "label": "厂商指导价",
+          "value": "3"
+        },
+        {
+          "label": "建议零售价",
+          "value": "4"
+        },
+        {
+          "label": "定价",
+          "value": "5"
+        },
+        {
+          "label": "其他",
+          "value": "99"
+        }
+      ]
+    },
+    {
+      "field": "jdPrice",
+      "title": "京东价(元)",
+      "type": "ShopSingleJdPrice",
+      "required": true,
+      "placeholder": "请输入京东价",
+      "pattern": "/^\\d{0,12}(?:\\.\\d{1,2})?$/"
+    },
+    {
+      "field": "costPrice",
+      "title": "采购价(元)",
+      "type": "VcCostPrice",
+      "required": true,
+      "placeholder": "请输入采购价",
+      "pattern": "/^\\d{0,12}(?:\\.\\d{1,4})?$/"
+    },
+    {
+      "field": "profitMargin",
+      "title": "毛利",
+      "type": "VcGrossProfit"
+    },
+    {
+      "field": "features.ocrImg",
+      "title": "辅助识别图片",
+      "type": "ShopAttrOcr",
+      "required": true
+    },
+    {
+      "field": "imageList",
+      "title": "方图",
+      "type": "VcImageUpload",
+      "required": true
+    },
+    {
+      "field": "rectangleImageList",
+      "title": "长图",
+      "type": "VcImageUpload"
+    },
+    {
+      "field": "transparentImageList",
+      "title": "透图",
+      "type": "VcImageUpload",
+      "required": true
+    },
+    {
+      "field": "productDesc",
+      "title": "商品详情",
+      "type": "ShopEditor",
+      "required": true,
+      "maxLength": 100000,
+      "options": [
+        {
+          "label": "源码编辑",
+          "value": "0"
+        },
+        {
+          "label": "高级编辑",
+          "value": "1"
+        },
+        {
+          "label": "图文编辑",
+          "value": "2"
+        }
+      ]
+    },
+    {
+      "field": "features.sldays",
+      "title": "保质期（天）",
+      "type": "AdvInput",
+      "placeholder": "请输入",
+      "maxLength": 12
+    },
+    {
+      "field": "length",
+      "title": "[包装]长(mm)",
+      "type": "VcWeakRangeInput",
+      "required": true,
+      "max": 2460,
+      "pattern": "/^[1-9]\\d*$/",
+      "min": 1
+    },
+    {
+      "field": "wide",
+      "title": "[包装]宽(mm)",
+      "type": "VcWeakRangeInput",
+      "required": true,
+      "max": 1900,
+      "pattern": "/^[1-9]\\d*$/",
+      "min": 1
+    },
+    {
+      "field": "height",
+      "title": "[包装]高(mm)",
+      "type": "VcWeakRangeInput",
+      "required": true,
+      "placeholder": "请输入商品高度",
+      "max": 1300,
+      "pattern": "/^[1-9]\\d*$/",
+      "min": 1
+    },
+    {
+      "field": "weight",
+      "title": "商品毛重(kg)",
+      "type": "VcWeakRangeInput",
+      "required": true,
+      "max": 9300,
+      "min": 0.01
+    },
+    {
+      "field": "features.unit",
+      "title": "销售单位",
+      "type": "AdvSelect",
+      "required": true,
+      "placeholder": "请选择",
+      "options": [
+        {
+          "label": "包",
+          "value": "包"
+        },
+        {
+          "label": "辆",
+          "value": "辆"
+        },
+        {
+          "label": "把",
+          "value": "把"
+        },
+        {
+          "label": "袋",
+          "value": "袋"
+        },
+        {
+          "label": "粒",
+          "value": "粒"
+        },
+        {
+          "label": "颗",
+          "value": "颗"
+        },
+        {
+          "label": "枚",
+          "value": "枚"
+        },
+        {
+          "label": "张",
+          "value": "张"
+        },
+        {
+          "label": "吨",
+          "value": "吨"
+        },
+        {
+          "label": "个",
+          "value": "个"
+        },
+        {
+          "label": "本",
+          "value": "本"
+        },
+        {
+          "label": "听",
+          "value": "听"
+        },
+        {
+          "label": "支",
+          "value": "支"
+        },
+        {
+          "label": "箱",
+          "value": "箱"
+        },
+        {
+          "label": "头",
+          "value": "头"
+        },
+        {
+          "label": "架",
+          "value": "架"
+        },
+        {
+          "label": "根",
+          "value": "根"
+        },
+        {
+          "label": "立方米",
+          "value": "立方米"
+        },
+        {
+          "label": "组",
+          "value": "组"
+        },
+        {
+          "label": "捆",
+          "value": "捆"
+        },
+        {
+          "label": "片",
+          "value": "片"
+        },
+        {
+          "label": "升",
+          "value": "升"
+        },
+        {
+          "label": "克",
+          "value": "克"
+        },
+        {
+          "label": "双",
+          "value": "双"
+        },
+        {
+          "label": "千个",
+          "value": "千个"
+        },
+        {
+          "label": "扎",
+          "value": "扎"
+        },
+        {
+          "label": "盏",
+          "value": "盏"
+        },
+        {
+          "label": "罐",
+          "value": "罐"
+        },
+        {
+          "label": "提",
+          "value": "提"
+        },
+        {
+          "label": "盒",
+          "value": "盒"
+        },
+        {
+          "label": "筒",
+          "value": "筒"
+        },
+        {
+          "label": "打",
+          "value": "打"
+        },
+        {
+          "label": "套",
+          "value": "套"
+        },
+        {
+          "label": "块",
+          "value": "块"
+        },
+        {
+          "label": "付",
+          "value": "付"
+        },
+        {
+          "label": "盘",
+          "value": "盘"
+        },
+        {
+          "label": "束",
+          "value": "束"
+        },
+        {
+          "label": "条",
+          "value": "条"
+        },
+        {
+          "label": "卡",
+          "value": "卡"
+        },
+        {
+          "label": "千克",
+          "value": "千克"
+        },
+        {
+          "label": "平方米",
+          "value": "平方米"
+        },
+        {
+          "label": "面",
+          "value": "面"
+        },
+        {
+          "label": "百个",
+          "value": "百个"
+        },
+        {
+          "label": "令",
+          "value": "令"
+        },
+        {
+          "label": "部",
+          "value": "部"
+        },
+        {
+          "label": "只",
+          "value": "只"
+        },
+        {
+          "label": "副",
+          "value": "副"
+        },
+        {
+          "label": "杯",
+          "value": "杯"
+        },
+        {
+          "label": "台",
+          "value": "台"
+        },
+        {
+          "label": "米",
+          "value": "米"
+        },
+        {
+          "label": "轴",
+          "value": "轴"
+        },
+        {
+          "label": "瓶",
+          "value": "瓶"
+        },
+        {
+          "label": "桶",
+          "value": "桶"
+        },
+        {
+          "label": "件",
+          "value": "件"
+        },
+        {
+          "label": "壶",
+          "value": "壶"
+        },
+        {
+          "label": "顶",
+          "value": "顶"
+        },
+        {
+          "label": "卷",
+          "value": "卷"
+        },
+        {
+          "label": "对",
+          "value": "对"
+        },
+        {
+          "label": "批",
+          "value": "批"
+        },
+        {
+          "label": "份",
+          "value": "份"
+        },
+        {
+          "label": "板",
+          "value": "板"
+        },
+        {
+          "label": "装",
+          "value": "装"
+        },
+        {
+          "label": "圈",
+          "value": "圈"
+        },
+        {
+          "label": "幅",
+          "value": "幅"
+        },
+        {
+          "label": "节",
+          "value": "节"
+        },
+        {
+          "label": "册",
+          "value": "册"
+        },
+        {
+          "label": "贴",
+          "value": "贴"
+        },
+        {
+          "label": "封",
+          "value": "封"
+        },
+        {
+          "label": "次",
+          "value": "次"
+        },
+        {
+          "label": "小时",
+          "value": "小时"
+        },
+        {
+          "label": "年",
+          "value": "年"
+        },
+        {
+          "label": "桩",
+          "value": "桩"
+        },
+        {
+          "label": "人",
+          "value": "人"
+        },
+        {
+          "label": "扇",
+          "value": "扇"
+        },
+        {
+          "label": "床",
+          "value": "床"
+        },
+        {
+          "label": "座",
+          "value": "座"
+        },
+        {
+          "label": "管",
+          "value": "管"
+        },
+        {
+          "label": "间",
+          "value": "间"
+        },
+        {
+          "label": "刀",
+          "value": "刀"
+        },
+        {
+          "label": "串",
+          "value": "串"
+        },
+        {
+          "label": "道",
+          "value": "道"
+        },
+        {
+          "label": "分米",
+          "value": "分米"
+        },
+        {
+          "label": "斤",
+          "value": "斤"
+        },
+        {
+          "label": "棵",
+          "value": "棵"
+        },
+        {
+          "label": "盆",
+          "value": "盆"
+        },
+        {
+          "label": "艘",
+          "value": "艘"
+        },
+        {
+          "label": "篮",
+          "value": "篮"
+        },
+        {
+          "label": "坛",
+          "value": "坛"
+        },
+        {
+          "label": "枝",
+          "value": "枝"
+        },
+        {
+          "label": "公斤",
+          "value": "公斤"
+        },
+        {
+          "label": "株",
+          "value": "株"
+        },
+        {
+          "label": "列",
+          "value": "列"
+        },
+        {
+          "label": "朵",
+          "value": "朵"
+        },
+        {
+          "label": "千米",
+          "value": "千米"
+        },
+        {
+          "label": "沓",
+          "value": "沓"
+        },
+        {
+          "label": "具",
+          "value": "具"
+        },
+        {
+          "label": "排",
+          "value": "排"
+        },
+        {
+          "label": "饼",
+          "value": "饼"
+        },
+        {
+          "label": "碗",
+          "value": "碗"
+        },
+        {
+          "label": "g",
+          "value": "g"
+        },
+        {
+          "label": "kg",
+          "value": "kg"
+        },
+        {
+          "label": "L",
+          "value": "L"
+        },
+        {
+          "label": "ml",
+          "value": "ml"
+        },
+        {
+          "label": "毫升",
+          "value": "毫升"
+        },
+        {
+          "label": "克拉",
+          "value": "克拉"
+        },
+        {
+          "label": "平方分米",
+          "value": "平方分米"
+        },
+        {
+          "label": "厘米",
+          "value": "厘米"
+        },
+        {
+          "label": "立方厘米",
+          "value": "立方厘米"
+        },
+        {
+          "label": "加仑",
+          "value": "加仑"
+        },
+        {
+          "label": "GL",
+          "value": "GL"
+        }
+      ]
+    },
+    {
+      "field": "packSpecification",
+      "title": "包装规格",
+      "type": "AdvInput",
+      "required": true
+    },
+    {
+      "field": "features.packType",
+      "title": "商品包装",
+      "type": "AdvSelect",
+      "required": true,
+      "options": [
+        {
+          "label": "普通商品",
+          "value": "1"
+        },
+        {
+          "label": "易碎品",
+          "value": "2"
+        },
+        {
+          "label": "裸瓶液体",
+          "value": "3"
+        },
+        {
+          "label": "带包装液体",
+          "value": "4"
+        }
+      ]
+    },
+    {
+      "field": "dangerGoods",
+      "title": "是否危险商品",
+      "type": "AdvMultiSelect",
+      "options": [
+        {
+          "label": "爆炸品",
+          "value": "1"
+        },
+        {
+          "label": "压缩液化气体",
+          "value": "2"
+        },
+        {
+          "label": "易燃液体",
+          "value": "4"
+        },
+        {
+          "label": "自燃物品及易燃固体和遇湿易燃物品",
+          "value": "8"
+        },
+        {
+          "label": "氧化剂和有机过氧化物",
+          "value": "16"
+        },
+        {
+          "label": "毒害品和感染性物品",
+          "value": "32"
+        },
+        {
+          "label": "放射性物品",
+          "value": "64"
+        },
+        {
+          "label": "腐蚀品",
+          "value": "128"
+        },
+        {
+          "label": "杂类（包含危害环境物质）",
+          "value": "256"
+        }
+      ]
+    },
+    {
+      "field": "warranty",
+      "title": "质保期",
+      "type": "ShopWarranty",
+      "required": true,
+      "placeholder": "请选择质保期",
+      "options": [
+        {
+          "label": "无质保",
+          "value": "无质保"
+        }
+      ]
+    },
+    {
+      "field": "packListing",
+      "title": "包装清单",
+      "type": "AdvInput",
+      "required": true,
+      "placeholder": "请输入，注意：格式为 USB线*1，AV线*1，配带*1，说明书*1，保修卡*1；应用在售后退换货场景，请勿填写干燥剂、油光纸、网格套等无需用户返回的耗材",
+      "maxLength": 800
+    }
+  ],
+  "productProps": [
+    {
+      "field": "146356",
+      "title": "类别",
+      "type": "ShopAttrSelect",
+      "required": true,
+      "options": [
+        {
+          "label": "口腔套装",
+          "value": "742978"
+        },
+        {
+          "label": "牙刷",
+          "value": "742979"
+        },
+        {
+          "label": "漱口水",
+          "value": "742980"
+        },
+        {
+          "label": "牙膏",
+          "value": "742981"
+        },
+        {
+          "label": "口腔喷雾",
+          "value": "742982"
+        },
+        {
+          "label": "口腔贴片",
+          "value": "742983"
+        }
+      ],
+      "group": "必填属性"
+    },
+    {
+      "field": "146357",
+      "title": "功效",
+      "type": "ShopAttrMultiSelect",
+      "required": true,
+      "options": [
+        {
+          "label": "清洁",
+          "value": "742984"
+        },
+        {
+          "label": "清新口气",
+          "value": "742985"
+        },
+        {
+          "label": "除菌/抑菌",
+          "value": "742987"
+        },
+        {
+          "label": "牙龈护理",
+          "value": "742990"
+        },
+        {
+          "label": "去牙渍",
+          "value": "742991"
+        },
+        {
+          "label": "美白",
+          "value": "742992"
+        },
+        {
+          "label": "防蛀/固齿",
+          "value": "742993"
+        }
+      ],
+      "group": "必填属性"
+    },
+    {
+      "field": "145852",
+      "title": "产地",
+      "type": "ShopAttrAddress",
+      "group": "重要属性"
+    },
+    {
+      "field": "145838",
+      "title": "国产/进口",
+      "type": "ShopAttrSelect",
+      "options": [
+        {
+          "label": "进口",
+          "value": "739832"
+        },
+        {
+          "label": "国产",
+          "value": "739833"
+        }
+      ],
+      "group": "其他属性"
+    }
+  ],
+  "saleSpec": [
+    {
+      "field": "29476",
+      "title": "规格",
+      "fields": [
+        {
+          "field": "8888",
+          "title": "规格",
+          "type": "SaleVcUnstructured",
+          "placeholder": "规格",
+          "max": 30
+        }
+      ]
+    },
+    {
+      "field": "29477",
+      "title": "自定义",
+      "fields": [
+        {
+          "field": "8888",
+          "title": "自定义",
+          "type": "SaleVcUnstructured",
+          "placeholder": "自定义",
+          "max": 30
+        }
+      ]
+    },
+    {
+      "field": "999999999",
+      "title": "自定义",
+      "fields": [
+        {
+          "field": "8888",
+          "title": "自定义",
+          "type": "SaleVcUnstructured",
+          "placeholder": "自定义",
+          "max": 30
+        }
+      ]
+    }
+  ],
+  "skuColumns": [
+    {
+      "field": "skuName",
+      "title": "商品名称",
+      "type": "SkuTitle",
+      "required": true,
+      "maxLength": 60
+    },
+    {
+      "field": "skuSpuKeyAttrVal",
+      "title": "标准产品关键属性",
+      "type": "ShopSkuSpuKeyAttribute"
+    },
+    {
+      "field": "skuProps",
+      "title": "SKU属性",
+      "type": "ShopSkuAttributeCommon"
+    },
+    {
+      "field": "features.shortTitle",
+      "title": "短标题",
+      "type": "VcShortTitle",
+      "placeholder": "建议8个汉字/16个字符以上",
+      "maxLength": 30,
+      "min": 16
+    },
+    {
+      "field": "itemNum",
+      "title": "货号",
+      "type": "ShopItemnum",
+      "placeholder": "请输入货号",
+      "maxLength": 50,
+      "pattern": "/^(?!.*[\\u4e00-\\u9fa5]).*$/"
+    },
+    {
+      "field": "upcInfo",
+      "title": "商品条形码",
+      "type": "VcBarCodeInfo",
+      "placeholder": "多个商品条形码请以英文分号间隔，最多输入10个"
+    },
+    {
+      "field": "imgAll",
+      "title": "图片设置",
+      "type": "ImgAll",
+      "required": true
+    }
+  ],
+  "skuProps": [
+    {
+      "field": "145826",
+      "title": "规格",
+      "type": "ShopAttrSelect",
+      "options": [
+        {
+          "label": "6-30mL(g)",
+          "value": "739800"
+        },
+        {
+          "label": "51-100mL(g)",
+          "value": "739801"
+        },
+        {
+          "label": "31-50mL(g)",
+          "value": "739802"
+        },
+        {
+          "label": "300mL(g)以上",
+          "value": "739803"
+        },
+        {
+          "label": "251-300mL(g)",
+          "value": "739804"
+        },
+        {
+          "label": "201-250mL(g)",
+          "value": "739805"
+        },
+        {
+          "label": "151-200mL(g)",
+          "value": "739806"
+        },
+        {
+          "label": "101-150mL(g)",
+          "value": "739807"
+        },
+        {
+          "label": "0-5mL(g)",
+          "value": "739808"
+        }
+      ],
+      "group": "重要属性"
+    },
+    {
+      "field": "191247",
+      "title": "是否特殊化妆品",
+      "type": "ShopAttrSelect",
+      "options": [
+        {
+          "label": "特殊化妆品",
+          "value": "987929"
+        },
+        {
+          "label": "非特殊化妆品",
+          "value": "987943"
+        }
+      ],
+      "group": "重要属性"
+    },
+    {
+      "field": "146359",
+      "title": "口味",
+      "type": "ShopAttrSelect",
+      "options": [
+        {
+          "label": "苹果味",
+          "value": "742997"
+        },
+        {
+          "label": "甜橙味",
+          "value": "742998"
+        },
+        {
+          "label": "西瓜味",
+          "value": "1502507"
+        },
+        {
+          "label": "青柠味",
+          "value": "1679901"
+        },
+        {
+          "label": "柠檬味",
+          "value": "742999"
+        },
+        {
+          "label": "薄荷味",
+          "value": "743000"
+        },
+        {
+          "label": "猕猴桃味",
+          "value": "743001"
+        },
+        {
+          "label": "蓝莓味",
+          "value": "743002"
+        },
+        {
+          "label": "桃子味",
+          "value": "743003"
+        },
+        {
+          "label": "混合味",
+          "value": "1461119"
+        }
+      ],
+      "group": "其他属性"
+    },
+    {
+      "field": "191268",
+      "title": "批准文号/备案编号",
+      "type": "ShopAttrInput",
+      "max": 300,
+      "group": "其他属性"
+    },
+    {
+      "field": "422430",
+      "title": "国补备案型号",
+      "type": "ShopAttrInput",
+      "max": 300,
+      "group": "其他属性"
+    },
+    {
+      "field": "191885",
+      "title": "总净含量",
+      "type": "ShopAttrMultiInputUnit",
+      "options": [
+        {
+          "label": "",
+          "value": ""
+        }
+      ],
+      "segments": [
+        {
+          "name": "",
+          "units": [
+            "g",
+            "mL"
+          ]
+        }
+      ],
+      "group": "其他属性"
+    }
+  ],
+  "leafTemplates": {
+    "17826": {
+      "productProps": [
+        {
+          "field": "146085",
+          "title": "功效",
+          "type": "ShopAttrMultiSelect",
+          "required": true,
+          "max": 3,
+          "options": [
+            {
+              "label": "滋润",
+              "value": "741390"
+            },
+            {
+              "label": "遮瑕",
+              "value": "741391"
+            },
+            {
+              "label": "易延展",
+              "value": "741392"
+            },
+            {
+              "label": "修容",
+              "value": "741393"
+            },
+            {
+              "label": "修护",
+              "value": "741394"
+            },
+            {
+              "label": "纤长",
+              "value": "741395"
+            },
+            {
+              "label": "细致毛孔",
+              "value": "741396"
+            },
+            {
+              "label": "提亮肤色",
+              "value": "741397"
+            },
+            {
+              "label": "去黑眼圈",
+              "value": "741398"
+            },
+            {
+              "label": "清爽",
+              "value": "741399"
+            },
+            {
+              "label": "浓密",
+              "value": "741400"
+            },
+            {
+              "label": "控油",
+              "value": "741401"
+            },
+            {
+              "label": "卷翘",
+              "value": "741402"
+            },
+            {
+              "label": "隔离",
+              "value": "741403"
+            },
+            {
+              "label": "丰唇/显色",
+              "value": "741404"
+            },
+            {
+              "label": "防水不晕染",
+              "value": "741405"
+            },
+            {
+              "label": "定妆",
+              "value": "741406"
+            },
+            {
+              "label": "淡化唇色",
+              "value": "741407"
+            },
+            {
+              "label": "不沾杯",
+              "value": "741408"
+            },
+            {
+              "label": "补水保湿",
+              "value": "741409"
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "146083",
+          "title": "类别",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "指甲油",
+              "value": "741368"
+            },
+            {
+              "label": "遮瑕笔/遮瑕膏",
+              "value": "741369"
+            },
+            {
+              "label": "眼影",
+              "value": "741370"
+            },
+            {
+              "label": "眼线笔/眼线液",
+              "value": "741371"
+            },
+            {
+              "label": "腮红/胭脂",
+              "value": "741372"
+            },
+            {
+              "label": "蜜粉/散粉",
+              "value": "741373"
+            },
+            {
+              "label": "眉笔/眉粉",
+              "value": "741374"
+            },
+            {
+              "label": "口红",
+              "value": "741375"
+            },
+            {
+              "label": "睫毛膏/增长液",
+              "value": "741376"
+            },
+            {
+              "label": "隔离霜/妆前乳",
+              "value": "741377"
+            },
+            {
+              "label": "粉底液/膏",
+              "value": "741378"
+            },
+            {
+              "label": "粉饼",
+              "value": "741379"
+            },
+            {
+              "label": "唇彩唇蜜/唇釉",
+              "value": "741380"
+            },
+            {
+              "label": "彩妆套装",
+              "value": "741382"
+            },
+            {
+              "label": "彩妆工具",
+              "value": "741383"
+            },
+            {
+              "label": "BB霜/CC霜",
+              "value": "741384"
+            }
+          ],
+          "group": "重要属性"
+        },
+        {
+          "field": "146087",
+          "title": "使用方法",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "干用",
+              "value": "741426"
+            },
+            {
+              "label": "干湿两用",
+              "value": "741427"
+            }
+          ],
+          "group": "重要属性"
+        },
+        {
+          "field": "146088",
+          "title": "妆效",
+          "type": "ShopAttrMultiSelect",
+          "max": 2,
+          "options": [
+            {
+              "label": "自然/裸妆",
+              "value": "741428"
+            },
+            {
+              "label": "烟熏",
+              "value": "741429"
+            },
+            {
+              "label": "哑光/雾面",
+              "value": "741430"
+            },
+            {
+              "label": "丝绒",
+              "value": "741431"
+            },
+            {
+              "label": "润泽/镜面",
+              "value": "741432"
+            },
+            {
+              "label": "高光/亮泽",
+              "value": "741433"
+            }
+          ],
+          "group": "重要属性"
+        },
+        {
+          "field": "145852",
+          "title": "产地",
+          "type": "ShopAttrAddress",
+          "group": "重要属性"
+        },
+        {
+          "field": "145838",
+          "title": "国产/进口",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "进口",
+              "value": "739832"
+            },
+            {
+              "label": "国产",
+              "value": "739833"
+            }
+          ],
+          "group": "其他属性"
+        }
+      ],
+      "saleSpec": [
+        {
+          "field": "29486",
+          "title": "色号",
+          "fields": [
+            {
+              "field": "8888",
+              "title": "色号",
+              "type": "SaleVcUnstructured",
+              "placeholder": "色号",
+              "max": 30
+            }
+          ]
+        },
+        {
+          "field": "29487",
+          "title": "规格",
+          "fields": [
+            {
+              "field": "8888",
+              "title": "规格",
+              "type": "SaleVcUnstructured",
+              "placeholder": "规格",
+              "max": 30
+            }
+          ]
+        },
+        {
+          "field": "999999999",
+          "title": "自定义",
+          "fields": [
+            {
+              "field": "8888",
+              "title": "自定义",
+              "type": "SaleVcUnstructured",
+              "placeholder": "自定义",
+              "max": 30
+            }
+          ]
+        }
+      ],
+      "skuColumns": [
+        {
+          "field": "skuName",
+          "title": "商品名称",
+          "type": "SkuTitle",
+          "required": true,
+          "maxLength": 60
+        },
+        {
+          "field": "skuSpuKeyAttrVal",
+          "title": "标准产品关键属性",
+          "type": "ShopSkuSpuKeyAttribute"
+        },
+        {
+          "field": "skuProps",
+          "title": "SKU属性",
+          "type": "ShopSkuAttributeCommon",
+          "required": true
+        },
+        {
+          "field": "features.shortTitle",
+          "title": "短标题",
+          "type": "VcShortTitle",
+          "placeholder": "建议8个汉字/16个字符以上",
+          "maxLength": 30,
+          "min": 16
+        },
+        {
+          "field": "itemNum",
+          "title": "货号",
+          "type": "ShopItemnum",
+          "placeholder": "请输入货号",
+          "maxLength": 50,
+          "pattern": "/^(?!.*[\\u4e00-\\u9fa5]).*$/"
+        },
+        {
+          "field": "upcInfo",
+          "title": "商品条形码",
+          "type": "VcBarCodeInfo",
+          "placeholder": "多个商品条形码请以英文分号间隔，最多输入10个"
+        },
+        {
+          "field": "imgAll",
+          "title": "图片设置",
+          "type": "ImgAll",
+          "required": true
+        }
+      ],
+      "skuProps": [
+        {
+          "field": "191879",
+          "title": "总净含量",
+          "type": "ShopAttrInput",
+          "required": true,
+          "suffix": "g",
+          "max": 25,
+          "pattern": "^(0|[1-9]\\d*)(\\.\\d{1,2})?$",
+          "group": "必填属性"
+        },
+        {
+          "field": "146084",
+          "title": "适合肤质",
+          "type": "ShopAttrSelect",
+          "required": true,
+          "options": [
+            {
+              "label": "中性",
+              "value": "741385"
+            },
+            {
+              "label": "油性",
+              "value": "741386"
+            },
+            {
+              "label": "其他",
+              "value": "1590271"
+            },
+            {
+              "label": "敏感性",
+              "value": "741387"
+            },
+            {
+              "label": "混合性",
+              "value": "741388"
+            },
+            {
+              "label": "干性",
+              "value": "741389"
+            },
+            {
+              "label": "多种肤质适用",
+              "value": "990415"
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "191259",
+          "title": "批准文号/备案编号",
+          "type": "ShopAttrInput",
+          "required": true,
+          "max": 300,
+          "group": "必填属性"
+        },
+        {
+          "field": "145826",
+          "title": "规格",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "6-30mL(g)",
+              "value": "739800"
+            },
+            {
+              "label": "51-100mL(g)",
+              "value": "739801"
+            },
+            {
+              "label": "31-50mL(g)",
+              "value": "739802"
+            },
+            {
+              "label": "300mL(g)以上",
+              "value": "739803"
+            },
+            {
+              "label": "251-300mL(g)",
+              "value": "739804"
+            },
+            {
+              "label": "201-250mL(g)",
+              "value": "739805"
+            },
+            {
+              "label": "151-200mL(g)",
+              "value": "739806"
+            },
+            {
+              "label": "101-150mL(g)",
+              "value": "739807"
+            },
+            {
+              "label": "0-5mL(g)",
+              "value": "739808"
+            }
+          ],
+          "group": "重要属性"
+        },
+        {
+          "field": "191237",
+          "title": "是否特殊化妆品",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "特殊化妆品",
+              "value": "987911"
+            },
+            {
+              "label": "非特殊化妆品",
+              "value": "987920"
+            }
+          ],
+          "group": "重要属性"
+        },
+        {
+          "field": "422430",
+          "title": "国补备案型号",
+          "type": "ShopAttrInput",
+          "max": 300,
+          "group": "其他属性"
+        }
+      ]
+    },
+    "17827": {
+      "productProps": [
+        {
+          "field": "146044",
+          "title": "功效",
+          "type": "ShopAttrMultiSelect",
+          "required": true,
+          "max": 3,
+          "options": [
+            {
+              "label": "滋润",
+              "value": "741165"
+            },
+            {
+              "label": "止痒",
+              "value": "741166"
+            },
+            {
+              "label": "提亮肤色",
+              "value": "1500748"
+            },
+            {
+              "label": "修护",
+              "value": "1585792"
+            },
+            {
+              "label": "增强弹性",
+              "value": "741167"
+            },
+            {
+              "label": "预防妊娠纹",
+              "value": "741168"
+            },
+            {
+              "label": "提拉紧致",
+              "value": "741169"
+            },
+            {
+              "label": "损伤修护",
+              "value": "741170"
+            },
+            {
+              "label": "舒缓修护",
+              "value": "741171"
+            },
+            {
+              "label": "祛皱",
+              "value": "741172"
+            },
+            {
+              "label": "防裂",
+              "value": "741173"
+            },
+            {
+              "label": "淡化妊娠纹",
+              "value": "741174"
+            },
+            {
+              "label": "淡斑",
+              "value": "741175"
+            },
+            {
+              "label": "保湿",
+              "value": "1461116"
+            },
+            {
+              "label": "淡疤/祛印",
+              "value": "741176"
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "146042",
+          "title": "类别",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "修复乳",
+              "value": "741150"
+            },
+            {
+              "label": "修复精华",
+              "value": "741151"
+            },
+            {
+              "label": "喷雾",
+              "value": "741152"
+            },
+            {
+              "label": "凝胶/凝露",
+              "value": "741153"
+            },
+            {
+              "label": "摩擦/修复膏",
+              "value": "741154"
+            },
+            {
+              "label": "美容胶带",
+              "value": "741155"
+            },
+            {
+              "label": "橄榄油",
+              "value": "741156"
+            },
+            {
+              "label": "疤痕贴",
+              "value": "741157"
+            },
+            {
+              "label": "按摩油",
+              "value": "741158"
+            },
+            {
+              "label": "按摩/修复霜",
+              "value": "741159"
+            }
+          ],
+          "group": "重要属性"
+        },
+        {
+          "field": "145852",
+          "title": "产地",
+          "type": "ShopAttrAddress",
+          "group": "重要属性"
+        },
+        {
+          "field": "146045",
+          "title": "护理类别",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "妊娠纹护理",
+              "value": "741177"
+            },
+            {
+              "label": "疤痕护理",
+              "value": "741178"
+            }
+          ],
+          "group": "重要属性"
+        },
+        {
+          "field": "145838",
+          "title": "国产/进口",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "进口",
+              "value": "739832"
+            },
+            {
+              "label": "国产",
+              "value": "739833"
+            }
+          ],
+          "group": "其他属性"
+        }
+      ],
+      "saleSpec": [
+        {
+          "field": "29484",
+          "title": "规格",
+          "fields": [
+            {
+              "field": "8888",
+              "title": "规格",
+              "type": "SaleVcUnstructured",
+              "placeholder": "规格",
+              "max": 30
+            }
+          ]
+        },
+        {
+          "field": "29485",
+          "title": "自定义",
+          "fields": [
+            {
+              "field": "8888",
+              "title": "自定义",
+              "type": "SaleVcUnstructured",
+              "placeholder": "自定义",
+              "max": 30
+            }
+          ]
+        },
+        {
+          "field": "999999999",
+          "title": "自定义",
+          "fields": [
+            {
+              "field": "8888",
+              "title": "自定义",
+              "type": "SaleVcUnstructured",
+              "placeholder": "自定义",
+              "max": 30
+            }
+          ]
+        }
+      ],
+      "skuColumns": [
+        {
+          "field": "skuName",
+          "title": "商品名称",
+          "type": "SkuTitle",
+          "required": true,
+          "maxLength": 60
+        },
+        {
+          "field": "skuSpuKeyAttrVal",
+          "title": "标准产品关键属性",
+          "type": "ShopSkuSpuKeyAttribute"
+        },
+        {
+          "field": "skuProps",
+          "title": "SKU属性",
+          "type": "ShopSkuAttributeCommon",
+          "required": true
+        },
+        {
+          "field": "features.shortTitle",
+          "title": "短标题",
+          "type": "VcShortTitle",
+          "placeholder": "建议8个汉字/16个字符以上",
+          "maxLength": 30,
+          "min": 16
+        },
+        {
+          "field": "itemNum",
+          "title": "货号",
+          "type": "ShopItemnum",
+          "placeholder": "请输入货号",
+          "maxLength": 50,
+          "pattern": "/^(?!.*[\\u4e00-\\u9fa5]).*$/"
+        },
+        {
+          "field": "upcInfo",
+          "title": "商品条形码",
+          "type": "VcBarCodeInfo",
+          "placeholder": "多个商品条形码请以英文分号间隔，最多输入10个"
+        },
+        {
+          "field": "imgAll",
+          "title": "图片设置",
+          "type": "ImgAll",
+          "required": true
+        }
+      ],
+      "skuProps": [
+        {
+          "field": "191888",
+          "title": "适合肤质",
+          "type": "ShopAttrSelect",
+          "required": true,
+          "options": [
+            {
+              "label": "中性",
+              "value": "990417"
+            },
+            {
+              "label": "油性",
+              "value": "990418"
+            },
+            {
+              "label": "敏感性",
+              "value": "990419"
+            },
+            {
+              "label": "混合性",
+              "value": "990420"
+            },
+            {
+              "label": "干性",
+              "value": "990421"
+            },
+            {
+              "label": "多种肤质适用",
+              "value": "990422"
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "191880",
+          "title": "总净含量",
+          "type": "ShopAttrMultiInputUnit",
+          "required": true,
+          "options": [
+            {
+              "label": "",
+              "value": ""
+            }
+          ],
+          "segments": [
+            {
+              "name": "",
+              "units": [
+                "g",
+                "mL"
+              ]
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "145826",
+          "title": "规格",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "6-30mL(g)",
+              "value": "739800"
+            },
+            {
+              "label": "51-100mL(g)",
+              "value": "739801"
+            },
+            {
+              "label": "31-50mL(g)",
+              "value": "739802"
+            },
+            {
+              "label": "300mL(g)以上",
+              "value": "739803"
+            },
+            {
+              "label": "251-300mL(g)",
+              "value": "739804"
+            },
+            {
+              "label": "201-250mL(g)",
+              "value": "739805"
+            },
+            {
+              "label": "151-200mL(g)",
+              "value": "739806"
+            },
+            {
+              "label": "101-150mL(g)",
+              "value": "739807"
+            },
+            {
+              "label": "0-5mL(g)",
+              "value": "739808"
+            }
+          ],
+          "group": "重要属性"
+        },
+        {
+          "field": "191271",
+          "title": "是否特殊化妆品",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "特殊化妆品",
+              "value": "987978"
+            },
+            {
+              "label": "非特殊化妆品",
+              "value": "987989"
+            }
+          ],
+          "group": "重要属性"
+        },
+        {
+          "field": "422430",
+          "title": "国补备案型号",
+          "type": "ShopAttrInput",
+          "max": 300,
+          "group": "其他属性"
+        },
+        {
+          "field": "191275",
+          "title": "批准文号/备案编号",
+          "type": "ShopAttrInput",
+          "max": 300,
+          "group": "其他属性"
+        }
+      ]
+    },
+    "17828": {
+      "productProps": [
+        {
+          "field": "146090",
+          "title": "类别",
+          "type": "ShopAttrSelect",
+          "required": true,
+          "options": [
+            {
+              "label": "眼霜/精华",
+              "value": "741440"
+            },
+            {
+              "label": "眼膜",
+              "value": "741441"
+            },
+            {
+              "label": "额头贴",
+              "value": "1501458"
+            },
+            {
+              "label": "卸妆",
+              "value": "741442"
+            },
+            {
+              "label": "爽肤水/化妆水",
+              "value": "741443"
+            },
+            {
+              "label": "润唇膏",
+              "value": "741444"
+            },
+            {
+              "label": "乳液面霜",
+              "value": "741445"
+            },
+            {
+              "label": "面膜",
+              "value": "741446"
+            },
+            {
+              "label": "面部套装",
+              "value": "741447"
+            },
+            {
+              "label": "面部精华",
+              "value": "741448"
+            },
+            {
+              "label": "洁面",
+              "value": "741449"
+            },
+            {
+              "label": "防晒霜/喷雾",
+              "value": "741450"
+            },
+            {
+              "label": "隔离霜/乳",
+              "value": "1461880"
+            },
+            {
+              "label": "唇膜/精华",
+              "value": "741451"
+            },
+            {
+              "label": "保湿喷雾",
+              "value": "741452"
+            },
+            {
+              "label": "化妆棉/卸妆棉",
+              "value": "800752"
+            },
+            {
+              "label": "一次性洁面巾",
+              "value": "800753"
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "146092",
+          "title": "功效",
+          "type": "ShopAttrMultiSelect",
+          "required": true,
+          "max": 3,
+          "options": [
+            {
+              "label": "滋润",
+              "value": "741458"
+            },
+            {
+              "label": "遮瑕",
+              "value": "741459"
+            },
+            {
+              "label": "卸妆",
+              "value": "1514014"
+            },
+            {
+              "label": "紧致",
+              "value": "1585793"
+            },
+            {
+              "label": "细致毛孔",
+              "value": "741460"
+            },
+            {
+              "label": "提亮肤色",
+              "value": "741461"
+            },
+            {
+              "label": "提拉紧致",
+              "value": "741462"
+            },
+            {
+              "label": "舒缓修护",
+              "value": "741463"
+            },
+            {
+              "label": "深层清洁",
+              "value": "741464"
+            },
+            {
+              "label": "晒后修护",
+              "value": "741465"
+            },
+            {
+              "label": "去角质",
+              "value": "741466"
+            },
+            {
+              "label": "去黑头",
+              "value": "741467"
+            },
+            {
+              "label": "去浮肿",
+              "value": "741468"
+            },
+            {
+              "label": "祛痘/祛粉刺",
+              "value": "741470"
+            },
+            {
+              "label": "祛斑",
+              "value": "741471"
+            },
+            {
+              "label": "清洁",
+              "value": "741472"
+            },
+            {
+              "label": "美白",
+              "value": "741473"
+            },
+            {
+              "label": "控油",
+              "value": "741474"
+            },
+            {
+              "label": "抗皱/淡化细纹",
+              "value": "741475"
+            },
+            {
+              "label": "抗敏感",
+              "value": "741477"
+            },
+            {
+              "label": "隔离/防晒",
+              "value": "741478"
+            },
+            {
+              "label": "防干裂",
+              "value": "741479"
+            },
+            {
+              "label": "淡化黑眼圈",
+              "value": "741480"
+            },
+            {
+              "label": "淡化唇色",
+              "value": "741481"
+            },
+            {
+              "label": "除螨",
+              "value": "741482"
+            },
+            {
+              "label": "除菌/抑菌",
+              "value": "741483"
+            },
+            {
+              "label": "补水保湿",
+              "value": "741484"
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "145852",
+          "title": "产地",
+          "type": "ShopAttrAddress",
+          "group": "重要属性"
+        },
+        {
+          "field": "145838",
+          "title": "国产/进口",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "进口",
+              "value": "739832"
+            },
+            {
+              "label": "国产",
+              "value": "739833"
+            }
+          ],
+          "group": "其他属性"
+        }
+      ],
+      "saleSpec": [
+        {
+          "field": "1930",
+          "title": "规格",
+          "fields": [
+            {
+              "field": "8888",
+              "title": "规格",
+              "type": "SaleVcUnstructured",
+              "placeholder": "规格",
+              "max": 30
+            }
+          ]
+        },
+        {
+          "field": "1931",
+          "title": "自定义",
+          "fields": [
+            {
+              "field": "8888",
+              "title": "自定义",
+              "type": "SaleVcUnstructured",
+              "placeholder": "自定义",
+              "max": 30
+            }
+          ]
+        },
+        {
+          "field": "999999999",
+          "title": "自定义",
+          "fields": [
+            {
+              "field": "8888",
+              "title": "自定义",
+              "type": "SaleVcUnstructured",
+              "placeholder": "自定义",
+              "max": 30
+            }
+          ]
+        }
+      ],
+      "skuColumns": [
+        {
+          "field": "skuName",
+          "title": "商品名称",
+          "type": "SkuTitle",
+          "required": true,
+          "maxLength": 60
+        },
+        {
+          "field": "skuSpuKeyAttrVal",
+          "title": "标准产品关键属性",
+          "type": "ShopSkuSpuKeyAttribute"
+        },
+        {
+          "field": "skuProps",
+          "title": "SKU属性",
+          "type": "ShopSkuAttributeCommon",
+          "required": true
+        },
+        {
+          "field": "features.shortTitle",
+          "title": "短标题",
+          "type": "VcShortTitle",
+          "placeholder": "建议8个汉字/16个字符以上",
+          "maxLength": 30,
+          "min": 16
+        },
+        {
+          "field": "itemNum",
+          "title": "货号",
+          "type": "ShopItemnum",
+          "placeholder": "请输入货号",
+          "maxLength": 50,
+          "pattern": "/^(?!.*[\\u4e00-\\u9fa5]).*$/"
+        },
+        {
+          "field": "upcInfo",
+          "title": "商品条形码",
+          "type": "VcBarCodeInfo",
+          "placeholder": "多个商品条形码请以英文分号间隔，最多输入10个"
+        },
+        {
+          "field": "imgAll",
+          "title": "图片设置",
+          "type": "ImgAll",
+          "required": true
+        }
+      ],
+      "skuProps": [
+        {
+          "field": "191889",
+          "title": "适合肤质",
+          "type": "ShopAttrSelect",
+          "required": true,
+          "options": [
+            {
+              "label": "中性",
+              "value": "990423"
+            },
+            {
+              "label": "油性",
+              "value": "990424"
+            },
+            {
+              "label": "其他",
+              "value": "1590250"
+            },
+            {
+              "label": "敏感性",
+              "value": "990425"
+            },
+            {
+              "label": "混合性",
+              "value": "990426"
+            },
+            {
+              "label": "干性",
+              "value": "990427"
+            },
+            {
+              "label": "多种肤质适用",
+              "value": "990428"
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "191265",
+          "title": "批准文号/备案编号",
+          "type": "ShopAttrInput",
+          "required": true,
+          "max": 300,
+          "group": "必填属性"
+        },
+        {
+          "field": "145826",
+          "title": "规格",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "6-30mL(g)",
+              "value": "739800"
+            },
+            {
+              "label": "51-100mL(g)",
+              "value": "739801"
+            },
+            {
+              "label": "31-50mL(g)",
+              "value": "739802"
+            },
+            {
+              "label": "300mL(g)以上",
+              "value": "739803"
+            },
+            {
+              "label": "251-300mL(g)",
+              "value": "739804"
+            },
+            {
+              "label": "201-250mL(g)",
+              "value": "739805"
+            },
+            {
+              "label": "151-200mL(g)",
+              "value": "739806"
+            },
+            {
+              "label": "101-150mL(g)",
+              "value": "739807"
+            },
+            {
+              "label": "0-5mL(g)",
+              "value": "739808"
+            }
+          ],
+          "group": "重要属性"
+        },
+        {
+          "field": "191244",
+          "title": "是否特殊化妆品",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "特殊化妆品",
+              "value": "987918"
+            },
+            {
+              "label": "非妆字号",
+              "value": "1502697"
+            },
+            {
+              "label": "非特殊化妆品",
+              "value": "987928"
+            }
+          ],
+          "group": "重要属性"
+        },
+        {
+          "field": "422430",
+          "title": "国补备案型号",
+          "type": "ShopAttrInput",
+          "max": 300,
+          "group": "其他属性"
+        }
+      ]
+    },
+    "17829": {
+      "productProps": [
+        {
+          "field": "146098",
+          "title": "类别",
+          "type": "ShopAttrSelect",
+          "required": true,
+          "options": [
+            {
+              "label": "洗护发套装",
+              "value": "741558"
+            },
+            {
+              "label": "洗发",
+              "value": "741559"
+            },
+            {
+              "label": "染发",
+              "value": "741560"
+            },
+            {
+              "label": "美发工具",
+              "value": "741561"
+            },
+            {
+              "label": "护发",
+              "value": "741562"
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "146099",
+          "title": "功效",
+          "type": "ShopAttrMultiSelect",
+          "required": true,
+          "max": 3,
+          "options": [
+            {
+              "label": "滋养",
+              "value": "741563"
+            },
+            {
+              "label": "滋润",
+              "value": "741564"
+            },
+            {
+              "label": "清洁",
+              "value": "1585791"
+            },
+            {
+              "label": "护发",
+              "value": "1679899"
+            },
+            {
+              "label": "止痒",
+              "value": "741565"
+            },
+            {
+              "label": "头皮舒缓",
+              "value": "741566"
+            },
+            {
+              "label": "烫染修护",
+              "value": "741567"
+            },
+            {
+              "label": "烫后护卷",
+              "value": "741568"
+            },
+            {
+              "label": "深层清洁",
+              "value": "741569"
+            },
+            {
+              "label": "柔顺",
+              "value": "741570"
+            },
+            {
+              "label": "染后护色",
+              "value": "741571"
+            },
+            {
+              "label": "去屑",
+              "value": "741572"
+            },
+            {
+              "label": "清爽",
+              "value": "741573"
+            },
+            {
+              "label": "强韧防断发",
+              "value": "741574"
+            },
+            {
+              "label": "控油",
+              "value": "741575"
+            },
+            {
+              "label": "抗敏感",
+              "value": "741576"
+            },
+            {
+              "label": "改善毛躁",
+              "value": "741578"
+            },
+            {
+              "label": "丰盈蓬松",
+              "value": "741579"
+            },
+            {
+              "label": "防脱",
+              "value": "741580"
+            },
+            {
+              "label": "脆弱开叉护理",
+              "value": "741581"
+            },
+            {
+              "label": "补水保湿",
+              "value": "741582"
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "146101",
+          "title": "适用发质",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "中性",
+              "value": "741586"
+            },
+            {
+              "label": "油性",
+              "value": "741587"
+            },
+            {
+              "label": "受损发质",
+              "value": "741588"
+            },
+            {
+              "label": "混合型",
+              "value": "741589"
+            },
+            {
+              "label": "干性",
+              "value": "741590"
+            }
+          ],
+          "group": "重要属性"
+        },
+        {
+          "field": "145852",
+          "title": "产地",
+          "type": "ShopAttrAddress",
+          "group": "重要属性"
+        },
+        {
+          "field": "145838",
+          "title": "国产/进口",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "进口",
+              "value": "739832"
+            },
+            {
+              "label": "国产",
+              "value": "739833"
+            }
+          ],
+          "group": "其他属性"
+        }
+      ],
+      "saleSpec": [
+        {
+          "field": "29482",
+          "title": "规格",
+          "fields": [
+            {
+              "field": "8888",
+              "title": "规格",
+              "type": "SaleVcUnstructured",
+              "placeholder": "规格",
+              "max": 30
+            }
+          ]
+        },
+        {
+          "field": "29483",
+          "title": "自定义",
+          "fields": [
+            {
+              "field": "8888",
+              "title": "自定义",
+              "type": "SaleVcUnstructured",
+              "placeholder": "自定义",
+              "max": 30
+            }
+          ]
+        },
+        {
+          "field": "999999999",
+          "title": "自定义",
+          "fields": [
+            {
+              "field": "8888",
+              "title": "自定义",
+              "type": "SaleVcUnstructured",
+              "placeholder": "自定义",
+              "max": 30
+            }
+          ]
+        }
+      ],
+      "skuColumns": [
+        {
+          "field": "skuName",
+          "title": "商品名称",
+          "type": "SkuTitle",
+          "required": true,
+          "maxLength": 60
+        },
+        {
+          "field": "skuSpuKeyAttrVal",
+          "title": "标准产品关键属性",
+          "type": "ShopSkuSpuKeyAttribute"
+        },
+        {
+          "field": "skuProps",
+          "title": "SKU属性",
+          "type": "ShopSkuAttributeCommon",
+          "required": true
+        },
+        {
+          "field": "features.shortTitle",
+          "title": "短标题",
+          "type": "VcShortTitle",
+          "placeholder": "建议8个汉字/16个字符以上",
+          "maxLength": 30,
+          "min": 16
+        },
+        {
+          "field": "itemNum",
+          "title": "货号",
+          "type": "ShopItemnum",
+          "placeholder": "请输入货号",
+          "maxLength": 50,
+          "pattern": "/^(?!.*[\\u4e00-\\u9fa5]).*$/"
+        },
+        {
+          "field": "upcInfo",
+          "title": "商品条形码",
+          "type": "VcBarCodeInfo",
+          "placeholder": "多个商品条形码请以英文分号间隔，最多输入10个"
+        },
+        {
+          "field": "imgAll",
+          "title": "图片设置",
+          "type": "ImgAll",
+          "required": true
+        }
+      ],
+      "skuProps": [
+        {
+          "field": "191253",
+          "title": "批准文号/备案编号",
+          "type": "ShopAttrInput",
+          "required": true,
+          "max": 300,
+          "group": "必填属性"
+        },
+        {
+          "field": "191881",
+          "title": "总净含量",
+          "type": "ShopAttrMultiInputUnit",
+          "required": true,
+          "options": [
+            {
+              "label": "",
+              "value": ""
+            }
+          ],
+          "segments": [
+            {
+              "name": "",
+              "units": [
+                "g",
+                "mL",
+                "L"
+              ]
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "145826",
+          "title": "规格",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "6-30mL(g)",
+              "value": "739800"
+            },
+            {
+              "label": "51-100mL(g)",
+              "value": "739801"
+            },
+            {
+              "label": "31-50mL(g)",
+              "value": "739802"
+            },
+            {
+              "label": "300mL(g)以上",
+              "value": "739803"
+            },
+            {
+              "label": "251-300mL(g)",
+              "value": "739804"
+            },
+            {
+              "label": "201-250mL(g)",
+              "value": "739805"
+            },
+            {
+              "label": "151-200mL(g)",
+              "value": "739806"
+            },
+            {
+              "label": "101-150mL(g)",
+              "value": "739807"
+            },
+            {
+              "label": "0-5mL(g)",
+              "value": "739808"
+            }
+          ],
+          "group": "重要属性"
+        },
+        {
+          "field": "191264",
+          "title": "是否特殊化妆品",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "特殊化妆品",
+              "value": "987914"
+            },
+            {
+              "label": "非妆字号",
+              "value": "1502714"
+            },
+            {
+              "label": "非特殊化妆品",
+              "value": "987938"
+            }
+          ],
+          "group": "重要属性"
+        },
+        {
+          "field": "146100",
+          "title": "泡沫程度",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "无泡",
+              "value": "741583"
+            },
+            {
+              "label": "泡沫",
+              "value": "741584"
+            },
+            {
+              "label": "低泡",
+              "value": "741585"
+            }
+          ],
+          "group": "重要属性"
+        },
+        {
+          "field": "422430",
+          "title": "国补备案型号",
+          "type": "ShopAttrInput",
+          "max": 300,
+          "group": "其他属性"
+        }
+      ]
+    },
+    "17831": {
+      "productProps": [
+        {
+          "field": "146095",
+          "title": "功效",
+          "type": "ShopAttrMultiSelect",
+          "required": true,
+          "max": 3,
+          "options": [
+            {
+              "label": "滋润",
+              "value": "741512"
+            },
+            {
+              "label": "爽身",
+              "value": "1585790"
+            },
+            {
+              "label": "美容修饰",
+              "value": "1679900"
+            },
+            {
+              "label": "止汗",
+              "value": "741513"
+            },
+            {
+              "label": "增强弹性",
+              "value": "741514"
+            },
+            {
+              "label": "纤体塑形",
+              "value": "741517"
+            },
+            {
+              "label": "细致毛孔",
+              "value": "741518"
+            },
+            {
+              "label": "提亮肤色",
+              "value": "741519"
+            },
+            {
+              "label": "提拉紧致",
+              "value": "741520"
+            },
+            {
+              "label": "水润嫩肤",
+              "value": "741521"
+            },
+            {
+              "label": "产后发汗",
+              "value": "1458782"
+            },
+            {
+              "label": "爽肤",
+              "value": "741522"
+            },
+            {
+              "label": "舒缓修护",
+              "value": "741523"
+            },
+            {
+              "label": "深层清洁",
+              "value": "741524"
+            },
+            {
+              "label": "晒后修护",
+              "value": "741525"
+            },
+            {
+              "label": "去死皮/老茧",
+              "value": "741526"
+            },
+            {
+              "label": "去角质",
+              "value": "741527"
+            },
+            {
+              "label": "祛痘/祛粉刺",
+              "value": "741529"
+            },
+            {
+              "label": "祛斑",
+              "value": "741530"
+            },
+            {
+              "label": "清洁",
+              "value": "741532"
+            },
+            {
+              "label": "美白",
+              "value": "741533"
+            },
+            {
+              "label": "控油",
+              "value": "741534"
+            },
+            {
+              "label": "抗皱/淡化细纹",
+              "value": "741535"
+            },
+            {
+              "label": "抗敏感",
+              "value": "741537"
+            },
+            {
+              "label": "防干裂",
+              "value": "741539"
+            },
+            {
+              "label": "防冻",
+              "value": "741540"
+            },
+            {
+              "label": "淡化乳晕",
+              "value": "741541"
+            },
+            {
+              "label": "除螨",
+              "value": "741542"
+            },
+            {
+              "label": "除菌/抑菌",
+              "value": "741543"
+            },
+            {
+              "label": "除臭/异味",
+              "value": "741544"
+            },
+            {
+              "label": "持久留香",
+              "value": "741545"
+            },
+            {
+              "label": "补水保湿",
+              "value": "741546"
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "146093",
+          "title": "类别",
+          "type": "ShopAttrSelect",
+          "required": true,
+          "options": [
+            {
+              "label": "足浴粉",
+              "value": "741485"
+            },
+            {
+              "label": "足贴",
+              "value": "741486"
+            },
+            {
+              "label": "足膜",
+              "value": "741487"
+            },
+            {
+              "label": "走珠/止汗露",
+              "value": "741488"
+            },
+            {
+              "label": "浴盐",
+              "value": "741489"
+            },
+            {
+              "label": "香皂",
+              "value": "741490"
+            },
+            {
+              "label": "纤体贴",
+              "value": "741491"
+            },
+            {
+              "label": "洗手液",
+              "value": "741492"
+            },
+            {
+              "label": "脱毛膏",
+              "value": "741493"
+            },
+            {
+              "label": "私处洗液",
+              "value": "741494"
+            },
+            {
+              "label": "手膜",
+              "value": "741495"
+            },
+            {
+              "label": "身体乳霜膏",
+              "value": "741496"
+            },
+            {
+              "label": "乳头霜/膏",
+              "value": "741497"
+            },
+            {
+              "label": "沐浴露",
+              "value": "741499"
+            },
+            {
+              "label": "磨砂膏",
+              "value": "741500"
+            },
+            {
+              "label": "颈膜",
+              "value": "741501"
+            },
+            {
+              "label": "精油",
+              "value": "741502"
+            },
+            {
+              "label": "花露水",
+              "value": "741503"
+            },
+            {
+              "label": "护足霜",
+              "value": "741504"
+            },
+            {
+              "label": "护手霜",
+              "value": "741505"
+            },
+            {
+              "label": "护理套装",
+              "value": "741506"
+            },
+            {
+              "label": "其他",
+              "value": "813711"
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "146097",
+          "title": "护理类别",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "纤体塑形",
+              "value": "741550"
+            },
+            {
+              "label": "腿脚舒缓",
+              "value": "741551"
+            },
+            {
+              "label": "私处护理",
+              "value": "741552"
+            },
+            {
+              "label": "手部护理",
+              "value": "741553"
+            },
+            {
+              "label": "身体洗护",
+              "value": "741554"
+            },
+            {
+              "label": "乳房护理",
+              "value": "741555"
+            },
+            {
+              "label": "颈部护理",
+              "value": "741556"
+            },
+            {
+              "label": "护理工具",
+              "value": "741557"
+            }
+          ],
+          "group": "重要属性"
+        },
+        {
+          "field": "145852",
+          "title": "产地",
+          "type": "ShopAttrAddress",
+          "group": "重要属性"
+        },
+        {
+          "field": "145838",
+          "title": "国产/进口",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "进口",
+              "value": "739832"
+            },
+            {
+              "label": "国产",
+              "value": "739833"
+            }
+          ],
+          "group": "其他属性"
+        }
+      ],
+      "saleSpec": [
+        {
+          "field": "29468",
+          "title": "规格",
+          "fields": [
+            {
+              "field": "8888",
+              "title": "规格",
+              "type": "SaleVcUnstructured",
+              "placeholder": "规格",
+              "max": 30
+            }
+          ]
+        },
+        {
+          "field": "29469",
+          "title": "自定义",
+          "fields": [
+            {
+              "field": "8888",
+              "title": "自定义",
+              "type": "SaleVcUnstructured",
+              "placeholder": "自定义",
+              "max": 30
+            }
+          ]
+        },
+        {
+          "field": "999999999",
+          "title": "自定义",
+          "fields": [
+            {
+              "field": "8888",
+              "title": "自定义",
+              "type": "SaleVcUnstructured",
+              "placeholder": "自定义",
+              "max": 30
+            }
+          ]
+        }
+      ],
+      "skuColumns": [
+        {
+          "field": "skuName",
+          "title": "商品名称",
+          "type": "SkuTitle",
+          "required": true,
+          "maxLength": 60
+        },
+        {
+          "field": "skuSpuKeyAttrVal",
+          "title": "标准产品关键属性",
+          "type": "ShopSkuSpuKeyAttribute"
+        },
+        {
+          "field": "skuProps",
+          "title": "SKU属性",
+          "type": "ShopSkuAttributeCommon",
+          "required": true
+        },
+        {
+          "field": "features.shortTitle",
+          "title": "短标题",
+          "type": "VcShortTitle",
+          "placeholder": "建议8个汉字/16个字符以上",
+          "maxLength": 30,
+          "min": 16
+        },
+        {
+          "field": "itemNum",
+          "title": "货号",
+          "type": "ShopItemnum",
+          "placeholder": "请输入货号",
+          "maxLength": 50,
+          "pattern": "/^(?!.*[\\u4e00-\\u9fa5]).*$/"
+        },
+        {
+          "field": "upcInfo",
+          "title": "商品条形码",
+          "type": "VcBarCodeInfo",
+          "placeholder": "多个商品条形码请以英文分号间隔，最多输入10个"
+        },
+        {
+          "field": "imgAll",
+          "title": "图片设置",
+          "type": "ImgAll",
+          "required": true
+        }
+      ],
+      "skuProps": [
+        {
+          "field": "191883",
+          "title": "总净含量",
+          "type": "ShopAttrMultiInputUnit",
+          "required": true,
+          "options": [
+            {
+              "label": "",
+              "value": ""
+            }
+          ],
+          "segments": [
+            {
+              "name": "",
+              "units": [
+                "g",
+                "mL",
+                "L"
+              ]
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "146094",
+          "title": "适合肤质",
+          "type": "ShopAttrSelect",
+          "required": true,
+          "options": [
+            {
+              "label": "中性",
+              "value": "741507"
+            },
+            {
+              "label": "干性",
+              "value": "741511"
+            },
+            {
+              "label": "油性",
+              "value": "741508"
+            },
+            {
+              "label": "敏感性",
+              "value": "741509"
+            },
+            {
+              "label": "混合性",
+              "value": "741510"
+            },
+            {
+              "label": "多种肤质适用",
+              "value": "1419036"
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "145826",
+          "title": "规格",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "6-30mL(g)",
+              "value": "739800"
+            },
+            {
+              "label": "51-100mL(g)",
+              "value": "739801"
+            },
+            {
+              "label": "31-50mL(g)",
+              "value": "739802"
+            },
+            {
+              "label": "300mL(g)以上",
+              "value": "739803"
+            },
+            {
+              "label": "251-300mL(g)",
+              "value": "739804"
+            },
+            {
+              "label": "201-250mL(g)",
+              "value": "739805"
+            },
+            {
+              "label": "151-200mL(g)",
+              "value": "739806"
+            },
+            {
+              "label": "101-150mL(g)",
+              "value": "739807"
+            },
+            {
+              "label": "0-5mL(g)",
+              "value": "739808"
+            }
+          ],
+          "group": "重要属性"
+        },
+        {
+          "field": "146096",
+          "title": "泡沫程度",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "无泡",
+              "value": "741547"
+            },
+            {
+              "label": "泡沫",
+              "value": "741548"
+            },
+            {
+              "label": "低泡",
+              "value": "741549"
+            }
+          ],
+          "group": "重要属性"
+        },
+        {
+          "field": "191240",
+          "title": "是否特殊化妆品",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "特殊化妆品",
+              "value": "987917"
+            },
+            {
+              "label": "非特殊化妆品",
+              "value": "987935"
+            }
+          ],
+          "group": "重要属性"
+        },
+        {
+          "field": "191250",
+          "title": "批准文号/备案编号",
+          "type": "ShopAttrInput",
+          "max": 300,
+          "group": "其他属性"
+        },
+        {
+          "field": "422430",
+          "title": "国补备案型号",
+          "type": "ShopAttrInput",
+          "max": 300,
+          "group": "其他属性"
+        }
+      ]
+    },
+    "17832": {
+      "productProps": [
+        {
+          "field": "146038",
+          "title": "功效",
+          "type": "ShopAttrMultiSelect",
+          "required": true,
+          "max": 2,
+          "options": [
+            {
+              "label": "增柔/去静电",
+              "value": "741128"
+            },
+            {
+              "label": "修护",
+              "value": "741129"
+            },
+            {
+              "label": "其他",
+              "value": "1590176"
+            },
+            {
+              "label": "消毒/抗菌/",
+              "value": "741130"
+            },
+            {
+              "label": "温和不伤手",
+              "value": "741131"
+            },
+            {
+              "label": "去污/去渍",
+              "value": "741133"
+            },
+            {
+              "label": "清洁",
+              "value": "741134"
+            },
+            {
+              "label": "护色/增艳",
+              "value": "741135"
+            },
+            {
+              "label": "除螨/防螨",
+              "value": "741136"
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "146037",
+          "title": "类别",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "私处凝胶",
+              "value": "1086422"
+            },
+            {
+              "label": "私处洗液",
+              "value": "1086423"
+            }
+          ],
+          "group": "重要属性"
+        },
+        {
+          "field": "145852",
+          "title": "产地",
+          "type": "ShopAttrAddress",
+          "group": "重要属性"
+        },
+        {
+          "field": "145838",
+          "title": "国产/进口",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "进口",
+              "value": "739832"
+            },
+            {
+              "label": "国产",
+              "value": "739833"
+            }
+          ],
+          "group": "其他属性"
+        }
+      ],
+      "saleSpec": [
+        {
+          "field": "29448",
+          "title": "规格",
+          "fields": [
+            {
+              "field": "8888",
+              "title": "规格",
+              "type": "SaleVcUnstructured",
+              "placeholder": "规格",
+              "max": 30
+            }
+          ]
+        },
+        {
+          "field": "29449",
+          "title": "自定义",
+          "fields": [
+            {
+              "field": "8888",
+              "title": "自定义",
+              "type": "SaleVcUnstructured",
+              "placeholder": "自定义",
+              "max": 30
+            }
+          ]
+        },
+        {
+          "field": "999999999",
+          "title": "自定义",
+          "fields": [
+            {
+              "field": "8888",
+              "title": "自定义",
+              "type": "SaleVcUnstructured",
+              "placeholder": "自定义",
+              "max": 30
+            }
+          ]
+        }
+      ],
+      "skuColumns": [
+        {
+          "field": "skuName",
+          "title": "商品名称",
+          "type": "SkuTitle",
+          "required": true,
+          "maxLength": 60
+        },
+        {
+          "field": "skuSpuKeyAttrVal",
+          "title": "标准产品关键属性",
+          "type": "ShopSkuSpuKeyAttribute"
+        },
+        {
+          "field": "skuProps",
+          "title": "SKU属性",
+          "type": "ShopSkuAttributeCommon",
+          "required": true
+        },
+        {
+          "field": "features.shortTitle",
+          "title": "短标题",
+          "type": "VcShortTitle",
+          "placeholder": "建议8个汉字/16个字符以上",
+          "maxLength": 30,
+          "min": 16
+        },
+        {
+          "field": "itemNum",
+          "title": "货号",
+          "type": "ShopItemnum",
+          "placeholder": "请输入货号",
+          "maxLength": 50,
+          "pattern": "/^(?!.*[\\u4e00-\\u9fa5]).*$/"
+        },
+        {
+          "field": "upcInfo",
+          "title": "商品条形码",
+          "type": "VcBarCodeInfo",
+          "placeholder": "多个商品条形码请以英文分号间隔，最多输入10个"
+        },
+        {
+          "field": "imgAll",
+          "title": "图片设置",
+          "type": "ImgAll",
+          "required": true
+        }
+      ],
+      "skuProps": [
+        {
+          "field": "191882",
+          "title": "总净含量",
+          "type": "ShopAttrMultiInputUnit",
+          "required": true,
+          "options": [
+            {
+              "label": "",
+              "value": ""
+            }
+          ],
+          "segments": [
+            {
+              "name": "",
+              "units": [
+                "g",
+                "mL",
+                "L"
+              ]
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "146040",
+          "title": "香型",
+          "type": "ShopAttrSelect",
+          "required": true,
+          "options": [
+            {
+              "label": "熏衣草香型",
+              "value": "741139"
+            },
+            {
+              "label": "无香型",
+              "value": "741140"
+            },
+            {
+              "label": "清香型",
+              "value": "741141"
+            },
+            {
+              "label": "其他",
+              "value": "741142"
+            },
+            {
+              "label": "柠檬香型",
+              "value": "741143"
+            },
+            {
+              "label": "玫瑰香型",
+              "value": "741144"
+            },
+            {
+              "label": "芦荟香型",
+              "value": "741145"
+            },
+            {
+              "label": "花香型",
+              "value": "741146"
+            },
+            {
+              "label": "果香型",
+              "value": "741147"
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "145826",
+          "title": "规格",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "6-30mL(g)",
+              "value": "739800"
+            },
+            {
+              "label": "51-100mL(g)",
+              "value": "739801"
+            },
+            {
+              "label": "31-50mL(g)",
+              "value": "739802"
+            },
+            {
+              "label": "300mL(g)以上",
+              "value": "739803"
+            },
+            {
+              "label": "251-300mL(g)",
+              "value": "739804"
+            },
+            {
+              "label": "201-250mL(g)",
+              "value": "739805"
+            },
+            {
+              "label": "151-200mL(g)",
+              "value": "739806"
+            },
+            {
+              "label": "101-150mL(g)",
+              "value": "739807"
+            },
+            {
+              "label": "0-5mL(g)",
+              "value": "739808"
+            }
+          ],
+          "group": "重要属性"
+        },
+        {
+          "field": "191270",
+          "title": "是否特殊化妆品",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "特殊化妆品",
+              "value": "987951"
+            },
+            {
+              "label": "非特殊化妆品",
+              "value": "987964"
+            }
+          ],
+          "group": "重要属性"
+        },
+        {
+          "field": "191274",
+          "title": "批准文号/备案编号",
+          "type": "ShopAttrInput",
+          "max": 300,
+          "group": "其他属性"
+        },
+        {
+          "field": "422430",
+          "title": "国补备案型号",
+          "type": "ShopAttrInput",
+          "max": 300,
+          "group": "其他属性"
+        }
+      ]
+    }
+  }
+}

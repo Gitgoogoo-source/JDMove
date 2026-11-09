@@ -20,8 +20,7 @@
   "interpretation": "该类目经营清洁巾商品，包含：湿巾、湿纸巾商品，该类目为实物类目，仅能挂靠实物商品。",
   "publishCategoryId": "15911",
   "publishCategoryName": "湿巾",
-  "capturedAt": "2026-11-08T17:56:29.528Z",
-  "capturedWithBrandId": "17519",
+  "capturedAt": "2026-11-09T12:36:16.827Z",
   "baseFields": [
     {
       "field": "aiRecImages",
@@ -967,6 +966,20 @@
           "value": "宽"
         }
       ],
+      "segments": [
+        {
+          "name": "长",
+          "units": [
+            "mm"
+          ]
+        },
+        {
+          "name": "宽",
+          "units": [
+            "mm"
+          ]
+        }
+      ],
       "group": "必填属性"
     },
     {
@@ -988,6 +1001,15 @@
         {
           "label": "",
           "value": ""
+        }
+      ],
+      "segments": [
+        {
+          "name": "",
+          "units": [
+            "片",
+            "抽"
+          ]
         }
       ],
       "group": "必填属性"
@@ -1057,6 +1079,18 @@
         {
           "label": "",
           "value": ""
+        }
+      ],
+      "segments": [
+        {
+          "name": "",
+          "units": [
+            "袋",
+            "包",
+            "盒",
+            "桶",
+            "箱"
+          ]
         }
       ],
       "group": "其他属性"

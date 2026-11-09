@@ -20,8 +20,7 @@
   "interpretation": "该类目经营一次性清洁纸品、护理纸品，如平板纸、擦拭纸、一次性眼镜湿巾/擦镜纸、一次性毛巾/浴巾、一次性马桶坐垫纸。类目为实物类目仅能挂靠实物商品。",
   "publishCategoryId": "15914",
   "publishCategoryName": "一次性清洁/护理纸品",
-  "capturedAt": "2026-11-08T17:56:42.812Z",
-  "capturedWithBrandId": "17519",
+  "capturedAt": "2026-11-09T12:36:20.658Z",
   "baseFields": [
     {
       "field": "aiRecImages",
@@ -1034,6 +1033,22 @@
           "value": ""
         }
       ],
+      "segments": [
+        {
+          "name": "",
+          "units": [
+            "抽",
+            "片",
+            "张",
+            "节",
+            "克",
+            "米",
+            "卷",
+            "份",
+            "斤"
+          ]
+        }
+      ],
       "group": "其他属性"
     },
     {
@@ -1044,6 +1059,19 @@
         {
           "label": "",
           "value": ""
+        }
+      ],
+      "segments": [
+        {
+          "name": "",
+          "units": [
+            "包",
+            "盒",
+            "卷",
+            "袋",
+            "桶",
+            "提"
+          ]
         }
       ],
       "group": "其他属性"

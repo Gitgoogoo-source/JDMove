@@ -20,8 +20,7 @@
   "interpretation": "该类目经营厨房专用清洁纸品商品，包含：厨房纸巾、厨房用纸、抹布纸、厨房吸油纸、卷筒厨房纸商品，该类目为实物类目，仅能挂靠实物商品。",
   "publishCategoryId": "15912",
   "publishCategoryName": "厨房纸巾",
-  "capturedAt": "2026-11-08T17:56:38.545Z",
-  "capturedWithBrandId": "17519",
+  "capturedAt": "2026-11-09T12:36:19.002Z",
   "baseFields": [
     {
       "field": "aiRecImages",
@@ -1070,6 +1069,15 @@
           "value": ""
         }
       ],
+      "segments": [
+        {
+          "name": "",
+          "units": [
+            "抽",
+            "节"
+          ]
+        }
+      ],
       "group": "必填属性"
     },
     {
@@ -1081,6 +1089,17 @@
         {
           "label": "",
           "value": ""
+        }
+      ],
+      "segments": [
+        {
+          "name": "",
+          "units": [
+            "包",
+            "卷",
+            "盒",
+            "提"
+          ]
         }
       ],
       "group": "必填属性"
@@ -1139,6 +1158,20 @@
         {
           "label": "宽",
           "value": "宽"
+        }
+      ],
+      "segments": [
+        {
+          "name": "长",
+          "units": [
+            "mm"
+          ]
+        },
+        {
+          "name": "宽",
+          "units": [
+            "mm"
+          ]
         }
       ],
       "group": "必填属性"

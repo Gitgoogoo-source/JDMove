@@ -46,9 +46,8 @@
       "interpretation": "该类目经营含乳霜/保湿因子的纸巾品类商品，包含乳霜抽纸、乳霜柔纸巾、保湿面巾、云柔巾、云柔纸、云柔抽纸商品，该类目为实物类目，仅能挂靠实物商品。"
     }
   ],
-  "note": "「抽纸」在 VC 后台不是末级类目，发布时要选四级类目；模板按「常规抽纸」[31403] 的发布页录制，同一个三级类目下的四级类目共用这份模板",
-  "capturedAt": "2026-11-08T17:56:25.663Z",
-  "capturedWithBrandId": "17519",
+  "note": "「抽纸」在 VC 后台不是末级类目，发布时要选四级类目；模板按「常规抽纸」[31403] 的发布页录制，同一个三级类目下的四级类目共用这份模板；本色抽纸、乳霜纸、悬挂式抽纸、擦手纸 的发布页和它不同，不同的部分记在 leafTemplates 里（按四级类目ID）",
+  "capturedAt": "2026-11-09T12:36:07.781Z",
   "baseFields": [
     {
       "field": "aiRecImages",
@@ -1076,6 +1075,20 @@
           "value": "宽"
         }
       ],
+      "segments": [
+        {
+          "name": "长",
+          "units": [
+            "mm"
+          ]
+        },
+        {
+          "name": "宽",
+          "units": [
+            "mm"
+          ]
+        }
+      ],
       "group": "必填属性"
     },
     {
@@ -1272,5 +1285,1657 @@
       ],
       "group": "其他属性"
     }
-  ]
+  ],
+  "leafTemplates": {
+    "31402": {
+      "productProps": [
+        {
+          "field": "132416",
+          "title": "适用场景",
+          "type": "ShopAttrSelect",
+          "required": true,
+          "options": [
+            {
+              "label": "家用",
+              "value": "704205"
+            },
+            {
+              "label": "商用",
+              "value": "704206"
+            },
+            {
+              "label": "其他",
+              "value": "1590017"
+            },
+            {
+              "label": "通用",
+              "value": "2173361"
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "164370",
+          "title": "类别",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "抽取式",
+              "value": "1495710"
+            },
+            {
+              "label": "悬挂式",
+              "value": "1495711"
+            },
+            {
+              "label": "其他",
+              "value": "1590019"
+            }
+          ],
+          "group": "其他属性"
+        },
+        {
+          "field": "280256",
+          "title": "是否压花",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "压花",
+              "value": "1678879"
+            },
+            {
+              "label": "非压花",
+              "value": "1678880"
+            }
+          ],
+          "group": "其他属性"
+        },
+        {
+          "field": "164372",
+          "title": "类型",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "硬盒装",
+              "value": "839983"
+            },
+            {
+              "label": "软包式",
+              "value": "839984"
+            }
+          ],
+          "group": "其他属性"
+        }
+      ],
+      "saleSpec": [
+        {
+          "field": "29844",
+          "title": "规格",
+          "fields": [
+            {
+              "field": "20879",
+              "title": "产品描述",
+              "type": "SaleCustomNotes"
+            },
+            {
+              "field": "12133",
+              "title": "层数",
+              "type": "SaleNumberUnits",
+              "required": true,
+              "options": [
+                {
+                  "label": "层",
+                  "value": "层"
+                }
+              ]
+            },
+            {
+              "field": "21022",
+              "title": "规格",
+              "type": "SaleBaseGroup",
+              "required": true,
+              "parts": [
+                {
+                  "field": "12134",
+                  "title": "单包抽数",
+                  "type": "SaleNumberUnits",
+                  "required": true,
+                  "placeholder": "单包抽数",
+                  "options": [
+                    {
+                      "label": "g",
+                      "value": "g"
+                    },
+                    {
+                      "label": "抽",
+                      "value": "抽"
+                    },
+                    {
+                      "label": "片",
+                      "value": "片"
+                    },
+                    {
+                      "label": "张",
+                      "value": "张"
+                    },
+                    {
+                      "label": "m",
+                      "value": "m"
+                    }
+                  ]
+                },
+                {
+                  "field": "20880",
+                  "title": "*",
+                  "type": "SaleLinkSymbol",
+                  "required": true,
+                  "placeholder": "*",
+                  "options": [
+                    {
+                      "label": "*",
+                      "value": "28677"
+                    }
+                  ]
+                },
+                {
+                  "field": "12135",
+                  "title": "包数",
+                  "type": "SaleNumberUnits",
+                  "required": true,
+                  "placeholder": "包数",
+                  "options": [
+                    {
+                      "label": "包",
+                      "value": "包"
+                    },
+                    {
+                      "label": "盒",
+                      "value": "盒"
+                    },
+                    {
+                      "label": "提",
+                      "value": "提"
+                    },
+                    {
+                      "label": "卷",
+                      "value": "卷"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "field": "12136",
+              "title": "包装形式",
+              "type": "SaleStructuredTemplate",
+              "options": [
+                {
+                  "label": "旅行装",
+                  "value": "1125059"
+                },
+                {
+                  "label": "散装",
+                  "value": "1125061"
+                },
+                {
+                  "label": "随身装",
+                  "value": "1125058"
+                },
+                {
+                  "label": "整箱装",
+                  "value": "1125060"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "field": "29845",
+          "title": "自定义",
+          "fields": [
+            {
+              "field": "8888",
+              "title": "自定义",
+              "type": "SaleVcUnstructured",
+              "placeholder": "自定义",
+              "max": 30
+            }
+          ]
+        },
+        {
+          "field": "999999999",
+          "title": "自定义",
+          "fields": [
+            {
+              "field": "8888",
+              "title": "自定义",
+              "type": "SaleVcUnstructured",
+              "placeholder": "自定义",
+              "max": 30
+            }
+          ]
+        }
+      ],
+      "skuProps": [
+        {
+          "field": "132418",
+          "title": "是否印花",
+          "type": "ShopAttrSelect",
+          "required": true,
+          "options": [
+            {
+              "label": "印花",
+              "value": "704228"
+            },
+            {
+              "label": "无印花",
+              "value": "704229"
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "184731",
+          "title": "纸张尺寸",
+          "type": "ShopAttrMultiInputUnit",
+          "required": true,
+          "options": [
+            {
+              "label": "长",
+              "value": "长"
+            },
+            {
+              "label": "宽",
+              "value": "宽"
+            }
+          ],
+          "segments": [
+            {
+              "name": "长",
+              "units": [
+                "mm"
+              ]
+            },
+            {
+              "name": "宽",
+              "units": [
+                "mm"
+              ]
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "126685",
+          "title": "层数",
+          "type": "ShopAttrSelect",
+          "required": true,
+          "options": [
+            {
+              "label": "1层",
+              "value": "745542"
+            },
+            {
+              "label": "2层",
+              "value": "674816"
+            },
+            {
+              "label": "3层",
+              "value": "674817"
+            },
+            {
+              "label": "5层",
+              "value": "1462904"
+            },
+            {
+              "label": "4层",
+              "value": "1462905"
+            },
+            {
+              "label": "6层",
+              "value": "1462906"
+            },
+            {
+              "label": "7层",
+              "value": "1462907"
+            },
+            {
+              "label": "8层",
+              "value": "1462908"
+            },
+            {
+              "label": "9层",
+              "value": "1462912"
+            },
+            {
+              "label": "10层",
+              "value": "1462913"
+            },
+            {
+              "label": "12层",
+              "value": "2338129"
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "184734",
+          "title": "包数",
+          "type": "ShopAttrInput",
+          "required": true,
+          "suffix": "包",
+          "max": 25,
+          "pattern": "^(0|[1-9]\\d*)(\\.\\d{1,2})?$",
+          "group": "必填属性"
+        },
+        {
+          "field": "126686",
+          "title": "包装形式",
+          "type": "ShopAttrSelect",
+          "required": true,
+          "options": [
+            {
+              "label": "箱装",
+              "value": "674820"
+            },
+            {
+              "label": "提装",
+              "value": "674821"
+            },
+            {
+              "label": "袋装",
+              "value": "1444357"
+            },
+            {
+              "label": "软包装",
+              "value": "1444358"
+            },
+            {
+              "label": "盒装",
+              "value": "674822"
+            },
+            {
+              "label": "散装",
+              "value": "813741"
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "184733",
+          "title": "单包抽数",
+          "type": "ShopAttrInput",
+          "required": true,
+          "suffix": "抽",
+          "max": 25,
+          "pattern": "^(0|[1-9]\\d*)(\\.\\d{1,2})?$",
+          "group": "必填属性"
+        },
+        {
+          "field": "126688",
+          "title": "香型",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "有香型",
+              "value": "674826"
+            },
+            {
+              "label": "无香型",
+              "value": "674827"
+            }
+          ],
+          "group": "重要属性"
+        },
+        {
+          "field": "126690",
+          "title": "原料成分",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "纤维",
+              "value": "2173386"
+            },
+            {
+              "label": "粘胶纤维",
+              "value": "2173389"
+            },
+            {
+              "label": "原生木浆",
+              "value": "938885"
+            },
+            {
+              "label": "原生竹浆",
+              "value": "938886"
+            },
+            {
+              "label": "原生秸秆浆",
+              "value": "938887"
+            },
+            {
+              "label": "混浆",
+              "value": "938888"
+            },
+            {
+              "label": "棉",
+              "value": "938889"
+            },
+            {
+              "label": "水刺无纺布",
+              "value": "938890"
+            },
+            {
+              "label": "原生非木纤维",
+              "value": "1047452"
+            }
+          ],
+          "group": "重要属性"
+        }
+      ]
+    },
+    "31404": {
+      "productProps": [
+        {
+          "field": "132416",
+          "title": "适用场景",
+          "type": "ShopAttrSelect",
+          "required": true,
+          "options": [
+            {
+              "label": "家用",
+              "value": "704205"
+            },
+            {
+              "label": "商用",
+              "value": "704206"
+            },
+            {
+              "label": "其他",
+              "value": "1590017"
+            },
+            {
+              "label": "通用",
+              "value": "2173361"
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "164370",
+          "title": "类别",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "抽取式",
+              "value": "1495710"
+            },
+            {
+              "label": "悬挂式",
+              "value": "1495711"
+            },
+            {
+              "label": "其他",
+              "value": "1590019"
+            }
+          ],
+          "group": "其他属性"
+        },
+        {
+          "field": "280256",
+          "title": "是否压花",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "压花",
+              "value": "1678879"
+            },
+            {
+              "label": "非压花",
+              "value": "1678880"
+            }
+          ],
+          "group": "其他属性"
+        },
+        {
+          "field": "164372",
+          "title": "类型",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "硬盒装",
+              "value": "839983"
+            },
+            {
+              "label": "软包式",
+              "value": "839984"
+            }
+          ],
+          "group": "其他属性"
+        }
+      ],
+      "saleSpec": [
+        {
+          "field": "29848",
+          "title": "规格",
+          "fields": [
+            {
+              "field": "20455",
+              "title": "产品描述",
+              "type": "SaleCustomNotes"
+            },
+            {
+              "field": "12141",
+              "title": "层数",
+              "type": "SaleNumberUnits",
+              "required": true,
+              "options": [
+                {
+                  "label": "层",
+                  "value": "层"
+                }
+              ]
+            },
+            {
+              "field": "21030",
+              "title": "规格",
+              "type": "SaleBaseGroup",
+              "required": true,
+              "parts": [
+                {
+                  "field": "12142",
+                  "title": "单包抽数",
+                  "type": "SaleNumberUnits",
+                  "required": true,
+                  "placeholder": "单包抽数",
+                  "options": [
+                    {
+                      "label": "片",
+                      "value": "片"
+                    },
+                    {
+                      "label": "抽",
+                      "value": "抽"
+                    },
+                    {
+                      "label": "张",
+                      "value": "张"
+                    }
+                  ]
+                },
+                {
+                  "field": "20454",
+                  "title": "*",
+                  "type": "SaleLinkSymbol",
+                  "required": true,
+                  "placeholder": "*",
+                  "options": [
+                    {
+                      "label": "*",
+                      "value": "28094"
+                    }
+                  ]
+                },
+                {
+                  "field": "12143",
+                  "title": "包数",
+                  "type": "SaleNumberUnits",
+                  "required": true,
+                  "placeholder": "包数",
+                  "options": [
+                    {
+                      "label": "包",
+                      "value": "包"
+                    },
+                    {
+                      "label": "盒",
+                      "value": "盒"
+                    },
+                    {
+                      "label": "提",
+                      "value": "提"
+                    },
+                    {
+                      "label": "卷",
+                      "value": "卷"
+                    },
+                    {
+                      "label": "袋",
+                      "value": "袋"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "field": "12144",
+              "title": "包装形式",
+              "type": "SaleStructuredTemplate",
+              "options": [
+                {
+                  "label": "旅行装",
+                  "value": "1125059"
+                },
+                {
+                  "label": "散装",
+                  "value": "1125061"
+                },
+                {
+                  "label": "随身装",
+                  "value": "1125058"
+                },
+                {
+                  "label": "整箱装",
+                  "value": "1125060"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "field": "29849",
+          "title": "其他信息",
+          "fields": [
+            {
+              "field": "8888",
+              "title": "其他信息",
+              "type": "SaleVcUnstructured",
+              "placeholder": "其他信息",
+              "max": 30
+            }
+          ]
+        },
+        {
+          "field": "999999999",
+          "title": "自定义",
+          "fields": [
+            {
+              "field": "8888",
+              "title": "自定义",
+              "type": "SaleVcUnstructured",
+              "placeholder": "自定义",
+              "max": 30
+            }
+          ]
+        }
+      ],
+      "skuProps": [
+        {
+          "field": "132418",
+          "title": "是否印花",
+          "type": "ShopAttrSelect",
+          "required": true,
+          "options": [
+            {
+              "label": "印花",
+              "value": "704228"
+            },
+            {
+              "label": "无印花",
+              "value": "704229"
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "184731",
+          "title": "纸张尺寸",
+          "type": "ShopAttrMultiInputUnit",
+          "required": true,
+          "options": [
+            {
+              "label": "长",
+              "value": "长"
+            },
+            {
+              "label": "宽",
+              "value": "宽"
+            }
+          ],
+          "segments": [
+            {
+              "name": "长",
+              "units": [
+                "mm"
+              ]
+            },
+            {
+              "name": "宽",
+              "units": [
+                "mm"
+              ]
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "126685",
+          "title": "层数",
+          "type": "ShopAttrSelect",
+          "required": true,
+          "options": [
+            {
+              "label": "1层",
+              "value": "745542"
+            },
+            {
+              "label": "2层",
+              "value": "674816"
+            },
+            {
+              "label": "3层",
+              "value": "674817"
+            },
+            {
+              "label": "5层",
+              "value": "1462904"
+            },
+            {
+              "label": "4层",
+              "value": "1462905"
+            },
+            {
+              "label": "6层",
+              "value": "1462906"
+            },
+            {
+              "label": "7层",
+              "value": "1462907"
+            },
+            {
+              "label": "8层",
+              "value": "1462908"
+            },
+            {
+              "label": "9层",
+              "value": "1462912"
+            },
+            {
+              "label": "10层",
+              "value": "1462913"
+            },
+            {
+              "label": "12层",
+              "value": "2338129"
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "184734",
+          "title": "包数",
+          "type": "ShopAttrInput",
+          "required": true,
+          "suffix": "包",
+          "max": 25,
+          "pattern": "^(0|[1-9]\\d*)(\\.\\d{1,2})?$",
+          "group": "必填属性"
+        },
+        {
+          "field": "126686",
+          "title": "包装形式",
+          "type": "ShopAttrSelect",
+          "required": true,
+          "options": [
+            {
+              "label": "箱装",
+              "value": "674820"
+            },
+            {
+              "label": "提装",
+              "value": "674821"
+            },
+            {
+              "label": "袋装",
+              "value": "1444357"
+            },
+            {
+              "label": "软包装",
+              "value": "1444358"
+            },
+            {
+              "label": "盒装",
+              "value": "674822"
+            },
+            {
+              "label": "散装",
+              "value": "813741"
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "184733",
+          "title": "单包抽数",
+          "type": "ShopAttrInput",
+          "required": true,
+          "suffix": "抽",
+          "max": 25,
+          "pattern": "^(0|[1-9]\\d*)(\\.\\d{1,2})?$",
+          "group": "必填属性"
+        },
+        {
+          "field": "126688",
+          "title": "香型",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "有香型",
+              "value": "674826"
+            },
+            {
+              "label": "无香型",
+              "value": "674827"
+            }
+          ],
+          "group": "重要属性"
+        },
+        {
+          "field": "126690",
+          "title": "原料成分",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "纤维",
+              "value": "2173386"
+            },
+            {
+              "label": "粘胶纤维",
+              "value": "2173389"
+            },
+            {
+              "label": "原生木浆",
+              "value": "938885"
+            },
+            {
+              "label": "原生竹浆",
+              "value": "938886"
+            },
+            {
+              "label": "原生秸秆浆",
+              "value": "938887"
+            },
+            {
+              "label": "混浆",
+              "value": "938888"
+            },
+            {
+              "label": "棉",
+              "value": "938889"
+            },
+            {
+              "label": "水刺无纺布",
+              "value": "938890"
+            },
+            {
+              "label": "原生非木纤维",
+              "value": "1047452"
+            }
+          ],
+          "group": "重要属性"
+        }
+      ]
+    },
+    "44478": {
+      "productProps": [
+        {
+          "field": "132416",
+          "title": "适用场景",
+          "type": "ShopAttrSelect",
+          "required": true,
+          "options": [
+            {
+              "label": "家用",
+              "value": "704205"
+            },
+            {
+              "label": "商用",
+              "value": "704206"
+            },
+            {
+              "label": "其他",
+              "value": "1590017"
+            },
+            {
+              "label": "通用",
+              "value": "2173361"
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "164370",
+          "title": "类别",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "抽取式",
+              "value": "1495710"
+            },
+            {
+              "label": "悬挂式",
+              "value": "1495711"
+            },
+            {
+              "label": "其他",
+              "value": "1590019"
+            }
+          ],
+          "group": "其他属性"
+        },
+        {
+          "field": "280256",
+          "title": "是否压花",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "压花",
+              "value": "1678879"
+            },
+            {
+              "label": "非压花",
+              "value": "1678880"
+            }
+          ],
+          "group": "其他属性"
+        },
+        {
+          "field": "164372",
+          "title": "类型",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "硬盒装",
+              "value": "839983"
+            },
+            {
+              "label": "软包式",
+              "value": "839984"
+            }
+          ],
+          "group": "其他属性"
+        }
+      ],
+      "saleSpec": [
+        {
+          "field": "4951",
+          "title": "规格",
+          "fields": [
+            {
+              "field": "8888",
+              "title": "规格",
+              "type": "SaleVcUnstructured",
+              "placeholder": "规格",
+              "max": 30
+            }
+          ]
+        },
+        {
+          "field": "4952",
+          "title": "规格",
+          "fields": [
+            {
+              "field": "8888",
+              "title": "规格",
+              "type": "SaleVcUnstructured",
+              "placeholder": "规格",
+              "max": 30
+            }
+          ]
+        },
+        {
+          "field": "999999999",
+          "title": "自定义",
+          "fields": [
+            {
+              "field": "8888",
+              "title": "自定义",
+              "type": "SaleVcUnstructured",
+              "placeholder": "自定义",
+              "max": 30
+            }
+          ]
+        }
+      ],
+      "skuColumns": [
+        {
+          "field": "skuName",
+          "title": "商品名称",
+          "type": "SkuTitle",
+          "required": true,
+          "maxLength": 60
+        },
+        {
+          "field": "skuProps",
+          "title": "SKU属性",
+          "type": "ShopSkuAttributeCommon",
+          "required": true
+        },
+        {
+          "field": "features.shortTitle",
+          "title": "短标题",
+          "type": "VcShortTitle",
+          "placeholder": "建议8个汉字/16个字符以上",
+          "maxLength": 30,
+          "min": 16
+        },
+        {
+          "field": "itemNum",
+          "title": "货号",
+          "type": "ShopItemnum",
+          "placeholder": "请输入货号",
+          "maxLength": 50,
+          "pattern": "/^(?!.*[\\u4e00-\\u9fa5]).*$/"
+        },
+        {
+          "field": "upcInfo",
+          "title": "商品条形码",
+          "type": "VcBarCodeInfo",
+          "placeholder": "多个商品条形码请以英文分号间隔，最多输入10个"
+        },
+        {
+          "field": "imgAll",
+          "title": "图片设置",
+          "type": "ImgAll",
+          "required": true
+        }
+      ],
+      "skuProps": [
+        {
+          "field": "132418",
+          "title": "是否印花",
+          "type": "ShopAttrSelect",
+          "required": true,
+          "options": [
+            {
+              "label": "印花",
+              "value": "704228"
+            },
+            {
+              "label": "无印花",
+              "value": "704229"
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "184731",
+          "title": "纸张尺寸",
+          "type": "ShopAttrMultiInputUnit",
+          "required": true,
+          "options": [
+            {
+              "label": "长",
+              "value": "长"
+            },
+            {
+              "label": "宽",
+              "value": "宽"
+            }
+          ],
+          "segments": [
+            {
+              "name": "长",
+              "units": [
+                "mm"
+              ]
+            },
+            {
+              "name": "宽",
+              "units": [
+                "mm"
+              ]
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "126685",
+          "title": "层数",
+          "type": "ShopAttrSelect",
+          "required": true,
+          "options": [
+            {
+              "label": "1层",
+              "value": "745542"
+            },
+            {
+              "label": "2层",
+              "value": "674816"
+            },
+            {
+              "label": "3层",
+              "value": "674817"
+            },
+            {
+              "label": "5层",
+              "value": "1462904"
+            },
+            {
+              "label": "4层",
+              "value": "1462905"
+            },
+            {
+              "label": "6层",
+              "value": "1462906"
+            },
+            {
+              "label": "7层",
+              "value": "1462907"
+            },
+            {
+              "label": "8层",
+              "value": "1462908"
+            },
+            {
+              "label": "9层",
+              "value": "1462912"
+            },
+            {
+              "label": "10层",
+              "value": "1462913"
+            },
+            {
+              "label": "12层",
+              "value": "2338129"
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "184734",
+          "title": "包数",
+          "type": "ShopAttrInput",
+          "required": true,
+          "suffix": "包",
+          "max": 25,
+          "pattern": "^(0|[1-9]\\d*)(\\.\\d{1,2})?$",
+          "group": "必填属性"
+        },
+        {
+          "field": "126686",
+          "title": "包装形式",
+          "type": "ShopAttrSelect",
+          "required": true,
+          "options": [
+            {
+              "label": "箱装",
+              "value": "674820"
+            },
+            {
+              "label": "提装",
+              "value": "674821"
+            },
+            {
+              "label": "袋装",
+              "value": "1444357"
+            },
+            {
+              "label": "软包装",
+              "value": "1444358"
+            },
+            {
+              "label": "盒装",
+              "value": "674822"
+            },
+            {
+              "label": "散装",
+              "value": "813741"
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "184733",
+          "title": "单包抽数",
+          "type": "ShopAttrInput",
+          "required": true,
+          "suffix": "抽",
+          "max": 25,
+          "pattern": "^(0|[1-9]\\d*)(\\.\\d{1,2})?$",
+          "group": "必填属性"
+        },
+        {
+          "field": "126688",
+          "title": "香型",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "有香型",
+              "value": "674826"
+            },
+            {
+              "label": "无香型",
+              "value": "674827"
+            }
+          ],
+          "group": "重要属性"
+        },
+        {
+          "field": "126690",
+          "title": "原料成分",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "纤维",
+              "value": "2173386"
+            },
+            {
+              "label": "粘胶纤维",
+              "value": "2173389"
+            },
+            {
+              "label": "原生木浆",
+              "value": "938885"
+            },
+            {
+              "label": "原生竹浆",
+              "value": "938886"
+            },
+            {
+              "label": "原生秸秆浆",
+              "value": "938887"
+            },
+            {
+              "label": "混浆",
+              "value": "938888"
+            },
+            {
+              "label": "棉",
+              "value": "938889"
+            },
+            {
+              "label": "水刺无纺布",
+              "value": "938890"
+            },
+            {
+              "label": "原生非木纤维",
+              "value": "1047452"
+            }
+          ],
+          "group": "重要属性"
+        }
+      ]
+    },
+    "44479": {
+      "productProps": [
+        {
+          "field": "132416",
+          "title": "适用场景",
+          "type": "ShopAttrSelect",
+          "required": true,
+          "options": [
+            {
+              "label": "家用",
+              "value": "704205"
+            },
+            {
+              "label": "商用",
+              "value": "704206"
+            },
+            {
+              "label": "其他",
+              "value": "1590017"
+            },
+            {
+              "label": "通用",
+              "value": "2173361"
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "164370",
+          "title": "类别",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "抽取式",
+              "value": "1495710"
+            },
+            {
+              "label": "悬挂式",
+              "value": "1495711"
+            },
+            {
+              "label": "其他",
+              "value": "1590019"
+            }
+          ],
+          "group": "其他属性"
+        },
+        {
+          "field": "280256",
+          "title": "是否压花",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "压花",
+              "value": "1678879"
+            },
+            {
+              "label": "非压花",
+              "value": "1678880"
+            }
+          ],
+          "group": "其他属性"
+        },
+        {
+          "field": "164372",
+          "title": "类型",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "硬盒装",
+              "value": "839983"
+            },
+            {
+              "label": "软包式",
+              "value": "839984"
+            }
+          ],
+          "group": "其他属性"
+        }
+      ],
+      "saleSpec": [
+        {
+          "field": "4951",
+          "title": "规格",
+          "fields": [
+            {
+              "field": "8888",
+              "title": "规格",
+              "type": "SaleVcUnstructured",
+              "placeholder": "规格",
+              "max": 30
+            }
+          ]
+        },
+        {
+          "field": "4952",
+          "title": "规格",
+          "fields": [
+            {
+              "field": "8888",
+              "title": "规格",
+              "type": "SaleVcUnstructured",
+              "placeholder": "规格",
+              "max": 30
+            }
+          ]
+        },
+        {
+          "field": "999999999",
+          "title": "自定义",
+          "fields": [
+            {
+              "field": "8888",
+              "title": "自定义",
+              "type": "SaleVcUnstructured",
+              "placeholder": "自定义",
+              "max": 30
+            }
+          ]
+        }
+      ],
+      "skuColumns": [
+        {
+          "field": "skuName",
+          "title": "商品名称",
+          "type": "SkuTitle",
+          "required": true,
+          "maxLength": 60
+        },
+        {
+          "field": "skuProps",
+          "title": "SKU属性",
+          "type": "ShopSkuAttributeCommon",
+          "required": true
+        },
+        {
+          "field": "features.shortTitle",
+          "title": "短标题",
+          "type": "VcShortTitle",
+          "placeholder": "建议8个汉字/16个字符以上",
+          "maxLength": 30,
+          "min": 16
+        },
+        {
+          "field": "itemNum",
+          "title": "货号",
+          "type": "ShopItemnum",
+          "placeholder": "请输入货号",
+          "maxLength": 50,
+          "pattern": "/^(?!.*[\\u4e00-\\u9fa5]).*$/"
+        },
+        {
+          "field": "upcInfo",
+          "title": "商品条形码",
+          "type": "VcBarCodeInfo",
+          "placeholder": "多个商品条形码请以英文分号间隔，最多输入10个"
+        },
+        {
+          "field": "imgAll",
+          "title": "图片设置",
+          "type": "ImgAll",
+          "required": true
+        }
+      ],
+      "skuProps": [
+        {
+          "field": "132418",
+          "title": "是否印花",
+          "type": "ShopAttrSelect",
+          "required": true,
+          "options": [
+            {
+              "label": "印花",
+              "value": "704228"
+            },
+            {
+              "label": "无印花",
+              "value": "704229"
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "184731",
+          "title": "纸张尺寸",
+          "type": "ShopAttrMultiInputUnit",
+          "required": true,
+          "options": [
+            {
+              "label": "长",
+              "value": "长"
+            },
+            {
+              "label": "宽",
+              "value": "宽"
+            }
+          ],
+          "segments": [
+            {
+              "name": "长",
+              "units": [
+                "mm"
+              ]
+            },
+            {
+              "name": "宽",
+              "units": [
+                "mm"
+              ]
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "126685",
+          "title": "层数",
+          "type": "ShopAttrSelect",
+          "required": true,
+          "options": [
+            {
+              "label": "1层",
+              "value": "745542"
+            },
+            {
+              "label": "2层",
+              "value": "674816"
+            },
+            {
+              "label": "3层",
+              "value": "674817"
+            },
+            {
+              "label": "5层",
+              "value": "1462904"
+            },
+            {
+              "label": "4层",
+              "value": "1462905"
+            },
+            {
+              "label": "6层",
+              "value": "1462906"
+            },
+            {
+              "label": "7层",
+              "value": "1462907"
+            },
+            {
+              "label": "8层",
+              "value": "1462908"
+            },
+            {
+              "label": "9层",
+              "value": "1462912"
+            },
+            {
+              "label": "10层",
+              "value": "1462913"
+            },
+            {
+              "label": "12层",
+              "value": "2338129"
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "184734",
+          "title": "包数",
+          "type": "ShopAttrInput",
+          "required": true,
+          "suffix": "包",
+          "max": 25,
+          "pattern": "^(0|[1-9]\\d*)(\\.\\d{1,2})?$",
+          "group": "必填属性"
+        },
+        {
+          "field": "126686",
+          "title": "包装形式",
+          "type": "ShopAttrSelect",
+          "required": true,
+          "options": [
+            {
+              "label": "箱装",
+              "value": "674820"
+            },
+            {
+              "label": "提装",
+              "value": "674821"
+            },
+            {
+              "label": "袋装",
+              "value": "1444357"
+            },
+            {
+              "label": "软包装",
+              "value": "1444358"
+            },
+            {
+              "label": "盒装",
+              "value": "674822"
+            },
+            {
+              "label": "散装",
+              "value": "813741"
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "184733",
+          "title": "单包抽数",
+          "type": "ShopAttrInput",
+          "required": true,
+          "suffix": "抽",
+          "max": 25,
+          "pattern": "^(0|[1-9]\\d*)(\\.\\d{1,2})?$",
+          "group": "必填属性"
+        },
+        {
+          "field": "126688",
+          "title": "香型",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "有香型",
+              "value": "674826"
+            },
+            {
+              "label": "无香型",
+              "value": "674827"
+            }
+          ],
+          "group": "重要属性"
+        },
+        {
+          "field": "126690",
+          "title": "原料成分",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "纤维",
+              "value": "2173386"
+            },
+            {
+              "label": "粘胶纤维",
+              "value": "2173389"
+            },
+            {
+              "label": "原生木浆",
+              "value": "938885"
+            },
+            {
+              "label": "原生竹浆",
+              "value": "938886"
+            },
+            {
+              "label": "原生秸秆浆",
+              "value": "938887"
+            },
+            {
+              "label": "混浆",
+              "value": "938888"
+            },
+            {
+              "label": "棉",
+              "value": "938889"
+            },
+            {
+              "label": "水刺无纺布",
+              "value": "938890"
+            },
+            {
+              "label": "原生非木纤维",
+              "value": "1047452"
+            }
+          ],
+          "group": "重要属性"
+        }
+      ]
+    }
+  }
 }

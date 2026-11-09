@@ -20,8 +20,7 @@
   "interpretation": "该类目经营含乳霜/保湿因子的纸巾品类商品，包含乳霜抽纸、乳霜柔纸巾、保湿面巾、云柔巾、云柔纸、云柔抽纸商品，该类目为实物类目，仅能挂靠实物商品。",
   "publishCategoryId": "52259",
   "publishCategoryName": "乳霜纸",
-  "capturedAt": "2026-11-08T17:56:23.822Z",
-  "capturedWithBrandId": "17519",
+  "capturedAt": "2026-11-09T12:36:03.589Z",
   "baseFields": [
     {
       "field": "aiRecImages",
@@ -931,6 +930,20 @@
         {
           "label": "宽",
           "value": "宽"
+        }
+      ],
+      "segments": [
+        {
+          "name": "长",
+          "units": [
+            "mm"
+          ]
+        },
+        {
+          "name": "宽",
+          "units": [
+            "mm"
+          ]
         }
       ],
       "group": "必填属性"

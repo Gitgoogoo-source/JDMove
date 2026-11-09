@@ -1,0 +1,2512 @@
+{
+  "version": 1,
+  "categoryId": "36336",
+  "categoryName": "果茎食补干货",
+  "path": [
+    {
+      "id": "34884",
+      "name": "粮油调味"
+    },
+    {
+      "id": "34971",
+      "name": "南北干货"
+    },
+    {
+      "id": "36336",
+      "name": "果茎食补干货"
+    }
+  ],
+  "isLeaf": false,
+  "publishCategoryId": "39135",
+  "publishCategoryName": "其他果茎食补干货",
+  "leafChildren": [
+    {
+      "id": "39221",
+      "name": "天麻",
+      "interpretation": "该类目经营天麻品类商品，该类目为实物类目，仅能挂靠实物商品。"
+    },
+    {
+      "id": "39220",
+      "name": "山茱萸",
+      "interpretation": "该类目经营植物种类山茱萸。该类目为实物类目，仅能挂靠实物商品。"
+    },
+    {
+      "id": "36340",
+      "name": "百合",
+      "interpretation": "该类目经营干制百合。该类目为实物类目，仅能挂靠实物商品。"
+    },
+    {
+      "id": "39135",
+      "name": "其他果茎食补干货",
+      "interpretation": "该类目经营植物果实或者根茎成熟后风干后的干货制品，且具有养生滋补属性的干货产品，主要用于煮粥煲汤等厨房场景。该类目为实物类目，仅能挂靠实物商品。"
+    },
+    {
+      "id": "39223",
+      "name": "黄精",
+      "interpretation": "该类目经营植物种类黄精。该类目为实物类目，仅能挂靠实物商品。"
+    },
+    {
+      "id": "39222",
+      "name": "杜仲",
+      "interpretation": "该类目经营杜仲。该类目为实物类目，仅能挂靠实物商品。"
+    },
+    {
+      "id": "39214",
+      "name": "党参干货",
+      "interpretation": "该类目经营植物种类党参。该类目为实物类目，仅能挂靠实物商品。"
+    },
+    {
+      "id": "39216",
+      "name": "铁皮石斛",
+      "interpretation": "该类目经营铁皮石斛 。该类目为实物类目，仅能挂靠实物商品。"
+    },
+    {
+      "id": "39215",
+      "name": "肉苁蓉",
+      "interpretation": "该类目经营肉苁蓉。该类目为实物类目，仅能挂靠实物商品。"
+    },
+    {
+      "id": "39218",
+      "name": "黄芪干货",
+      "interpretation": "该类目经营植物种类黄芪。该类目为实物类目，仅能挂靠实物商品。"
+    },
+    {
+      "id": "39217",
+      "name": "西洋参/人参",
+      "interpretation": "该类目经营植物种类西洋参和人参。该类目为实物类目，仅能挂靠实物商品。"
+    },
+    {
+      "id": "36337",
+      "name": "荔枝干",
+      "interpretation": "该类目经营新鲜荔枝风干或者烘干后制成的荔枝干。该类目为实物类目，仅能挂靠实物商品。"
+    },
+    {
+      "id": "36338",
+      "name": "桂圆",
+      "interpretation": "该类目经营桂圆干、桂圆肉。该类目为实物类目，仅能挂靠实物商品。"
+    },
+    {
+      "id": "39219",
+      "name": "灵芝",
+      "interpretation": "该类目经营植物种类灵芝。该类目为实物类目，仅能挂靠实物商品。"
+    },
+    {
+      "id": "36339",
+      "name": "莲子",
+      "interpretation": "该类目经营干制莲子。该类目为实物类目，仅能挂靠实物商品。"
+    }
+  ],
+  "note": "「果茎食补干货」在 VC 后台不是末级类目，发布时要选四级类目；模板按「其他果茎食补干货」[39135] 的发布页录制，同一个三级类目下的四级类目共用这份模板；荔枝干、桂圆、莲子、百合、党参干货、肉苁蓉、铁皮石斛、西洋参/人参、黄芪干货、灵芝、山茱萸、天麻、黄精 的发布页和它不同，不同的部分记在 leafTemplates 里（按四级类目ID）",
+  "capturedAt": "2026-11-09T12:25:38.812Z",
+  "baseFields": [
+    {
+      "field": "aiRecImages",
+      "title": "图片信息识别",
+      "type": "ShopAiPublish",
+      "required": true
+    },
+    {
+      "field": "productTitle",
+      "title": "商品标题",
+      "type": "ShopTitle",
+      "required": true,
+      "placeholder": "此标题仅用于批量生成表格中的【商品名称】，列表页SKU展开后显示【商品名称】，没展开显示这个商品标题",
+      "maxLength": 60
+    },
+    {
+      "field": "brandId",
+      "title": "品牌",
+      "type": "ShopBrand",
+      "required": true
+    },
+    {
+      "field": "features.spugjsx",
+      "title": "产品名称",
+      "type": "ShopProductName",
+      "maxLength": 50
+    },
+    {
+      "field": "features.model",
+      "title": "型号",
+      "type": "ShopModel",
+      "required": true,
+      "placeholder": "设置SKU型号请选中【SKU字段配置面板】",
+      "maxLength": 100
+    },
+    {
+      "field": "buyerInfo",
+      "title": "采购员ERP",
+      "type": "ShopSalerErp",
+      "required": true
+    },
+    {
+      "field": "salerInfo",
+      "title": "销售员ERP",
+      "type": "ShopSalerErp",
+      "required": true
+    },
+    {
+      "field": "marketPrice",
+      "title": "市场价(元)",
+      "type": "VcMarketPrice",
+      "required": true,
+      "placeholder": "请输入市场价",
+      "pattern": "/^\\d{0,12}(?:\\.\\d{1,2})?$/"
+    },
+    {
+      "field": "lineationPriceInfo",
+      "title": "价格凭证类型",
+      "type": "ShopLineationPrice",
+      "placeholder": "请设置",
+      "options": [
+        {
+          "label": "商品吊牌价",
+          "value": "2"
+        },
+        {
+          "label": "厂商指导价",
+          "value": "3"
+        },
+        {
+          "label": "建议零售价",
+          "value": "4"
+        },
+        {
+          "label": "定价",
+          "value": "5"
+        },
+        {
+          "label": "其他",
+          "value": "99"
+        }
+      ]
+    },
+    {
+      "field": "jdPrice",
+      "title": "京东价(元)",
+      "type": "ShopSingleJdPrice",
+      "required": true,
+      "placeholder": "请输入京东价",
+      "pattern": "/^\\d{0,12}(?:\\.\\d{1,2})?$/"
+    },
+    {
+      "field": "costPrice",
+      "title": "采购价(元)",
+      "type": "VcCostPrice",
+      "required": true,
+      "placeholder": "请输入采购价",
+      "pattern": "/^\\d{0,12}(?:\\.\\d{1,4})?$/"
+    },
+    {
+      "field": "profitMargin",
+      "title": "毛利",
+      "type": "VcGrossProfit"
+    },
+    {
+      "field": "imageList",
+      "title": "方图",
+      "type": "VcImageUpload",
+      "required": true
+    },
+    {
+      "field": "transparentImageList",
+      "title": "透图",
+      "type": "VcImageUpload",
+      "required": true
+    },
+    {
+      "field": "productDesc",
+      "title": "商品详情",
+      "type": "ShopEditor",
+      "required": true,
+      "maxLength": 100000,
+      "options": [
+        {
+          "label": "源码编辑",
+          "value": "0"
+        },
+        {
+          "label": "高级编辑",
+          "value": "1"
+        },
+        {
+          "label": "图文编辑",
+          "value": "2"
+        }
+      ]
+    },
+    {
+      "field": "features.sldays",
+      "title": "保质期（天）",
+      "type": "AdvInput",
+      "placeholder": "请输入",
+      "maxLength": 12
+    },
+    {
+      "field": "length",
+      "title": "[包装]长(mm)",
+      "type": "VcWeakRangeInput",
+      "required": true,
+      "max": 3120,
+      "pattern": "/^[1-9]\\d*$/",
+      "min": 1
+    },
+    {
+      "field": "wide",
+      "title": "[包装]宽(mm)",
+      "type": "VcWeakRangeInput",
+      "required": true,
+      "max": 2300,
+      "pattern": "/^[1-9]\\d*$/",
+      "min": 1
+    },
+    {
+      "field": "height",
+      "title": "[包装]高(mm)",
+      "type": "VcWeakRangeInput",
+      "required": true,
+      "placeholder": "请输入商品高度",
+      "max": 2000,
+      "pattern": "/^[1-9]\\d*$/",
+      "min": 1
+    },
+    {
+      "field": "weight",
+      "title": "商品毛重(kg)",
+      "type": "VcWeakRangeInput",
+      "required": true,
+      "max": 10000,
+      "min": 0.01
+    },
+    {
+      "field": "features.unit",
+      "title": "销售单位",
+      "type": "AdvSelect",
+      "required": true,
+      "placeholder": "请选择",
+      "options": [
+        {
+          "label": "包",
+          "value": "包"
+        },
+        {
+          "label": "辆",
+          "value": "辆"
+        },
+        {
+          "label": "把",
+          "value": "把"
+        },
+        {
+          "label": "袋",
+          "value": "袋"
+        },
+        {
+          "label": "粒",
+          "value": "粒"
+        },
+        {
+          "label": "颗",
+          "value": "颗"
+        },
+        {
+          "label": "枚",
+          "value": "枚"
+        },
+        {
+          "label": "张",
+          "value": "张"
+        },
+        {
+          "label": "吨",
+          "value": "吨"
+        },
+        {
+          "label": "个",
+          "value": "个"
+        },
+        {
+          "label": "本",
+          "value": "本"
+        },
+        {
+          "label": "听",
+          "value": "听"
+        },
+        {
+          "label": "支",
+          "value": "支"
+        },
+        {
+          "label": "箱",
+          "value": "箱"
+        },
+        {
+          "label": "头",
+          "value": "头"
+        },
+        {
+          "label": "架",
+          "value": "架"
+        },
+        {
+          "label": "根",
+          "value": "根"
+        },
+        {
+          "label": "立方米",
+          "value": "立方米"
+        },
+        {
+          "label": "组",
+          "value": "组"
+        },
+        {
+          "label": "捆",
+          "value": "捆"
+        },
+        {
+          "label": "片",
+          "value": "片"
+        },
+        {
+          "label": "升",
+          "value": "升"
+        },
+        {
+          "label": "克",
+          "value": "克"
+        },
+        {
+          "label": "双",
+          "value": "双"
+        },
+        {
+          "label": "千个",
+          "value": "千个"
+        },
+        {
+          "label": "扎",
+          "value": "扎"
+        },
+        {
+          "label": "盏",
+          "value": "盏"
+        },
+        {
+          "label": "罐",
+          "value": "罐"
+        },
+        {
+          "label": "提",
+          "value": "提"
+        },
+        {
+          "label": "盒",
+          "value": "盒"
+        },
+        {
+          "label": "筒",
+          "value": "筒"
+        },
+        {
+          "label": "打",
+          "value": "打"
+        },
+        {
+          "label": "套",
+          "value": "套"
+        },
+        {
+          "label": "块",
+          "value": "块"
+        },
+        {
+          "label": "付",
+          "value": "付"
+        },
+        {
+          "label": "盘",
+          "value": "盘"
+        },
+        {
+          "label": "束",
+          "value": "束"
+        },
+        {
+          "label": "条",
+          "value": "条"
+        },
+        {
+          "label": "卡",
+          "value": "卡"
+        },
+        {
+          "label": "千克",
+          "value": "千克"
+        },
+        {
+          "label": "平方米",
+          "value": "平方米"
+        },
+        {
+          "label": "面",
+          "value": "面"
+        },
+        {
+          "label": "百个",
+          "value": "百个"
+        },
+        {
+          "label": "令",
+          "value": "令"
+        },
+        {
+          "label": "部",
+          "value": "部"
+        },
+        {
+          "label": "只",
+          "value": "只"
+        },
+        {
+          "label": "副",
+          "value": "副"
+        },
+        {
+          "label": "杯",
+          "value": "杯"
+        },
+        {
+          "label": "台",
+          "value": "台"
+        },
+        {
+          "label": "米",
+          "value": "米"
+        },
+        {
+          "label": "轴",
+          "value": "轴"
+        },
+        {
+          "label": "瓶",
+          "value": "瓶"
+        },
+        {
+          "label": "桶",
+          "value": "桶"
+        },
+        {
+          "label": "件",
+          "value": "件"
+        },
+        {
+          "label": "壶",
+          "value": "壶"
+        },
+        {
+          "label": "顶",
+          "value": "顶"
+        },
+        {
+          "label": "卷",
+          "value": "卷"
+        },
+        {
+          "label": "对",
+          "value": "对"
+        },
+        {
+          "label": "批",
+          "value": "批"
+        },
+        {
+          "label": "份",
+          "value": "份"
+        },
+        {
+          "label": "板",
+          "value": "板"
+        },
+        {
+          "label": "装",
+          "value": "装"
+        },
+        {
+          "label": "圈",
+          "value": "圈"
+        },
+        {
+          "label": "幅",
+          "value": "幅"
+        },
+        {
+          "label": "节",
+          "value": "节"
+        },
+        {
+          "label": "册",
+          "value": "册"
+        },
+        {
+          "label": "贴",
+          "value": "贴"
+        },
+        {
+          "label": "封",
+          "value": "封"
+        },
+        {
+          "label": "次",
+          "value": "次"
+        },
+        {
+          "label": "小时",
+          "value": "小时"
+        },
+        {
+          "label": "年",
+          "value": "年"
+        },
+        {
+          "label": "桩",
+          "value": "桩"
+        },
+        {
+          "label": "人",
+          "value": "人"
+        },
+        {
+          "label": "扇",
+          "value": "扇"
+        },
+        {
+          "label": "床",
+          "value": "床"
+        },
+        {
+          "label": "座",
+          "value": "座"
+        },
+        {
+          "label": "管",
+          "value": "管"
+        },
+        {
+          "label": "间",
+          "value": "间"
+        },
+        {
+          "label": "刀",
+          "value": "刀"
+        },
+        {
+          "label": "串",
+          "value": "串"
+        },
+        {
+          "label": "道",
+          "value": "道"
+        },
+        {
+          "label": "分米",
+          "value": "分米"
+        },
+        {
+          "label": "斤",
+          "value": "斤"
+        },
+        {
+          "label": "棵",
+          "value": "棵"
+        },
+        {
+          "label": "盆",
+          "value": "盆"
+        },
+        {
+          "label": "艘",
+          "value": "艘"
+        },
+        {
+          "label": "篮",
+          "value": "篮"
+        },
+        {
+          "label": "坛",
+          "value": "坛"
+        },
+        {
+          "label": "枝",
+          "value": "枝"
+        },
+        {
+          "label": "公斤",
+          "value": "公斤"
+        },
+        {
+          "label": "株",
+          "value": "株"
+        },
+        {
+          "label": "列",
+          "value": "列"
+        },
+        {
+          "label": "朵",
+          "value": "朵"
+        },
+        {
+          "label": "千米",
+          "value": "千米"
+        },
+        {
+          "label": "沓",
+          "value": "沓"
+        },
+        {
+          "label": "具",
+          "value": "具"
+        },
+        {
+          "label": "排",
+          "value": "排"
+        },
+        {
+          "label": "饼",
+          "value": "饼"
+        },
+        {
+          "label": "碗",
+          "value": "碗"
+        },
+        {
+          "label": "g",
+          "value": "g"
+        },
+        {
+          "label": "kg",
+          "value": "kg"
+        },
+        {
+          "label": "L",
+          "value": "L"
+        },
+        {
+          "label": "ml",
+          "value": "ml"
+        },
+        {
+          "label": "毫升",
+          "value": "毫升"
+        },
+        {
+          "label": "克拉",
+          "value": "克拉"
+        },
+        {
+          "label": "平方分米",
+          "value": "平方分米"
+        },
+        {
+          "label": "厘米",
+          "value": "厘米"
+        },
+        {
+          "label": "立方厘米",
+          "value": "立方厘米"
+        },
+        {
+          "label": "加仑",
+          "value": "加仑"
+        },
+        {
+          "label": "GL",
+          "value": "GL"
+        }
+      ]
+    },
+    {
+      "field": "packListing",
+      "title": "包装清单",
+      "type": "AdvInput",
+      "required": true,
+      "placeholder": "请输入，注意：格式为 USB线*1，AV线*1，配带*1，说明书*1，保修卡*1；应用在售后退换货场景，请勿填写干燥剂、油光纸、网格套等无需用户返回的耗材",
+      "maxLength": 800
+    },
+    {
+      "field": "features.packType",
+      "title": "商品包装",
+      "type": "AdvSelect",
+      "required": true,
+      "options": [
+        {
+          "label": "普通商品",
+          "value": "1"
+        },
+        {
+          "label": "易碎品",
+          "value": "2"
+        },
+        {
+          "label": "裸瓶液体",
+          "value": "3"
+        },
+        {
+          "label": "带包装液体",
+          "value": "4"
+        }
+      ]
+    },
+    {
+      "field": "dangerGoods",
+      "title": "是否危险商品",
+      "type": "AdvMultiSelect",
+      "options": [
+        {
+          "label": "爆炸品",
+          "value": "1"
+        },
+        {
+          "label": "压缩液化气体",
+          "value": "2"
+        },
+        {
+          "label": "易燃液体",
+          "value": "4"
+        },
+        {
+          "label": "自燃物品及易燃固体和遇湿易燃物品",
+          "value": "8"
+        },
+        {
+          "label": "氧化剂和有机过氧化物",
+          "value": "16"
+        },
+        {
+          "label": "毒害品和感染性物品",
+          "value": "32"
+        },
+        {
+          "label": "放射性物品",
+          "value": "64"
+        },
+        {
+          "label": "腐蚀品",
+          "value": "128"
+        },
+        {
+          "label": "杂类（包含危害环境物质）",
+          "value": "256"
+        }
+      ]
+    },
+    {
+      "field": "warranty",
+      "title": "质保期",
+      "type": "ShopWarranty",
+      "required": true,
+      "placeholder": "请选择质保期",
+      "options": [
+        {
+          "label": "无质保",
+          "value": "无质保"
+        }
+      ]
+    },
+    {
+      "field": "packSpecification",
+      "title": "包装规格",
+      "type": "AdvInput"
+    }
+  ],
+  "productProps": [
+    {
+      "field": "252534",
+      "title": "保质期",
+      "type": "ShopAttrMultiInputUnit",
+      "required": true,
+      "options": [
+        {
+          "label": "",
+          "value": ""
+        }
+      ],
+      "segments": [
+        {
+          "name": "",
+          "units": [
+            "天",
+            "个月",
+            "年"
+          ]
+        }
+      ],
+      "group": "必填属性"
+    },
+    {
+      "field": "262208",
+      "title": "生长方式",
+      "type": "ShopAttrSelect",
+      "options": [
+        {
+          "label": "野生",
+          "value": "1584354"
+        },
+        {
+          "label": "人工培育",
+          "value": "1584358"
+        }
+      ],
+      "group": "其他属性"
+    },
+    {
+      "field": "252828",
+      "title": "原料产地",
+      "type": "ShopAttrAddress",
+      "group": "其他属性"
+    }
+  ],
+  "saleSpec": [
+    {
+      "field": "31970",
+      "title": "规格",
+      "fields": [
+        {
+          "field": "8888",
+          "title": "规格",
+          "type": "SaleVcUnstructured",
+          "placeholder": "规格",
+          "max": 30
+        }
+      ]
+    },
+    {
+      "field": "31971",
+      "title": "自定义",
+      "fields": [
+        {
+          "field": "8888",
+          "title": "自定义",
+          "type": "SaleVcUnstructured",
+          "placeholder": "自定义",
+          "max": 30
+        }
+      ]
+    },
+    {
+      "field": "999999999",
+      "title": "自定义",
+      "fields": [
+        {
+          "field": "8888",
+          "title": "自定义",
+          "type": "SaleVcUnstructured",
+          "placeholder": "自定义",
+          "max": 30
+        }
+      ]
+    }
+  ],
+  "skuColumns": [
+    {
+      "field": "skuName",
+      "title": "商品名称",
+      "type": "SkuTitle",
+      "required": true,
+      "maxLength": 60
+    },
+    {
+      "field": "skuSpuKeyAttrVal",
+      "title": "标准产品关键属性",
+      "type": "ShopSkuSpuKeyAttribute"
+    },
+    {
+      "field": "skuProps",
+      "title": "SKU属性",
+      "type": "ShopSkuAttributeCommon",
+      "required": true
+    },
+    {
+      "field": "features.shortTitle",
+      "title": "短标题",
+      "type": "VcShortTitle",
+      "placeholder": "建议8个汉字/16个字符以上",
+      "maxLength": 30,
+      "min": 16
+    },
+    {
+      "field": "itemNum",
+      "title": "货号",
+      "type": "ShopItemnum",
+      "placeholder": "请输入货号",
+      "maxLength": 50,
+      "pattern": "/^(?!.*[\\u4e00-\\u9fa5]).*$/"
+    },
+    {
+      "field": "nutrientInfo",
+      "title": "食品安全",
+      "type": "VcNutrientContent"
+    },
+    {
+      "field": "upcInfo",
+      "title": "商品条形码",
+      "type": "VcBarCodeInfo",
+      "placeholder": "多个商品条形码请以英文分号间隔，最多输入10个"
+    },
+    {
+      "field": "imgAll",
+      "title": "图片设置",
+      "type": "ImgAll",
+      "required": true
+    }
+  ],
+  "skuProps": [
+    {
+      "field": "252806",
+      "title": "包装形式",
+      "type": "ShopAttrSelect",
+      "required": true,
+      "options": [
+        {
+          "label": "袋装",
+          "value": "1465239"
+        },
+        {
+          "label": "罐装",
+          "value": "1465232"
+        },
+        {
+          "label": "礼盒装",
+          "value": "1465241"
+        },
+        {
+          "label": "普通盒装",
+          "value": "1465235"
+        },
+        {
+          "label": "箱装",
+          "value": "1465242"
+        },
+        {
+          "label": "瓶装",
+          "value": "2184451"
+        }
+      ],
+      "group": "必填属性"
+    },
+    {
+      "field": "252500",
+      "title": "包装规格",
+      "type": "ShopAttrMultiInputUnit",
+      "required": true,
+      "options": [
+        {
+          "label": "",
+          "value": ""
+        }
+      ],
+      "segments": [
+        {
+          "name": "",
+          "units": [
+            "袋",
+            "盒",
+            "罐",
+            "瓶",
+            "组",
+            "支",
+            "桶",
+            "个"
+          ]
+        }
+      ],
+      "group": "必填属性"
+    },
+    {
+      "field": "252496",
+      "title": "总净含量",
+      "type": "ShopAttrMultiInputUnit",
+      "options": [
+        {
+          "label": "",
+          "value": ""
+        }
+      ],
+      "segments": [
+        {
+          "name": "",
+          "units": [
+            "g",
+            "kg"
+          ]
+        }
+      ],
+      "group": "其他属性"
+    }
+  ],
+  "leafTemplates": {
+    "36337": {
+      "productProps": [
+        {
+          "field": "252534",
+          "title": "保质期",
+          "type": "ShopAttrMultiInputUnit",
+          "required": true,
+          "options": [
+            {
+              "label": "",
+              "value": ""
+            }
+          ],
+          "segments": [
+            {
+              "name": "",
+              "units": [
+                "天",
+                "个月",
+                "年"
+              ]
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "262208",
+          "title": "生长方式",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "野生",
+              "value": "1584354"
+            },
+            {
+              "label": "人工培育",
+              "value": "1584358"
+            }
+          ],
+          "group": "其他属性"
+        },
+        {
+          "field": "252954",
+          "title": "特产品类",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "增城荔枝干",
+              "value": "1465778"
+            },
+            {
+              "label": "兰竹荔枝干",
+              "value": "1465793"
+            },
+            {
+              "label": "福建丁香糯米荔枝干",
+              "value": "1465796"
+            },
+            {
+              "label": "南山荔枝干",
+              "value": "1465802"
+            },
+            {
+              "label": "莆田荔枝干",
+              "value": "1465813"
+            },
+            {
+              "label": "从化荔枝干",
+              "value": "1465809"
+            },
+            {
+              "label": "茂名高州荔枝干",
+              "value": "2137197"
+            }
+          ],
+          "group": "其他属性"
+        },
+        {
+          "field": "252942",
+          "title": "等级",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "一级",
+              "value": "1465782"
+            },
+            {
+              "label": "二级",
+              "value": "1465769"
+            },
+            {
+              "label": "三级",
+              "value": "1465775"
+            }
+          ],
+          "group": "其他属性"
+        },
+        {
+          "field": "252828",
+          "title": "原料产地",
+          "type": "ShopAttrAddress",
+          "group": "其他属性"
+        }
+      ]
+    },
+    "36338": {
+      "productProps": [
+        {
+          "field": "252534",
+          "title": "保质期",
+          "type": "ShopAttrMultiInputUnit",
+          "required": true,
+          "options": [
+            {
+              "label": "",
+              "value": ""
+            }
+          ],
+          "segments": [
+            {
+              "name": "",
+              "units": [
+                "天",
+                "个月",
+                "年"
+              ]
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "252931",
+          "title": "等级",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "特级",
+              "value": "1465884"
+            },
+            {
+              "label": "一级",
+              "value": "1465885"
+            },
+            {
+              "label": "二级",
+              "value": "1465886"
+            }
+          ],
+          "group": "其他属性"
+        },
+        {
+          "field": "252929",
+          "title": "特产品类",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "高州桂圆",
+              "value": "3868370"
+            },
+            {
+              "label": "博白桂圆",
+              "value": "1465875"
+            },
+            {
+              "label": "莆田桂圆",
+              "value": "1465877"
+            },
+            {
+              "label": "茂名储良龙眼",
+              "value": "1465876"
+            },
+            {
+              "label": "平南石硖龙眼",
+              "value": "1465878"
+            },
+            {
+              "label": "泸州桂圆",
+              "value": "1465879"
+            },
+            {
+              "label": "泉州龙眼",
+              "value": "1465880"
+            },
+            {
+              "label": "张坝桂圆",
+              "value": "1465881"
+            },
+            {
+              "label": "容县大乌圆龙眼",
+              "value": "1465883"
+            },
+            {
+              "label": "灵龙龙眼",
+              "value": "1465882"
+            },
+            {
+              "label": "其他",
+              "value": "2177157"
+            }
+          ],
+          "group": "其他属性"
+        },
+        {
+          "field": "262208",
+          "title": "生长方式",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "野生",
+              "value": "1584354"
+            },
+            {
+              "label": "人工培育",
+              "value": "1584358"
+            }
+          ],
+          "group": "其他属性"
+        },
+        {
+          "field": "252828",
+          "title": "原料产地",
+          "type": "ShopAttrAddress",
+          "group": "其他属性"
+        }
+      ],
+      "skuProps": [
+        {
+          "field": "252806",
+          "title": "包装形式",
+          "type": "ShopAttrSelect",
+          "required": true,
+          "options": [
+            {
+              "label": "袋装",
+              "value": "1465239"
+            },
+            {
+              "label": "罐装",
+              "value": "1465232"
+            },
+            {
+              "label": "礼盒装",
+              "value": "1465241"
+            },
+            {
+              "label": "普通盒装",
+              "value": "1465235"
+            },
+            {
+              "label": "箱装",
+              "value": "1465242"
+            },
+            {
+              "label": "瓶装",
+              "value": "2184451"
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "252500",
+          "title": "包装规格",
+          "type": "ShopAttrMultiInputUnit",
+          "required": true,
+          "options": [
+            {
+              "label": "",
+              "value": ""
+            }
+          ],
+          "segments": [
+            {
+              "name": "",
+              "units": [
+                "袋",
+                "盒",
+                "罐",
+                "瓶",
+                "组",
+                "支",
+                "桶",
+                "个"
+              ]
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "252496",
+          "title": "总净含量",
+          "type": "ShopAttrMultiInputUnit",
+          "options": [
+            {
+              "label": "",
+              "value": ""
+            }
+          ],
+          "segments": [
+            {
+              "name": "",
+              "units": [
+                "g",
+                "kg"
+              ]
+            }
+          ],
+          "group": "其他属性"
+        },
+        {
+          "field": "252934",
+          "title": "果干大小",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "优选小果20-22mm",
+              "value": "1465887"
+            },
+            {
+              "label": "经典中果22-25mm",
+              "value": "1465888"
+            },
+            {
+              "label": "精选大果25-27mm",
+              "value": "1465889"
+            },
+            {
+              "label": "特大果27-29mm",
+              "value": "1465891"
+            },
+            {
+              "label": "超大果29mm以上",
+              "value": "1465890"
+            }
+          ],
+          "group": "其他属性"
+        }
+      ]
+    },
+    "36339": {
+      "productProps": [
+        {
+          "field": "252913",
+          "title": "特产品类",
+          "type": "ShopAttrSelect",
+          "required": true,
+          "options": [
+            {
+              "label": "向阳湖莲子",
+              "value": "1465593"
+            },
+            {
+              "label": "金湖莲子",
+              "value": "1465606"
+            },
+            {
+              "label": "洪湖莲子",
+              "value": "1465617"
+            },
+            {
+              "label": "龙集莲子",
+              "value": "1465627"
+            },
+            {
+              "label": "建宁莲子",
+              "value": "1465638"
+            },
+            {
+              "label": "宣莲",
+              "value": "1465650"
+            },
+            {
+              "label": "湘潭湘莲",
+              "value": "1678437"
+            },
+            {
+              "label": "龙山莲子",
+              "value": "2137193"
+            },
+            {
+              "label": "广昌白莲",
+              "value": "2137194"
+            },
+            {
+              "label": "万安白莲",
+              "value": "2202105"
+            },
+            {
+              "label": "井冈白莲",
+              "value": "2209221"
+            },
+            {
+              "label": "其他",
+              "value": "1592267"
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "252534",
+          "title": "保质期",
+          "type": "ShopAttrMultiInputUnit",
+          "required": true,
+          "options": [
+            {
+              "label": "",
+              "value": ""
+            }
+          ],
+          "segments": [
+            {
+              "name": "",
+              "units": [
+                "天",
+                "个月",
+                "年"
+              ]
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "262208",
+          "title": "生长方式",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "野生",
+              "value": "1584354"
+            },
+            {
+              "label": "人工培育",
+              "value": "1584358"
+            }
+          ],
+          "group": "其他属性"
+        },
+        {
+          "field": "252907",
+          "title": "等级",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "特级",
+              "value": "2137192"
+            },
+            {
+              "label": "一级",
+              "value": "1465498"
+            },
+            {
+              "label": "二级",
+              "value": "1465512"
+            },
+            {
+              "label": "三级",
+              "value": "1465529"
+            }
+          ],
+          "group": "其他属性"
+        },
+        {
+          "field": "252828",
+          "title": "原料产地",
+          "type": "ShopAttrAddress",
+          "group": "其他属性"
+        }
+      ]
+    },
+    "36340": {
+      "productProps": [
+        {
+          "field": "252950",
+          "title": "特产品类",
+          "type": "ShopAttrSelect",
+          "required": true,
+          "options": [
+            {
+              "label": "泰和百合",
+              "value": "3868371"
+            },
+            {
+              "label": "井冈山百合",
+              "value": "3868373"
+            },
+            {
+              "label": "神农架百合",
+              "value": "3868375"
+            },
+            {
+              "label": "宁国百合",
+              "value": "3868376"
+            },
+            {
+              "label": "霍山百合",
+              "value": "3868377"
+            },
+            {
+              "label": "兰州百合",
+              "value": "1465672"
+            },
+            {
+              "label": "宜兴百合",
+              "value": "1465661"
+            },
+            {
+              "label": "龙山百合",
+              "value": "1465682"
+            },
+            {
+              "label": "万载百合",
+              "value": "1465717"
+            },
+            {
+              "label": "凌源百合",
+              "value": "1465729"
+            },
+            {
+              "label": "洛阳百合",
+              "value": "1465707"
+            },
+            {
+              "label": "七里河百合",
+              "value": "1465697"
+            },
+            {
+              "label": "江油百合",
+              "value": "1465739"
+            },
+            {
+              "label": "永丰百合",
+              "value": "1465749"
+            },
+            {
+              "label": "宜昌百合",
+              "value": "1465758"
+            },
+            {
+              "label": "隆回龙牙百合",
+              "value": "1465767"
+            },
+            {
+              "label": "江津百合",
+              "value": "1465773"
+            },
+            {
+              "label": "漫水河百合",
+              "value": "1603832"
+            },
+            {
+              "label": "六安百合",
+              "value": "2137195"
+            },
+            {
+              "label": "云南药百合",
+              "value": "2137196"
+            },
+            {
+              "label": "其他",
+              "value": "1603833"
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "252534",
+          "title": "保质期",
+          "type": "ShopAttrMultiInputUnit",
+          "required": true,
+          "options": [
+            {
+              "label": "",
+              "value": ""
+            }
+          ],
+          "segments": [
+            {
+              "name": "",
+              "units": [
+                "天",
+                "个月",
+                "年"
+              ]
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "262208",
+          "title": "生长方式",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "野生",
+              "value": "1584354"
+            },
+            {
+              "label": "人工培育",
+              "value": "1584358"
+            }
+          ],
+          "group": "其他属性"
+        },
+        {
+          "field": "252901",
+          "title": "等级",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "一级",
+              "value": "1465779"
+            },
+            {
+              "label": "二级",
+              "value": "1465785"
+            },
+            {
+              "label": "三级",
+              "value": "1465790"
+            },
+            {
+              "label": "四级",
+              "value": "1465798"
+            }
+          ],
+          "group": "其他属性"
+        },
+        {
+          "field": "252828",
+          "title": "原料产地",
+          "type": "ShopAttrAddress",
+          "group": "其他属性"
+        }
+      ]
+    },
+    "39214": {
+      "productProps": [
+        {
+          "field": "252534",
+          "title": "保质期",
+          "type": "ShopAttrMultiInputUnit",
+          "required": true,
+          "options": [
+            {
+              "label": "",
+              "value": ""
+            }
+          ],
+          "segments": [
+            {
+              "name": "",
+              "units": [
+                "天",
+                "个月",
+                "年"
+              ]
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "262208",
+          "title": "生长方式",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "野生",
+              "value": "1584354"
+            },
+            {
+              "label": "人工培育",
+              "value": "1584358"
+            }
+          ],
+          "group": "其他属性"
+        },
+        {
+          "field": "262323",
+          "title": "种类",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "大叶党参",
+              "value": "1584248"
+            },
+            {
+              "label": "心叶党参",
+              "value": "1584268"
+            },
+            {
+              "label": "秃叶党参",
+              "value": "1584252"
+            },
+            {
+              "label": "三角叶党参",
+              "value": "1584259"
+            }
+          ],
+          "group": "其他属性"
+        },
+        {
+          "field": "262314",
+          "title": "类型",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "党参片",
+              "value": "1584283"
+            },
+            {
+              "label": "党参段",
+              "value": "1584291"
+            },
+            {
+              "label": "党参粉",
+              "value": "1584274"
+            },
+            {
+              "label": "整支党参",
+              "value": "1584300"
+            }
+          ],
+          "group": "其他属性"
+        },
+        {
+          "field": "252828",
+          "title": "原料产地",
+          "type": "ShopAttrAddress",
+          "group": "其他属性"
+        }
+      ]
+    },
+    "39215": {
+      "productProps": [
+        {
+          "field": "262340",
+          "title": "种类",
+          "type": "ShopAttrSelect",
+          "required": true,
+          "options": [
+            {
+              "label": "兰州肉苁蓉",
+              "value": "1583925"
+            },
+            {
+              "label": "盐生肉苁蓉",
+              "value": "1583959"
+            },
+            {
+              "label": "沙苁蓉",
+              "value": "1583902"
+            },
+            {
+              "label": "管花肉苁蓉",
+              "value": "1583938"
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "252534",
+          "title": "保质期",
+          "type": "ShopAttrMultiInputUnit",
+          "required": true,
+          "options": [
+            {
+              "label": "",
+              "value": ""
+            }
+          ],
+          "segments": [
+            {
+              "name": "",
+              "units": [
+                "天",
+                "个月",
+                "年"
+              ]
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "262330",
+          "title": "类型",
+          "type": "ShopAttrSelect",
+          "required": true,
+          "options": [
+            {
+              "label": "苁蓉片",
+              "value": "1583974"
+            },
+            {
+              "label": "苁蓉块",
+              "value": "1584023"
+            },
+            {
+              "label": "苁蓉条",
+              "value": "1584013"
+            },
+            {
+              "label": "苁蓉段",
+              "value": "1583999"
+            },
+            {
+              "label": "苁蓉粉",
+              "value": "1584037"
+            },
+            {
+              "label": "整支苁蓉",
+              "value": "1584053"
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "262208",
+          "title": "生长方式",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "野生",
+              "value": "1584354"
+            },
+            {
+              "label": "人工培育",
+              "value": "1584358"
+            }
+          ],
+          "group": "其他属性"
+        },
+        {
+          "field": "252828",
+          "title": "原料产地",
+          "type": "ShopAttrAddress",
+          "group": "其他属性"
+        }
+      ]
+    },
+    "39216": {
+      "productProps": [
+        {
+          "field": "262304",
+          "title": "类型",
+          "type": "ShopAttrSelect",
+          "required": true,
+          "options": [
+            {
+              "label": "片状",
+              "value": "1584061"
+            },
+            {
+              "label": "条状",
+              "value": "1584075"
+            },
+            {
+              "label": "粉状",
+              "value": "1584100"
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "252534",
+          "title": "保质期",
+          "type": "ShopAttrMultiInputUnit",
+          "required": true,
+          "options": [
+            {
+              "label": "",
+              "value": ""
+            }
+          ],
+          "segments": [
+            {
+              "name": "",
+              "units": [
+                "天",
+                "个月",
+                "年"
+              ]
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "262208",
+          "title": "生长方式",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "野生",
+              "value": "1584354"
+            },
+            {
+              "label": "人工培育",
+              "value": "1584358"
+            }
+          ],
+          "group": "其他属性"
+        },
+        {
+          "field": "252828",
+          "title": "原料产地",
+          "type": "ShopAttrAddress",
+          "group": "其他属性"
+        }
+      ]
+    },
+    "39217": {
+      "productProps": [
+        {
+          "field": "262262",
+          "title": "类型",
+          "type": "ShopAttrSelect",
+          "required": true,
+          "options": [
+            {
+              "label": "参片",
+              "value": "1583989"
+            },
+            {
+              "label": "参段",
+              "value": "1584004"
+            },
+            {
+              "label": "参须",
+              "value": "1584016"
+            },
+            {
+              "label": "参粉",
+              "value": "1584027"
+            },
+            {
+              "label": "整颗",
+              "value": "1584039"
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "252534",
+          "title": "保质期",
+          "type": "ShopAttrMultiInputUnit",
+          "required": true,
+          "options": [
+            {
+              "label": "",
+              "value": ""
+            }
+          ],
+          "segments": [
+            {
+              "name": "",
+              "units": [
+                "天",
+                "个月",
+                "年"
+              ]
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "262208",
+          "title": "生长方式",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "野生",
+              "value": "1584354"
+            },
+            {
+              "label": "人工培育",
+              "value": "1584358"
+            }
+          ],
+          "group": "其他属性"
+        },
+        {
+          "field": "262283",
+          "title": "种类",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "西洋参",
+              "value": "1583971"
+            },
+            {
+              "label": "人参",
+              "value": "1583983"
+            }
+          ],
+          "group": "其他属性"
+        },
+        {
+          "field": "252828",
+          "title": "原料产地",
+          "type": "ShopAttrAddress",
+          "group": "其他属性"
+        }
+      ]
+    },
+    "39218": {
+      "productProps": [
+        {
+          "field": "252534",
+          "title": "保质期",
+          "type": "ShopAttrMultiInputUnit",
+          "required": true,
+          "options": [
+            {
+              "label": "",
+              "value": ""
+            }
+          ],
+          "segments": [
+            {
+              "name": "",
+              "units": [
+                "天",
+                "个月",
+                "年"
+              ]
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "262240",
+          "title": "类型",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "黄芪片",
+              "value": "1583924"
+            },
+            {
+              "label": "黄芪条",
+              "value": "1583941"
+            },
+            {
+              "label": "黄芪粉",
+              "value": "1583982"
+            }
+          ],
+          "group": "其他属性"
+        },
+        {
+          "field": "262208",
+          "title": "生长方式",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "野生",
+              "value": "1584354"
+            },
+            {
+              "label": "人工培育",
+              "value": "1584358"
+            }
+          ],
+          "group": "其他属性"
+        },
+        {
+          "field": "252828",
+          "title": "原料产地",
+          "type": "ShopAttrAddress",
+          "group": "其他属性"
+        }
+      ]
+    },
+    "39219": {
+      "productProps": [
+        {
+          "field": "262326",
+          "title": "类型",
+          "type": "ShopAttrSelect",
+          "required": true,
+          "options": [
+            {
+              "label": "灵芝片",
+              "value": "1584210"
+            },
+            {
+              "label": "灵芝段",
+              "value": "1584233"
+            },
+            {
+              "label": "灵芝粉",
+              "value": "1584242"
+            },
+            {
+              "label": "整颗灵芝",
+              "value": "1584222"
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "252534",
+          "title": "保质期",
+          "type": "ShopAttrMultiInputUnit",
+          "required": true,
+          "options": [
+            {
+              "label": "",
+              "value": ""
+            }
+          ],
+          "segments": [
+            {
+              "name": "",
+              "units": [
+                "天",
+                "个月",
+                "年"
+              ]
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "262208",
+          "title": "生长方式",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "野生",
+              "value": "1584354"
+            },
+            {
+              "label": "人工培育",
+              "value": "1584358"
+            }
+          ],
+          "group": "其他属性"
+        },
+        {
+          "field": "262318",
+          "title": "种类",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "赤灵芝",
+              "value": "1584148"
+            },
+            {
+              "label": "黑灵芝",
+              "value": "1584160"
+            },
+            {
+              "label": "青灵芝",
+              "value": "1584202"
+            },
+            {
+              "label": "白灵芝",
+              "value": "1584169"
+            },
+            {
+              "label": "紫灵芝",
+              "value": "1584193"
+            },
+            {
+              "label": "黄灵芝",
+              "value": "1584181"
+            }
+          ],
+          "group": "其他属性"
+        },
+        {
+          "field": "252828",
+          "title": "原料产地",
+          "type": "ShopAttrAddress",
+          "group": "其他属性"
+        }
+      ]
+    },
+    "39220": {
+      "productProps": [
+        {
+          "field": "262336",
+          "title": "类型",
+          "type": "ShopAttrSelect",
+          "required": true,
+          "options": [
+            {
+              "label": "茱萸肉",
+              "value": "1584088"
+            },
+            {
+              "label": "茱萸粉",
+              "value": "1584103"
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "252534",
+          "title": "保质期",
+          "type": "ShopAttrMultiInputUnit",
+          "required": true,
+          "options": [
+            {
+              "label": "",
+              "value": ""
+            }
+          ],
+          "segments": [
+            {
+              "name": "",
+              "units": [
+                "天",
+                "个月",
+                "年"
+              ]
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "262208",
+          "title": "生长方式",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "野生",
+              "value": "1584354"
+            },
+            {
+              "label": "人工培育",
+              "value": "1584358"
+            }
+          ],
+          "group": "其他属性"
+        },
+        {
+          "field": "252828",
+          "title": "原料产地",
+          "type": "ShopAttrAddress",
+          "group": "其他属性"
+        }
+      ]
+    },
+    "39221": {
+      "productProps": [
+        {
+          "field": "262353",
+          "title": "类型",
+          "type": "ShopAttrSelect",
+          "required": true,
+          "options": [
+            {
+              "label": "天麻片",
+              "value": "1584271"
+            },
+            {
+              "label": "天麻段",
+              "value": "1584281"
+            },
+            {
+              "label": "天麻粉",
+              "value": "1584286"
+            },
+            {
+              "label": "整颗天麻",
+              "value": "1584289"
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "252534",
+          "title": "保质期",
+          "type": "ShopAttrMultiInputUnit",
+          "required": true,
+          "options": [
+            {
+              "label": "",
+              "value": ""
+            }
+          ],
+          "segments": [
+            {
+              "name": "",
+              "units": [
+                "天",
+                "个月",
+                "年"
+              ]
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "262354",
+          "title": "种类",
+          "type": "ShopAttrSelect",
+          "required": true,
+          "options": [
+            {
+              "label": "金线天麻",
+              "value": "1584265"
+            },
+            {
+              "label": "黑天麻",
+              "value": "1584269"
+            },
+            {
+              "label": "黄连天麻",
+              "value": "1584258"
+            },
+            {
+              "label": "罗布麻（高山天麻）",
+              "value": "1584277"
+            },
+            {
+              "label": "七叶杜仲",
+              "value": "1584293"
+            },
+            {
+              "label": "五叶杜仲",
+              "value": "1584297"
+            },
+            {
+              "label": "青杆杜仲",
+              "value": "1584315"
+            },
+            {
+              "label": "银杏叶杜仲",
+              "value": "1584318"
+            },
+            {
+              "label": "大果杜仲",
+              "value": "1584302"
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "262208",
+          "title": "生长方式",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "野生",
+              "value": "1584354"
+            },
+            {
+              "label": "人工培育",
+              "value": "1584358"
+            }
+          ],
+          "group": "其他属性"
+        },
+        {
+          "field": "252828",
+          "title": "原料产地",
+          "type": "ShopAttrAddress",
+          "group": "其他属性"
+        }
+      ]
+    },
+    "39223": {
+      "productProps": [
+        {
+          "field": "262311",
+          "title": "种类",
+          "type": "ShopAttrSelect",
+          "required": true,
+          "options": [
+            {
+              "label": "鸡头黄精",
+              "value": "1584424"
+            },
+            {
+              "label": "多花黄精",
+              "value": "1584426"
+            },
+            {
+              "label": "滇黄精",
+              "value": "1584425"
+            },
+            {
+              "label": "热河黄精",
+              "value": "1584430"
+            },
+            {
+              "label": "卷叶黄精",
+              "value": "1584431"
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "262321",
+          "title": "类型",
+          "type": "ShopAttrSelect",
+          "required": true,
+          "options": [
+            {
+              "label": "黄精片",
+              "value": "1584427"
+            },
+            {
+              "label": "黄精段",
+              "value": "1584428"
+            },
+            {
+              "label": "黄精粉",
+              "value": "1584429"
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "252534",
+          "title": "保质期",
+          "type": "ShopAttrMultiInputUnit",
+          "required": true,
+          "options": [
+            {
+              "label": "",
+              "value": ""
+            }
+          ],
+          "segments": [
+            {
+              "name": "",
+              "units": [
+                "天",
+                "个月",
+                "年"
+              ]
+            }
+          ],
+          "group": "必填属性"
+        },
+        {
+          "field": "262208",
+          "title": "生长方式",
+          "type": "ShopAttrSelect",
+          "options": [
+            {
+              "label": "野生",
+              "value": "1584354"
+            },
+            {
+              "label": "人工培育",
+              "value": "1584358"
+            }
+          ],
+          "group": "其他属性"
+        },
+        {
+          "field": "252828",
+          "title": "原料产地",
+          "type": "ShopAttrAddress",
+          "group": "其他属性"
+        }
+      ]
+    }
+  }
+}

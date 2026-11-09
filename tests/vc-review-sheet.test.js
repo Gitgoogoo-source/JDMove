@@ -43,6 +43,13 @@ const rowsOf = (items) =>
   });
 const ctx = (drafts = new Map()) => ({ items: ITEMS, drafts, catalog, settings });
 
+test('reviewSheets：同一个三级类目下不同的四级类目，可选值表各列一份', () => {
+  const hanging = item('100000000004', ['15901', '15902', '15908', '44478']);
+  const [, options] = reviewSheets({ rows: rowsOf([TISSUE, hanging]), catalog });
+  const names = new Set(options.rows.slice(1).map((r) => r[0]));
+  assert.deepEqual([...names].sort(), ['抽纸 > 常规抽纸', '抽纸 > 悬挂式抽纸'].sort());
+});
+
 test('reviewSheets：每个商品一行，属性列是各模板属性的并集，模板里没有的属性写“—”；已填的值预先填好', () => {
   const [sheet, options, notes] = reviewSheets({ rows: rowsOf(ITEMS), catalog });
   const [header, tissue, bare, wipes] = sheet.rows;
@@ -58,7 +65,7 @@ test('reviewSheets：每个商品一行，属性列是各模板属性的并集�
   assert.match(bare[col('还缺（核对用，不导入）')], /上架模板（类目）/);
   assert.ok(sheet.textColumns.includes(1) && sheet.textColumns.includes(col('属性:层数')));
   assert.ok(options.rows.some((r) => r[0] === '湿巾' && r[1] === '香型' && r[3] === '必填' && r[4].includes('无香型')));
-  assert.ok(options.rows.some((r) => r[0] === '抽纸' && r[1] === '纸张尺寸' && r[4].includes('2 个数字')));
+  assert.ok(options.rows.some((r) => r[0] === '抽纸 > 常规抽纸' && r[1] === '纸张尺寸' && r[4].includes('2 个数字')));
   assert.match(notes.rows[2][0], /抽纸 > 常规抽纸/);
 });
 

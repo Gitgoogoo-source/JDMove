@@ -1,7 +1,1228 @@
 {
   "version": 1,
-  "updatedAt": "2026-11-08",
+  "updatedAt": "2026-11-09",
   "templates": [
+    {
+      "categoryId": "37038",
+      "categoryName": "纯净水",
+      "path": "水饮冲调 > 饮用水 > 纯净水",
+      "isLeaf": true,
+      "publishCategoryId": "37038",
+      "leafIds": [
+        "37038"
+      ],
+      "file": "37038.json"
+    },
+    {
+      "categoryId": "37040",
+      "categoryName": "矿泉水",
+      "path": "水饮冲调 > 饮用水 > 矿泉水",
+      "isLeaf": false,
+      "publishCategoryId": "37051",
+      "leafIds": [
+        "37051",
+        "37053"
+      ],
+      "file": "37040.json"
+    },
+    {
+      "categoryId": "37046",
+      "categoryName": "饮用天然水",
+      "path": "水饮冲调 > 饮用水 > 饮用天然水",
+      "isLeaf": true,
+      "publishCategoryId": "37046",
+      "leafIds": [
+        "37046"
+      ],
+      "file": "37046.json"
+    },
+    {
+      "categoryId": "37048",
+      "categoryName": "天然苏打水",
+      "path": "水饮冲调 > 饮用水 > 天然苏打水",
+      "isLeaf": true,
+      "publishCategoryId": "37048",
+      "leafIds": [
+        "37048"
+      ],
+      "file": "37048.json"
+    },
+    {
+      "categoryId": "36789",
+      "categoryName": "果蔬汁/饮料",
+      "path": "水饮冲调 > 饮料 > 果蔬汁/饮料",
+      "isLeaf": false,
+      "publishCategoryId": "36790",
+      "leafIds": [
+        "39133",
+        "36790",
+        "39134",
+        "39137",
+        "39085"
+      ],
+      "file": "36789.json"
+    },
+    {
+      "categoryId": "36791",
+      "categoryName": "茶饮料",
+      "path": "水饮冲调 > 饮料 > 茶饮料",
+      "isLeaf": false,
+      "publishCategoryId": "36799",
+      "leafIds": [
+        "36799",
+        "36800",
+        "36801",
+        "36802"
+      ],
+      "file": "36791.json"
+    },
+    {
+      "categoryId": "36792",
+      "categoryName": "碳酸饮料",
+      "path": "水饮冲调 > 饮料 > 碳酸饮料",
+      "isLeaf": false,
+      "publishCategoryId": "36803",
+      "leafIds": [
+        "36803",
+        "36804",
+        "36805",
+        "36806"
+      ],
+      "file": "36792.json"
+    },
+    {
+      "categoryId": "36794",
+      "categoryName": "苏打水",
+      "path": "水饮冲调 > 饮料 > 苏打水",
+      "isLeaf": false,
+      "publishCategoryId": "36812",
+      "leafIds": [
+        "36812",
+        "36813"
+      ],
+      "file": "36794.json"
+    },
+    {
+      "categoryId": "36796",
+      "categoryName": "植物/特色饮料",
+      "path": "水饮冲调 > 饮料 > 植物/特色饮料",
+      "isLeaf": false,
+      "publishCategoryId": "36817",
+      "leafIds": [
+        "36817",
+        "36818",
+        "36884",
+        "36820",
+        "36821"
+      ],
+      "file": "36796.json"
+    },
+    {
+      "categoryId": "36797",
+      "categoryName": "乳酸菌饮料",
+      "path": "水饮冲调 > 饮料 > 乳酸菌饮料",
+      "isLeaf": true,
+      "publishCategoryId": "36797",
+      "leafIds": [
+        "36797"
+      ],
+      "file": "36797.json"
+    },
+    {
+      "categoryId": "34886",
+      "categoryName": "玉米油",
+      "path": "粮油调味 > 食用油 > 玉米油",
+      "isLeaf": true,
+      "publishCategoryId": "34886",
+      "leafIds": [
+        "34886"
+      ],
+      "file": "34886.json"
+    },
+    {
+      "categoryId": "34887",
+      "categoryName": "花生油",
+      "path": "粮油调味 > 食用油 > 花生油",
+      "isLeaf": true,
+      "publishCategoryId": "34887",
+      "leafIds": [
+        "34887"
+      ],
+      "file": "34887.json"
+    },
+    {
+      "categoryId": "34888",
+      "categoryName": "大豆油",
+      "path": "粮油调味 > 食用油 > 大豆油",
+      "isLeaf": true,
+      "publishCategoryId": "34888",
+      "leafIds": [
+        "34888"
+      ],
+      "file": "34888.json"
+    },
+    {
+      "categoryId": "34889",
+      "categoryName": "调和油",
+      "path": "粮油调味 > 食用油 > 调和油",
+      "isLeaf": true,
+      "publishCategoryId": "34889",
+      "leafIds": [
+        "34889"
+      ],
+      "file": "34889.json"
+    },
+    {
+      "categoryId": "34890",
+      "categoryName": "葵花籽油",
+      "path": "粮油调味 > 食用油 > 葵花籽油",
+      "isLeaf": true,
+      "publishCategoryId": "34890",
+      "leafIds": [
+        "34890"
+      ],
+      "file": "34890.json"
+    },
+    {
+      "categoryId": "36139",
+      "categoryName": "菜籽油",
+      "path": "粮油调味 > 食用油 > 菜籽油",
+      "isLeaf": true,
+      "publishCategoryId": "36139",
+      "leafIds": [
+        "36139"
+      ],
+      "file": "36139.json"
+    },
+    {
+      "categoryId": "34896",
+      "categoryName": "其他大米",
+      "path": "粮油调味 > 米 > 其他大米",
+      "isLeaf": true,
+      "publishCategoryId": "34896",
+      "leafIds": [
+        "34896"
+      ],
+      "file": "34896.json"
+    },
+    {
+      "categoryId": "36190",
+      "categoryName": "珍珠米",
+      "path": "粮油调味 > 米 > 珍珠米",
+      "isLeaf": true,
+      "publishCategoryId": "36190",
+      "leafIds": [
+        "36190"
+      ],
+      "file": "36190.json"
+    },
+    {
+      "categoryId": "36197",
+      "categoryName": "长粒香米",
+      "path": "粮油调味 > 米 > 长粒香米",
+      "isLeaf": true,
+      "publishCategoryId": "36197",
+      "leafIds": [
+        "36197"
+      ],
+      "file": "36197.json"
+    },
+    {
+      "categoryId": "36207",
+      "categoryName": "稻花香米",
+      "path": "粮油调味 > 米 > 稻花香米",
+      "isLeaf": true,
+      "publishCategoryId": "36207",
+      "leafIds": [
+        "36207"
+      ],
+      "file": "36207.json"
+    },
+    {
+      "categoryId": "36211",
+      "categoryName": "丝苗米",
+      "path": "粮油调味 > 米 > 丝苗米",
+      "isLeaf": true,
+      "publishCategoryId": "36211",
+      "leafIds": [
+        "36211"
+      ],
+      "file": "36211.json"
+    },
+    {
+      "categoryId": "36231",
+      "categoryName": "粥米",
+      "path": "粮油调味 > 米 > 粥米",
+      "isLeaf": true,
+      "publishCategoryId": "36231",
+      "leafIds": [
+        "36231"
+      ],
+      "file": "36231.json"
+    },
+    {
+      "categoryId": "34972",
+      "categoryName": "菌菇干货",
+      "path": "粮油调味 > 南北干货 > 菌菇干货",
+      "isLeaf": false,
+      "publishCategoryId": "35526",
+      "leafIds": [
+        "35526",
+        "35525",
+        "35524",
+        "34973",
+        "35523",
+        "35534",
+        "35533",
+        "35532",
+        "35531",
+        "35530",
+        "35529",
+        "35528",
+        "35527"
+      ],
+      "file": "34972.json"
+    },
+    {
+      "categoryId": "34974",
+      "categoryName": "组合干货",
+      "path": "粮油调味 > 南北干货 > 组合干货",
+      "isLeaf": true,
+      "publishCategoryId": "34974",
+      "leafIds": [
+        "34974"
+      ],
+      "file": "34974.json"
+    },
+    {
+      "categoryId": "34981",
+      "categoryName": "鱼虾贝藻类干货",
+      "path": "粮油调味 > 南北干货 > 鱼虾贝藻类干货",
+      "isLeaf": false,
+      "publishCategoryId": "34986",
+      "leafIds": [
+        "34987",
+        "34986",
+        "34985",
+        "34984",
+        "34983",
+        "34982",
+        "36335",
+        "34989",
+        "34988"
+      ],
+      "file": "34981.json"
+    },
+    {
+      "categoryId": "36336",
+      "categoryName": "果茎食补干货",
+      "path": "粮油调味 > 南北干货 > 果茎食补干货",
+      "isLeaf": false,
+      "publishCategoryId": "39135",
+      "leafIds": [
+        "39221",
+        "39220",
+        "36340",
+        "39135",
+        "39223",
+        "39222",
+        "39214",
+        "39216",
+        "39215",
+        "39218",
+        "39217",
+        "36337",
+        "36338",
+        "39219",
+        "36339"
+      ],
+      "file": "36336.json"
+    },
+    {
+      "categoryId": "52254",
+      "categoryName": "火腿",
+      "path": "粮油调味 > 熟食腊味 > 火腿",
+      "isLeaf": true,
+      "publishCategoryId": "52254",
+      "leafIds": [
+        "52254"
+      ],
+      "file": "52254.json"
+    },
+    {
+      "categoryId": "34912",
+      "categoryName": "杂豆类",
+      "path": "粮油调味 > 杂粮 > 杂豆类",
+      "isLeaf": false,
+      "publishCategoryId": "38036",
+      "leafIds": [
+        "38036",
+        "34918",
+        "34917",
+        "34916",
+        "34915",
+        "34914",
+        "34913"
+      ],
+      "file": "34912.json"
+    },
+    {
+      "categoryId": "34919",
+      "categoryName": "谷米类",
+      "path": "粮油调味 > 杂粮 > 谷米类",
+      "isLeaf": false,
+      "publishCategoryId": "34932",
+      "leafIds": [
+        "34921",
+        "34932",
+        "34920",
+        "34931",
+        "34930",
+        "36238",
+        "34929",
+        "34928",
+        "34927",
+        "34926",
+        "34937",
+        "34925",
+        "34936",
+        "34924",
+        "34935",
+        "34923",
+        "34934",
+        "35506",
+        "34922",
+        "34933"
+      ],
+      "file": "34919.json"
+    },
+    {
+      "categoryId": "34938",
+      "categoryName": "其他杂粮",
+      "path": "粮油调味 > 杂粮 > 其他杂粮",
+      "isLeaf": false,
+      "publishCategoryId": "34941",
+      "leafIds": [
+        "34941",
+        "34940",
+        "36249",
+        "34939"
+      ],
+      "file": "34938.json"
+    },
+    {
+      "categoryId": "36242",
+      "categoryName": "复合粥米",
+      "path": "粮油调味 > 杂粮 > 复合粥米",
+      "isLeaf": true,
+      "publishCategoryId": "36242",
+      "leafIds": [
+        "36242"
+      ],
+      "file": "36242.json"
+    },
+    {
+      "categoryId": "36353",
+      "categoryName": "速食汤",
+      "path": "粮油调味 > 方便食品 > 速食汤",
+      "isLeaf": true,
+      "publishCategoryId": "36353",
+      "leafIds": [
+        "36353"
+      ],
+      "file": "36353.json"
+    },
+    {
+      "categoryId": "35501",
+      "categoryName": "酸辣粉",
+      "path": "粮油调味 > 方便食品 > 酸辣粉",
+      "isLeaf": false,
+      "publishCategoryId": "35514",
+      "leafIds": [
+        "35514",
+        "35513",
+        "35512"
+      ],
+      "file": "35501.json"
+    },
+    {
+      "categoryId": "35502",
+      "categoryName": "南昌拌粉",
+      "path": "粮油调味 > 方便食品 > 南昌拌粉",
+      "isLeaf": true,
+      "publishCategoryId": "35502",
+      "leafIds": [
+        "35502"
+      ],
+      "file": "35502.json"
+    },
+    {
+      "categoryId": "34991",
+      "categoryName": "方便面",
+      "path": "粮油调味 > 方便食品 > 方便面",
+      "isLeaf": false,
+      "publishCategoryId": "34992",
+      "leafIds": [
+        "34992",
+        "35509",
+        "35508"
+      ],
+      "file": "34991.json"
+    },
+    {
+      "categoryId": "34993",
+      "categoryName": "有料煮面",
+      "path": "粮油调味 > 方便食品 > 有料煮面",
+      "isLeaf": false,
+      "publishCategoryId": "35510",
+      "leafIds": [
+        "34994",
+        "35510",
+        "36342",
+        "36343",
+        "36344",
+        "36345",
+        "36346"
+      ],
+      "file": "34993.json"
+    },
+    {
+      "categoryId": "34995",
+      "categoryName": "方便火锅",
+      "path": "粮油调味 > 方便食品 > 方便火锅",
+      "isLeaf": true,
+      "publishCategoryId": "34995",
+      "leafIds": [
+        "34995"
+      ],
+      "file": "34995.json"
+    },
+    {
+      "categoryId": "34996",
+      "categoryName": "方便米饭",
+      "path": "粮油调味 > 方便食品 > 方便米饭",
+      "isLeaf": false,
+      "publishCategoryId": "34998",
+      "leafIds": [
+        "34998",
+        "34997",
+        "36348"
+      ],
+      "file": "34996.json"
+    },
+    {
+      "categoryId": "35001",
+      "categoryName": "特色米粉/米线",
+      "path": "粮油调味 > 方便食品 > 特色米粉/米线",
+      "isLeaf": false,
+      "publishCategoryId": "35007",
+      "leafIds": [
+        "35007",
+        "35006",
+        "35005",
+        "35004",
+        "35003",
+        "35002"
+      ],
+      "file": "35001.json"
+    },
+    {
+      "categoryId": "35008",
+      "categoryName": "麻辣烫",
+      "path": "粮油调味 > 方便食品 > 麻辣烫",
+      "isLeaf": true,
+      "publishCategoryId": "35008",
+      "leafIds": [
+        "35008"
+      ],
+      "file": "35008.json"
+    },
+    {
+      "categoryId": "37090",
+      "categoryName": "火腿肠",
+      "path": "粮油调味 > 方便食品 > 火腿肠",
+      "isLeaf": false,
+      "publishCategoryId": "37100",
+      "leafIds": [
+        "37100",
+        "37102",
+        "37103",
+        "37092"
+      ],
+      "file": "37090.json"
+    },
+    {
+      "categoryId": "41977",
+      "categoryName": "午餐肉",
+      "path": "粮油调味 > 方便食品 > 午餐肉",
+      "isLeaf": true,
+      "publishCategoryId": "41977",
+      "leafIds": [
+        "41977"
+      ],
+      "file": "41977.json"
+    },
+    {
+      "categoryId": "36347",
+      "categoryName": "螺蛳粉",
+      "path": "粮油调味 > 方便食品 > 螺蛳粉",
+      "isLeaf": true,
+      "publishCategoryId": "36347",
+      "leafIds": [
+        "36347"
+      ],
+      "file": "36347.json"
+    },
+    {
+      "categoryId": "36349",
+      "categoryName": "速食粥",
+      "path": "粮油调味 > 方便食品 > 速食粥",
+      "isLeaf": false,
+      "publishCategoryId": "36351",
+      "leafIds": [
+        "36350",
+        "36351",
+        "36352",
+        "43977",
+        "43978"
+      ],
+      "file": "36349.json"
+    },
+    {
+      "categoryId": "36357",
+      "categoryName": "复合调味汁",
+      "path": "粮油调味 > 调味品 > 复合调味汁",
+      "isLeaf": false,
+      "publishCategoryId": "36360",
+      "leafIds": [
+        "36360",
+        "36361",
+        "36358",
+        "36359"
+      ],
+      "file": "36357.json"
+    },
+    {
+      "categoryId": "34943",
+      "categoryName": "味精/鸡精",
+      "path": "粮油调味 > 调味品 > 味精/鸡精",
+      "isLeaf": false,
+      "publishCategoryId": "36247",
+      "leafIds": [
+        "36247",
+        "36244",
+        "36250",
+        "34944"
+      ],
+      "file": "34943.json"
+    },
+    {
+      "categoryId": "34945",
+      "categoryName": "调味油",
+      "path": "粮油调味 > 调味品 > 调味油",
+      "isLeaf": false,
+      "publishCategoryId": "36118",
+      "leafIds": [
+        "36118",
+        "36258",
+        "36256",
+        "36265",
+        "36253",
+        "36264",
+        "34946",
+        "36260"
+      ],
+      "file": "34945.json"
+    },
+    {
+      "categoryId": "34947",
+      "categoryName": "酱料组合",
+      "path": "粮油调味 > 调味品 > 酱料组合",
+      "isLeaf": false,
+      "publishCategoryId": "34948",
+      "leafIds": [
+        "34948"
+      ],
+      "file": "34947.json"
+    },
+    {
+      "categoryId": "34949",
+      "categoryName": "榨菜/酱腌菜",
+      "path": "粮油调味 > 调味品 > 榨菜/酱腌菜",
+      "isLeaf": false,
+      "publishCategoryId": "36330",
+      "leafIds": [
+        "36330",
+        "36331",
+        "36332",
+        "34953",
+        "34952",
+        "34951",
+        "34950",
+        "36322",
+        "36323",
+        "36324",
+        "36325",
+        "36326",
+        "36327",
+        "36328",
+        "36329"
+      ],
+      "file": "34949.json"
+    },
+    {
+      "categoryId": "34954",
+      "categoryName": "中式酱料",
+      "path": "粮油调味 > 调味品 > 中式酱料",
+      "isLeaf": false,
+      "publishCategoryId": "36144",
+      "leafIds": [
+        "36144",
+        "36142",
+        "36141",
+        "36140",
+        "36147",
+        "36146",
+        "34959",
+        "34958",
+        "34957",
+        "34956",
+        "34955"
+      ],
+      "file": "34954.json"
+    },
+    {
+      "categoryId": "34960",
+      "categoryName": "西式酱料",
+      "path": "粮油调味 > 调味品 > 西式酱料",
+      "isLeaf": false,
+      "publishCategoryId": "38320",
+      "leafIds": [
+        "34962",
+        "34961",
+        "38320",
+        "38321",
+        "38322",
+        "38323",
+        "38324",
+        "38325",
+        "38326",
+        "38327",
+        "38319"
+      ],
+      "file": "34960.json"
+    },
+    {
+      "categoryId": "34963",
+      "categoryName": "火锅底料/蘸料",
+      "path": "粮油调味 > 调味品 > 火锅底料/蘸料",
+      "isLeaf": false,
+      "publishCategoryId": "34964",
+      "leafIds": [
+        "34964",
+        "36121"
+      ],
+      "file": "34963.json"
+    },
+    {
+      "categoryId": "36120",
+      "categoryName": "辣鲜露/食品添加剂/特色调味料",
+      "path": "粮油调味 > 调味品 > 辣鲜露/食品添加剂/特色调味料",
+      "isLeaf": true,
+      "publishCategoryId": "36120",
+      "leafIds": [
+        "36120"
+      ],
+      "file": "36120.json"
+    },
+    {
+      "categoryId": "36122",
+      "categoryName": "鱼露",
+      "path": "粮油调味 > 调味品 > 鱼露",
+      "isLeaf": true,
+      "publishCategoryId": "36122",
+      "leafIds": [
+        "36122"
+      ],
+      "file": "36122.json"
+    },
+    {
+      "categoryId": "36138",
+      "categoryName": "腐乳",
+      "path": "粮油调味 > 调味品 > 腐乳",
+      "isLeaf": false,
+      "publishCategoryId": "36167",
+      "leafIds": [
+        "36167",
+        "36178",
+        "36175",
+        "36171"
+      ],
+      "file": "36138.json"
+    },
+    {
+      "categoryId": "36145",
+      "categoryName": "复合调味料",
+      "path": "粮油调味 > 调味品 > 复合调味料",
+      "isLeaf": false,
+      "publishCategoryId": "36191",
+      "leafIds": [
+        "36191",
+        "36188",
+        "36186",
+        "36196",
+        "36193"
+      ],
+      "file": "36145.json"
+    },
+    {
+      "categoryId": "36150",
+      "categoryName": "复合香辛料",
+      "path": "粮油调味 > 调味品 > 复合香辛料",
+      "isLeaf": false,
+      "publishCategoryId": "36217",
+      "leafIds": [
+        "36217",
+        "36214",
+        "36202",
+        "36212",
+        "36209"
+      ],
+      "file": "36150.json"
+    },
+    {
+      "categoryId": "36169",
+      "categoryName": "烹饪酱",
+      "path": "粮油调味 > 调味品 > 烹饪酱",
+      "isLeaf": false,
+      "publishCategoryId": "36180",
+      "leafIds": [
+        "36180",
+        "36177",
+        "36174",
+        "36185",
+        "36182"
+      ],
+      "file": "36169.json"
+    },
+    {
+      "categoryId": "36189",
+      "categoryName": "糖",
+      "path": "粮油调味 > 调味品 > 糖",
+      "isLeaf": false,
+      "publishCategoryId": "36192",
+      "leafIds": [
+        "36192",
+        "36208",
+        "36205",
+        "36201",
+        "36199",
+        "36195"
+      ],
+      "file": "36189.json"
+    },
+    {
+      "categoryId": "36219",
+      "categoryName": "基础香辛料",
+      "path": "粮油调味 > 调味品 > 基础香辛料",
+      "isLeaf": false,
+      "publishCategoryId": "36289",
+      "leafIds": [
+        "36289",
+        "36288"
+      ],
+      "file": "36219.json"
+    },
+    {
+      "categoryId": "36225",
+      "categoryName": "酱油",
+      "path": "粮油调味 > 调味品 > 酱油",
+      "isLeaf": true,
+      "publishCategoryId": "36225",
+      "leafIds": [
+        "36225"
+      ],
+      "file": "36225.json"
+    },
+    {
+      "categoryId": "36232",
+      "categoryName": "蚝油",
+      "path": "粮油调味 > 调味品 > 蚝油",
+      "isLeaf": true,
+      "publishCategoryId": "36232",
+      "leafIds": [
+        "36232"
+      ],
+      "file": "36232.json"
+    },
+    {
+      "categoryId": "36233",
+      "categoryName": "料酒",
+      "path": "粮油调味 > 调味品 > 料酒",
+      "isLeaf": true,
+      "publishCategoryId": "36233",
+      "leafIds": [
+        "36233"
+      ],
+      "file": "36233.json"
+    },
+    {
+      "categoryId": "36235",
+      "categoryName": "醋",
+      "path": "粮油调味 > 调味品 > 醋",
+      "isLeaf": true,
+      "publishCategoryId": "36235",
+      "leafIds": [
+        "36235"
+      ],
+      "file": "36235.json"
+    },
+    {
+      "categoryId": "36236",
+      "categoryName": "盐",
+      "path": "粮油调味 > 调味品 > 盐",
+      "isLeaf": true,
+      "publishCategoryId": "36236",
+      "leafIds": [
+        "36236"
+      ],
+      "file": "36236.json"
+    },
+    {
+      "categoryId": "5000",
+      "categoryName": "孕产妇洗护",
+      "path": "母婴 > 妈妈专区 > 孕产妇洗护",
+      "isLeaf": false,
+      "publishCategoryId": "17830",
+      "leafIds": [
+        "17830",
+        "17828",
+        "17829",
+        "17826",
+        "17827",
+        "17831",
+        "17832"
+      ],
+      "file": "5000.json"
+    },
+    {
+      "categoryId": "5002",
+      "categoryName": "出行用品",
+      "path": "母婴 > 妈妈专区 > 出行用品",
+      "isLeaf": false,
+      "publishCategoryId": "21695",
+      "leafIds": [
+        "21697",
+        "21696",
+        "21695",
+        "21694",
+        "44011",
+        "21693"
+      ],
+      "file": "5002.json"
+    },
+    {
+      "categoryId": "7062",
+      "categoryName": "文胸/内裤",
+      "path": "母婴 > 妈妈专区 > 文胸/内裤",
+      "isLeaf": false,
+      "publishCategoryId": "17813",
+      "leafIds": [
+        "17813",
+        "17814",
+        "17815",
+        "17816",
+        "21715"
+      ],
+      "file": "7062.json"
+    },
+    {
+      "categoryId": "12198",
+      "categoryName": "待产护理",
+      "path": "母婴 > 妈妈专区 > 待产护理",
+      "isLeaf": false,
+      "publishCategoryId": "21704",
+      "leafIds": [
+        "21710",
+        "21709",
+        "21708",
+        "21707",
+        "21706",
+        "21705",
+        "21704",
+        "21703",
+        "21702",
+        "21712",
+        "21711"
+      ],
+      "file": "12198.json"
+    },
+    {
+      "categoryId": "13292",
+      "categoryName": "哺乳用品",
+      "path": "母婴 > 妈妈专区 > 哺乳用品",
+      "isLeaf": false,
+      "publishCategoryId": "21699",
+      "leafIds": [
+        "21699",
+        "21698",
+        "21701",
+        "21700"
+      ],
+      "file": "13292.json"
+    },
+    {
+      "categoryId": "15608",
+      "categoryName": "婴童布尿裤/尿布",
+      "path": "母婴 > 婴童寝居 > 婴童布尿裤/尿布",
+      "isLeaf": true,
+      "publishCategoryId": "15608",
+      "leafIds": [
+        "15608"
+      ],
+      "file": "15608.json"
+    },
+    {
+      "categoryId": "15609",
+      "categoryName": "婴童隔尿垫/巾",
+      "path": "母婴 > 婴童寝居 > 婴童隔尿垫/巾",
+      "isLeaf": false,
+      "publishCategoryId": "37831",
+      "leafIds": [
+        "37831",
+        "37832"
+      ],
+      "file": "15609.json"
+    },
+    {
+      "categoryId": "15611",
+      "categoryName": "婴童毛巾/口水巾",
+      "path": "母婴 > 婴童寝居 > 婴童毛巾/口水巾",
+      "isLeaf": true,
+      "publishCategoryId": "15611",
+      "leafIds": [
+        "15611"
+      ],
+      "file": "15611.json"
+    },
+    {
+      "categoryId": "1546",
+      "categoryName": "婴童拉拉裤",
+      "path": "母婴 > 尿裤 > 婴童拉拉裤",
+      "isLeaf": true,
+      "publishCategoryId": "1546",
+      "leafIds": [
+        "1546"
+      ],
+      "file": "1546.json"
+    },
+    {
+      "categoryId": "7057",
+      "categoryName": "婴童纸尿裤",
+      "path": "母婴 > 尿裤 > 婴童纸尿裤",
+      "isLeaf": true,
+      "publishCategoryId": "7057",
+      "leafIds": [
+        "7057"
+      ],
+      "file": "7057.json"
+    },
+    {
+      "categoryId": "17309",
+      "categoryName": "婴儿纸尿片",
+      "path": "母婴 > 尿裤 > 婴儿纸尿片",
+      "isLeaf": true,
+      "publishCategoryId": "17309",
+      "leafIds": [
+        "17309"
+      ],
+      "file": "17309.json"
+    },
+    {
+      "categoryId": "1550",
+      "categoryName": "吸奶器",
+      "path": "母婴 > 喂养用品 > 吸奶器",
+      "isLeaf": false,
+      "publishCategoryId": "17857",
+      "leafIds": [
+        "17857",
+        "17858",
+        "17859"
+      ],
+      "file": "1550.json"
+    },
+    {
+      "categoryId": "1552",
+      "categoryName": "儿童餐具",
+      "path": "母婴 > 喂养用品 > 儿童餐具",
+      "isLeaf": true,
+      "publishCategoryId": "1552",
+      "leafIds": [
+        "1552"
+      ],
+      "file": "1552.json"
+    },
+    {
+      "categoryId": "1553",
+      "categoryName": "牙胶安抚",
+      "path": "母婴 > 喂养用品 > 牙胶安抚",
+      "isLeaf": false,
+      "publishCategoryId": "17854",
+      "leafIds": [
+        "17854",
+        "17855",
+        "17856"
+      ],
+      "file": "1553.json"
+    },
+    {
+      "categoryId": "7060",
+      "categoryName": "奶瓶奶嘴",
+      "path": "母婴 > 喂养用品 > 奶瓶奶嘴",
+      "isLeaf": false,
+      "publishCategoryId": "17871",
+      "leafIds": [
+        "17871",
+        "17865",
+        "17867"
+      ],
+      "file": "7060.json"
+    },
+    {
+      "categoryId": "7061",
+      "categoryName": "水壶/水杯",
+      "path": "母婴 > 喂养用品 > 水壶/水杯",
+      "isLeaf": true,
+      "publishCategoryId": "7061",
+      "leafIds": [
+        "7061"
+      ],
+      "file": "7061.json"
+    },
+    {
+      "categoryId": "13286",
+      "categoryName": "围兜/防溅衣",
+      "path": "母婴 > 喂养用品 > 围兜/防溅衣",
+      "isLeaf": true,
+      "publishCategoryId": "13286",
+      "leafIds": [
+        "13286"
+      ],
+      "file": "13286.json"
+    },
+    {
+      "categoryId": "13287",
+      "categoryName": "食物存储",
+      "path": "母婴 > 喂养用品 > 食物存储",
+      "isLeaf": false,
+      "publishCategoryId": "21657",
+      "leafIds": [
+        "21657",
+        "21656"
+      ],
+      "file": "13287.json"
+    },
+    {
+      "categoryId": "1555",
+      "categoryName": "洗发沐浴",
+      "path": "母婴 > 婴童洗护 > 洗发沐浴",
+      "isLeaf": false,
+      "publishCategoryId": "17841",
+      "leafIds": [
+        "17841",
+        "17847",
+        "17843",
+        "29617",
+        "17845",
+        "29616"
+      ],
+      "file": "1555.json"
+    },
+    {
+      "categoryId": "1556",
+      "categoryName": "婴童护肤",
+      "path": "母婴 > 婴童洗护 > 婴童护肤",
+      "isLeaf": false,
+      "publishCategoryId": "17850",
+      "leafIds": [
+        "17850",
+        "44026",
+        "17851",
+        "17852",
+        "29622",
+        "29621",
+        "29620",
+        "44021",
+        "17853",
+        "29619"
+      ],
+      "file": "1556.json"
+    },
+    {
+      "categoryId": "1557",
+      "categoryName": "洗衣液/皂",
+      "path": "母婴 > 婴童洗护 > 洗衣液/皂",
+      "isLeaf": false,
+      "publishCategoryId": "17833",
+      "leafIds": [
+        "17833",
+        "17834"
+      ],
+      "file": "1557.json"
+    },
+    {
+      "categoryId": "1558",
+      "categoryName": "奶瓶清洗",
+      "path": "母婴 > 婴童洗护 > 奶瓶清洗",
+      "isLeaf": false,
+      "publishCategoryId": "17848",
+      "leafIds": [
+        "17848",
+        "17849"
+      ],
+      "file": "1558.json"
+    },
+    {
+      "categoryId": "31401",
+      "categoryName": "婴童乳霜纸",
+      "path": "母婴 > 婴童洗护 > 婴童乳霜纸",
+      "isLeaf": true,
+      "publishCategoryId": "31401",
+      "leafIds": [
+        "31401"
+      ],
+      "file": "31401.json"
+    },
+    {
+      "categoryId": "21420",
+      "categoryName": "棉柔巾/绵柔巾",
+      "path": "母婴 > 婴童洗护 > 棉柔巾/绵柔巾",
+      "isLeaf": true,
+      "publishCategoryId": "21420",
+      "leafIds": [
+        "21420"
+      ],
+      "file": "21420.json"
+    },
+    {
+      "categoryId": "13289",
+      "categoryName": "婴童口腔护理",
+      "path": "母婴 > 婴童洗护 > 婴童口腔护理",
+      "isLeaf": false,
+      "publishCategoryId": "34514",
+      "leafIds": [
+        "34514",
+        "34513",
+        "38575",
+        "38576",
+        "38577",
+        "29625",
+        "29624",
+        "34516",
+        "34515"
+      ],
+      "file": "13289.json"
+    },
     {
       "categoryId": "52259",
       "categoryName": "乳霜纸",
@@ -106,6 +1327,2406 @@
         "22378"
       ],
       "file": "22378.json"
+    },
+    {
+      "categoryId": "15915",
+      "categoryName": "一次性清洁用品",
+      "path": "家庭清洁/纸品 > 清洁用具 > 一次性清洁用品",
+      "isLeaf": true,
+      "publishCategoryId": "15915",
+      "leafIds": [
+        "15915"
+      ],
+      "file": "15915.json"
+    },
+    {
+      "categoryId": "15916",
+      "categoryName": "垃圾桶",
+      "path": "家庭清洁/纸品 > 清洁用具 > 垃圾桶",
+      "isLeaf": true,
+      "publishCategoryId": "15916",
+      "leafIds": [
+        "15916"
+      ],
+      "file": "15916.json"
+    },
+    {
+      "categoryId": "15917",
+      "categoryName": "拖把",
+      "path": "家庭清洁/纸品 > 清洁用具 > 拖把",
+      "isLeaf": false,
+      "publishCategoryId": "42500",
+      "leafIds": [
+        "42500",
+        "42501",
+        "42502",
+        "42503",
+        "42504"
+      ],
+      "file": "15917.json"
+    },
+    {
+      "categoryId": "15918",
+      "categoryName": "脸盆/泡脚桶",
+      "path": "家庭清洁/纸品 > 清洁用具 > 脸盆/泡脚桶",
+      "isLeaf": true,
+      "publishCategoryId": "15918",
+      "leafIds": [
+        "15918"
+      ],
+      "file": "15918.json"
+    },
+    {
+      "categoryId": "15919",
+      "categoryName": "抹布/百洁布",
+      "path": "家庭清洁/纸品 > 清洁用具 > 抹布/百洁布",
+      "isLeaf": true,
+      "publishCategoryId": "15919",
+      "leafIds": [
+        "15919"
+      ],
+      "file": "15919.json"
+    },
+    {
+      "categoryId": "15920",
+      "categoryName": "手套/鞋套/围裙",
+      "path": "家庭清洁/纸品 > 清洁用具 > 手套/鞋套/围裙",
+      "isLeaf": true,
+      "publishCategoryId": "15920",
+      "leafIds": [
+        "15920"
+      ],
+      "file": "15920.json"
+    },
+    {
+      "categoryId": "15921",
+      "categoryName": "清洁刷具",
+      "path": "家庭清洁/纸品 > 清洁用具 > 清洁刷具",
+      "isLeaf": true,
+      "publishCategoryId": "15921",
+      "leafIds": [
+        "15921"
+      ],
+      "file": "15921.json"
+    },
+    {
+      "categoryId": "15922",
+      "categoryName": "其它清洁工具",
+      "path": "家庭清洁/纸品 > 清洁用具 > 其它清洁工具",
+      "isLeaf": true,
+      "publishCategoryId": "15922",
+      "leafIds": [
+        "15922"
+      ],
+      "file": "15922.json"
+    },
+    {
+      "categoryId": "15923",
+      "categoryName": "清洁用具配件",
+      "path": "家庭清洁/纸品 > 清洁用具 > 清洁用具配件",
+      "isLeaf": false,
+      "publishCategoryId": "23747",
+      "leafIds": [
+        "23746",
+        "23747",
+        "23743",
+        "23744",
+        "23745"
+      ],
+      "file": "15923.json"
+    },
+    {
+      "categoryId": "23753",
+      "categoryName": "粘毛器",
+      "path": "家庭清洁/纸品 > 清洁用具 > 粘毛器",
+      "isLeaf": true,
+      "publishCategoryId": "23753",
+      "leafIds": [
+        "23753"
+      ],
+      "file": "23753.json"
+    },
+    {
+      "categoryId": "23754",
+      "categoryName": "水桶",
+      "path": "家庭清洁/纸品 > 清洁用具 > 水桶",
+      "isLeaf": true,
+      "publishCategoryId": "23754",
+      "leafIds": [
+        "23754"
+      ],
+      "file": "23754.json"
+    },
+    {
+      "categoryId": "22274",
+      "categoryName": "扫把簸箕",
+      "path": "家庭清洁/纸品 > 清洁用具 > 扫把簸箕",
+      "isLeaf": true,
+      "publishCategoryId": "22274",
+      "leafIds": [
+        "22274"
+      ],
+      "file": "22274.json"
+    },
+    {
+      "categoryId": "22275",
+      "categoryName": "玻璃清洁器",
+      "path": "家庭清洁/纸品 > 清洁用具 > 玻璃清洁器",
+      "isLeaf": true,
+      "publishCategoryId": "22275",
+      "leafIds": [
+        "22275"
+      ],
+      "file": "22275.json"
+    },
+    {
+      "categoryId": "22276",
+      "categoryName": "家用除尘掸",
+      "path": "家庭清洁/纸品 > 清洁用具 > 家用除尘掸",
+      "isLeaf": true,
+      "publishCategoryId": "22276",
+      "leafIds": [
+        "22276"
+      ],
+      "file": "22276.json"
+    },
+    {
+      "categoryId": "22291",
+      "categoryName": "垃圾袋",
+      "path": "家庭清洁/纸品 > 清洁用具 > 垃圾袋",
+      "isLeaf": false,
+      "publishCategoryId": "42497",
+      "leafIds": [
+        "42497",
+        "42498",
+        "42499",
+        "42496"
+      ],
+      "file": "22291.json"
+    },
+    {
+      "categoryId": "28697",
+      "categoryName": "吸色片/固色剂",
+      "path": "家庭清洁/纸品 > 衣物清洁/护理 > 吸色片/固色剂",
+      "isLeaf": true,
+      "publishCategoryId": "28697",
+      "leafIds": [
+        "28697"
+      ],
+      "file": "28697.json"
+    },
+    {
+      "categoryId": "28698",
+      "categoryName": "洗衣片",
+      "path": "家庭清洁/纸品 > 衣物清洁/护理 > 洗衣片",
+      "isLeaf": true,
+      "publishCategoryId": "28698",
+      "leafIds": [
+        "28698"
+      ],
+      "file": "28698.json"
+    },
+    {
+      "categoryId": "28699",
+      "categoryName": "衣物清洁湿巾/干洗剂",
+      "path": "家庭清洁/纸品 > 衣物清洁/护理 > 衣物清洁湿巾/干洗剂",
+      "isLeaf": true,
+      "publishCategoryId": "28699",
+      "leafIds": [
+        "28699"
+      ],
+      "file": "28699.json"
+    },
+    {
+      "categoryId": "28700",
+      "categoryName": "去渍笔/即时去渍剂",
+      "path": "家庭清洁/纸品 > 衣物清洁/护理 > 去渍笔/即时去渍剂",
+      "isLeaf": true,
+      "publishCategoryId": "28700",
+      "leafIds": [
+        "28700"
+      ],
+      "file": "28700.json"
+    },
+    {
+      "categoryId": "15924",
+      "categoryName": "普通洗衣液",
+      "path": "家庭清洁/纸品 > 衣物清洁/护理 > 普通洗衣液",
+      "isLeaf": true,
+      "publishCategoryId": "15924",
+      "leafIds": [
+        "15924"
+      ],
+      "file": "15924.json"
+    },
+    {
+      "categoryId": "15925",
+      "categoryName": "洗衣粉",
+      "path": "家庭清洁/纸品 > 衣物清洁/护理 > 洗衣粉",
+      "isLeaf": true,
+      "publishCategoryId": "15925",
+      "leafIds": [
+        "15925"
+      ],
+      "file": "15925.json"
+    },
+    {
+      "categoryId": "15926",
+      "categoryName": "普通洗衣皂",
+      "path": "家庭清洁/纸品 > 衣物清洁/护理 > 普通洗衣皂",
+      "isLeaf": true,
+      "publishCategoryId": "15926",
+      "leafIds": [
+        "15926"
+      ],
+      "file": "15926.json"
+    },
+    {
+      "categoryId": "15927",
+      "categoryName": "柔顺护理剂",
+      "path": "家庭清洁/纸品 > 衣物清洁/护理 > 柔顺护理剂",
+      "isLeaf": true,
+      "publishCategoryId": "15927",
+      "leafIds": [
+        "15927"
+      ],
+      "file": "15927.json"
+    },
+    {
+      "categoryId": "15928",
+      "categoryName": "除菌剂",
+      "path": "家庭清洁/纸品 > 衣物清洁/护理 > 除菌剂",
+      "isLeaf": true,
+      "publishCategoryId": "15928",
+      "leafIds": [
+        "15928"
+      ],
+      "file": "15928.json"
+    },
+    {
+      "categoryId": "15929",
+      "categoryName": "特色衣物清洁/护理用品",
+      "path": "家庭清洁/纸品 > 衣物清洁/护理 > 特色衣物清洁/护理用品",
+      "isLeaf": true,
+      "publishCategoryId": "15929",
+      "leafIds": [
+        "15929"
+      ],
+      "file": "15929.json"
+    },
+    {
+      "categoryId": "23741",
+      "categoryName": "留香珠",
+      "path": "家庭清洁/纸品 > 衣物清洁/护理 > 留香珠",
+      "isLeaf": true,
+      "publishCategoryId": "23741",
+      "leafIds": [
+        "23741"
+      ],
+      "file": "23741.json"
+    },
+    {
+      "categoryId": "22279",
+      "categoryName": "衣领净/衣物渗透剂",
+      "path": "家庭清洁/纸品 > 衣物清洁/护理 > 衣领净/衣物渗透剂",
+      "isLeaf": true,
+      "publishCategoryId": "22279",
+      "leafIds": [
+        "22279"
+      ],
+      "file": "22279.json"
+    },
+    {
+      "categoryId": "22280",
+      "categoryName": "爆炸盐/校服净/漂白/彩漂",
+      "path": "家庭清洁/纸品 > 衣物清洁/护理 > 爆炸盐/校服净/漂白/彩漂",
+      "isLeaf": true,
+      "publishCategoryId": "22280",
+      "leafIds": [
+        "22280"
+      ],
+      "file": "22280.json"
+    },
+    {
+      "categoryId": "29136",
+      "categoryName": "内衣洗衣液/皂",
+      "path": "家庭清洁/纸品 > 衣物清洁/护理 > 内衣洗衣液/皂",
+      "isLeaf": true,
+      "publishCategoryId": "29136",
+      "leafIds": [
+        "29136"
+      ],
+      "file": "29136.json"
+    },
+    {
+      "categoryId": "29137",
+      "categoryName": "真丝羊毛洗衣液",
+      "path": "家庭清洁/纸品 > 衣物清洁/护理 > 真丝羊毛洗衣液",
+      "isLeaf": true,
+      "publishCategoryId": "29137",
+      "leafIds": [
+        "29137"
+      ],
+      "file": "29137.json"
+    },
+    {
+      "categoryId": "21488",
+      "categoryName": "洗衣凝珠",
+      "path": "家庭清洁/纸品 > 衣物清洁/护理 > 洗衣凝珠",
+      "isLeaf": true,
+      "publishCategoryId": "21488",
+      "leafIds": [
+        "21488"
+      ],
+      "file": "21488.json"
+    },
+    {
+      "categoryId": "28701",
+      "categoryName": "洗衣机清洁剂",
+      "path": "家庭清洁/纸品 > 家庭环境清洁 > 洗衣机清洁剂",
+      "isLeaf": true,
+      "publishCategoryId": "28701",
+      "leafIds": [
+        "28701"
+      ],
+      "file": "28701.json"
+    },
+    {
+      "categoryId": "15930",
+      "categoryName": "洗洁精",
+      "path": "家庭清洁/纸品 > 家庭环境清洁 > 洗洁精",
+      "isLeaf": true,
+      "publishCategoryId": "15930",
+      "leafIds": [
+        "15930"
+      ],
+      "file": "15930.json"
+    },
+    {
+      "categoryId": "15931",
+      "categoryName": "油污清洁剂",
+      "path": "家庭清洁/纸品 > 家庭环境清洁 > 油污清洁剂",
+      "isLeaf": true,
+      "publishCategoryId": "15931",
+      "leafIds": [
+        "15931"
+      ],
+      "file": "15931.json"
+    },
+    {
+      "categoryId": "15933",
+      "categoryName": "洁厕灵",
+      "path": "家庭清洁/纸品 > 家庭环境清洁 > 洁厕灵",
+      "isLeaf": true,
+      "publishCategoryId": "15933",
+      "leafIds": [
+        "15933"
+      ],
+      "file": "15933.json"
+    },
+    {
+      "categoryId": "15934",
+      "categoryName": "空调清洁剂",
+      "path": "家庭清洁/纸品 > 家庭环境清洁 > 空调清洁剂",
+      "isLeaf": true,
+      "publishCategoryId": "15934",
+      "leafIds": [
+        "15934"
+      ],
+      "file": "15934.json"
+    },
+    {
+      "categoryId": "15935",
+      "categoryName": "消毒液",
+      "path": "家庭清洁/纸品 > 家庭环境清洁 > 消毒液",
+      "isLeaf": true,
+      "publishCategoryId": "15935",
+      "leafIds": [
+        "15935"
+      ],
+      "file": "15935.json"
+    },
+    {
+      "categoryId": "15936",
+      "categoryName": "地板清洁剂",
+      "path": "家庭清洁/纸品 > 家庭环境清洁 > 地板清洁剂",
+      "isLeaf": true,
+      "publishCategoryId": "15936",
+      "leafIds": [
+        "15936"
+      ],
+      "file": "15936.json"
+    },
+    {
+      "categoryId": "15937",
+      "categoryName": "其它清洁用品",
+      "path": "家庭清洁/纸品 > 家庭环境清洁 > 其它清洁用品",
+      "isLeaf": true,
+      "publishCategoryId": "15937",
+      "leafIds": [
+        "15937"
+      ],
+      "file": "15937.json"
+    },
+    {
+      "categoryId": "41660",
+      "categoryName": "冰箱清洁剂",
+      "path": "家庭清洁/纸品 > 家庭环境清洁 > 冰箱清洁剂",
+      "isLeaf": true,
+      "publishCategoryId": "41660",
+      "leafIds": [
+        "41660"
+      ],
+      "file": "41660.json"
+    },
+    {
+      "categoryId": "23748",
+      "categoryName": "除霉用品",
+      "path": "家庭清洁/纸品 > 家庭环境清洁 > 除霉用品",
+      "isLeaf": true,
+      "publishCategoryId": "23748",
+      "leafIds": [
+        "23748"
+      ],
+      "file": "23748.json"
+    },
+    {
+      "categoryId": "23749",
+      "categoryName": "不锈钢清洁剂",
+      "path": "家庭清洁/纸品 > 家庭环境清洁 > 不锈钢清洁剂",
+      "isLeaf": true,
+      "publishCategoryId": "23749",
+      "leafIds": [
+        "23749"
+      ],
+      "file": "23749.json"
+    },
+    {
+      "categoryId": "23750",
+      "categoryName": "水垢清洁剂",
+      "path": "家庭清洁/纸品 > 家庭环境清洁 > 水垢清洁剂",
+      "isLeaf": true,
+      "publishCategoryId": "23750",
+      "leafIds": [
+        "23750"
+      ],
+      "file": "23750.json"
+    },
+    {
+      "categoryId": "23751",
+      "categoryName": "瓷砖清洁剂",
+      "path": "家庭清洁/纸品 > 家庭环境清洁 > 瓷砖清洁剂",
+      "isLeaf": true,
+      "publishCategoryId": "23751",
+      "leafIds": [
+        "23751"
+      ],
+      "file": "23751.json"
+    },
+    {
+      "categoryId": "23752",
+      "categoryName": "玻璃清洁剂",
+      "path": "家庭清洁/纸品 > 家庭环境清洁 > 玻璃清洁剂",
+      "isLeaf": true,
+      "publishCategoryId": "23752",
+      "leafIds": [
+        "23752"
+      ],
+      "file": "23752.json"
+    },
+    {
+      "categoryId": "22277",
+      "categoryName": "管道疏通剂",
+      "path": "家庭清洁/纸品 > 家庭环境清洁 > 管道疏通剂",
+      "isLeaf": true,
+      "publishCategoryId": "22277",
+      "leafIds": [
+        "22277"
+      ],
+      "file": "22277.json"
+    },
+    {
+      "categoryId": "22278",
+      "categoryName": "洗碗机清洁剂",
+      "path": "家庭清洁/纸品 > 家庭环境清洁 > 洗碗机清洁剂",
+      "isLeaf": true,
+      "publishCategoryId": "22278",
+      "leafIds": [
+        "22278"
+      ],
+      "file": "22278.json"
+    },
+    {
+      "categoryId": "41869",
+      "categoryName": "厨具清洁剂",
+      "path": "家庭清洁/纸品 > 家庭环境清洁 > 厨具清洁剂",
+      "isLeaf": true,
+      "publishCategoryId": "41869",
+      "leafIds": [
+        "41869"
+      ],
+      "file": "41869.json"
+    },
+    {
+      "categoryId": "42903",
+      "categoryName": "空气清新剂",
+      "path": "家庭清洁/纸品 > 家庭环境清洁 > 空气清新剂",
+      "isLeaf": true,
+      "publishCategoryId": "42903",
+      "leafIds": [
+        "42903"
+      ],
+      "file": "42903.json"
+    },
+    {
+      "categoryId": "15938",
+      "categoryName": "驱蚊用品",
+      "path": "家庭清洁/纸品 > 驱蚊驱虫 > 驱蚊用品",
+      "isLeaf": false,
+      "publishCategoryId": "21101",
+      "leafIds": [
+        "21101",
+        "21100",
+        "35114",
+        "21099",
+        "35113",
+        "21098",
+        "35112",
+        "21097",
+        "35111",
+        "21096",
+        "35110"
+      ],
+      "file": "15938.json"
+    },
+    {
+      "categoryId": "15939",
+      "categoryName": "灭鼠用品",
+      "path": "家庭清洁/纸品 > 驱蚊驱虫 > 灭鼠用品",
+      "isLeaf": false,
+      "publishCategoryId": "23764",
+      "leafIds": [
+        "23764",
+        "23765",
+        "23766",
+        "36073",
+        "23767"
+      ],
+      "file": "15939.json"
+    },
+    {
+      "categoryId": "23757",
+      "categoryName": "卫生杀虫剂",
+      "path": "家庭清洁/纸品 > 驱蚊驱虫 > 卫生杀虫剂",
+      "isLeaf": false,
+      "publishCategoryId": "23768",
+      "leafIds": [
+        "23768",
+        "23770",
+        "23771",
+        "23772"
+      ],
+      "file": "23757.json"
+    },
+    {
+      "categoryId": "23758",
+      "categoryName": "除螨用品",
+      "path": "家庭清洁/纸品 > 驱蚊驱虫 > 除螨用品",
+      "isLeaf": false,
+      "publishCategoryId": "23773",
+      "leafIds": [
+        "23773",
+        "23774",
+        "23775"
+      ],
+      "file": "23758.json"
+    },
+    {
+      "categoryId": "23759",
+      "categoryName": "灭蝇用品",
+      "path": "家庭清洁/纸品 > 驱蚊驱虫 > 灭蝇用品",
+      "isLeaf": false,
+      "publishCategoryId": "23779",
+      "leafIds": [
+        "23779",
+        "23780",
+        "23776",
+        "23777",
+        "23778"
+      ],
+      "file": "23759.json"
+    },
+    {
+      "categoryId": "23760",
+      "categoryName": "杀蟑用品",
+      "path": "家庭清洁/纸品 > 驱蚊驱虫 > 杀蟑用品",
+      "isLeaf": false,
+      "publishCategoryId": "23761",
+      "leafIds": [
+        "23761",
+        "23762",
+        "23763"
+      ],
+      "file": "23760.json"
+    },
+    {
+      "categoryId": "28680",
+      "categoryName": "头皮护理精华",
+      "path": "个人护理 > 洗发护发 > 头皮护理精华",
+      "isLeaf": true,
+      "publishCategoryId": "28680",
+      "leafIds": [
+        "28680"
+      ],
+      "file": "28680.json"
+    },
+    {
+      "categoryId": "28681",
+      "categoryName": "头皮清洁膏霜/啫喱",
+      "path": "个人护理 > 洗发护发 > 头皮清洁膏霜/啫喱",
+      "isLeaf": true,
+      "publishCategoryId": "28681",
+      "leafIds": [
+        "28681"
+      ],
+      "file": "28681.json"
+    },
+    {
+      "categoryId": "16756",
+      "categoryName": "洗发水",
+      "path": "个人护理 > 洗发护发 > 洗发水",
+      "isLeaf": true,
+      "publishCategoryId": "16756",
+      "leafIds": [
+        "16756"
+      ],
+      "file": "16756.json"
+    },
+    {
+      "categoryId": "16757",
+      "categoryName": "护发素",
+      "path": "个人护理 > 洗发护发 > 护发素",
+      "isLeaf": true,
+      "publishCategoryId": "16757",
+      "leafIds": [
+        "16757"
+      ],
+      "file": "16757.json"
+    },
+    {
+      "categoryId": "16758",
+      "categoryName": "发膜",
+      "path": "个人护理 > 洗发护发 > 发膜",
+      "isLeaf": true,
+      "publishCategoryId": "16758",
+      "leafIds": [
+        "16758"
+      ],
+      "file": "16758.json"
+    },
+    {
+      "categoryId": "16760",
+      "categoryName": "润发精华",
+      "path": "个人护理 > 洗发护发 > 润发精华",
+      "isLeaf": true,
+      "publishCategoryId": "16760",
+      "leafIds": [
+        "16760"
+      ],
+      "file": "16760.json"
+    },
+    {
+      "categoryId": "16761",
+      "categoryName": "洗护套装",
+      "path": "个人护理 > 洗发护发 > 洗护套装",
+      "isLeaf": true,
+      "publishCategoryId": "16761",
+      "leafIds": [
+        "16761"
+      ],
+      "file": "16761.json"
+    },
+    {
+      "categoryId": "16762",
+      "categoryName": "其它洗护发产品",
+      "path": "个人护理 > 洗发护发 > 其它洗护发产品",
+      "isLeaf": true,
+      "publishCategoryId": "16762",
+      "leafIds": [
+        "16762"
+      ],
+      "file": "16762.json"
+    },
+    {
+      "categoryId": "34485",
+      "categoryName": "磨砂膏",
+      "path": "个人护理 > 身体护理 > 磨砂膏",
+      "isLeaf": true,
+      "publishCategoryId": "34485",
+      "leafIds": [
+        "34485"
+      ],
+      "file": "34485.json"
+    },
+    {
+      "categoryId": "41684",
+      "categoryName": "身体素颜霜",
+      "path": "个人护理 > 身体护理 > 身体素颜霜",
+      "isLeaf": true,
+      "publishCategoryId": "41684",
+      "leafIds": [
+        "41684"
+      ],
+      "file": "41684.json"
+    },
+    {
+      "categoryId": "47898",
+      "categoryName": "皮肤乳膏/外用贴剂/护理喷剂",
+      "path": "个人护理 > 身体护理 > 皮肤乳膏/外用贴剂/护理喷剂",
+      "isLeaf": true,
+      "publishCategoryId": "47898",
+      "leafIds": [
+        "47898"
+      ],
+      "file": "47898.json"
+    },
+    {
+      "categoryId": "27505",
+      "categoryName": "身体乳/霜/油/喷雾/素颜霜",
+      "path": "个人护理 > 身体护理 > 身体乳/霜/油/喷雾/素颜霜",
+      "isLeaf": true,
+      "publishCategoryId": "27505",
+      "leafIds": [
+        "27505"
+      ],
+      "file": "27505.json"
+    },
+    {
+      "categoryId": "16778",
+      "categoryName": "润肤",
+      "path": "个人护理 > 身体护理 > 润肤",
+      "isLeaf": true,
+      "publishCategoryId": "16778",
+      "leafIds": [
+        "16778"
+      ],
+      "file": "16778.json"
+    },
+    {
+      "categoryId": "16779",
+      "categoryName": "沐浴露",
+      "path": "个人护理 > 身体护理 > 沐浴露",
+      "isLeaf": true,
+      "publishCategoryId": "16779",
+      "leafIds": [
+        "16779"
+      ],
+      "file": "16779.json"
+    },
+    {
+      "categoryId": "16780",
+      "categoryName": "香皂",
+      "path": "个人护理 > 身体护理 > 香皂",
+      "isLeaf": true,
+      "publishCategoryId": "16780",
+      "leafIds": [
+        "16780"
+      ],
+      "file": "16780.json"
+    },
+    {
+      "categoryId": "16782",
+      "categoryName": "洗手液",
+      "path": "个人护理 > 身体护理 > 洗手液",
+      "isLeaf": false,
+      "publishCategoryId": "39353",
+      "leafIds": [
+        "39353",
+        "39352",
+        "39347"
+      ],
+      "file": "16782.json"
+    },
+    {
+      "categoryId": "16783",
+      "categoryName": "护手霜/手膜/手部精华",
+      "path": "个人护理 > 身体护理 > 护手霜/手膜/手部精华",
+      "isLeaf": true,
+      "publishCategoryId": "16783",
+      "leafIds": [
+        "16783"
+      ],
+      "file": "16783.json"
+    },
+    {
+      "categoryId": "16786",
+      "categoryName": "护足霜/护足膏/护足喷剂/足贴/足膜",
+      "path": "个人护理 > 身体护理 > 护足霜/护足膏/护足喷剂/足贴/足膜",
+      "isLeaf": true,
+      "publishCategoryId": "16786",
+      "leafIds": [
+        "16786"
+      ],
+      "file": "16786.json"
+    },
+    {
+      "categoryId": "16794",
+      "categoryName": "身体护理套装",
+      "path": "个人护理 > 身体护理 > 身体护理套装",
+      "isLeaf": true,
+      "publishCategoryId": "16794",
+      "leafIds": [
+        "16794"
+      ],
+      "file": "16794.json"
+    },
+    {
+      "categoryId": "16795",
+      "categoryName": "其它身体护理",
+      "path": "个人护理 > 身体护理 > 其它身体护理",
+      "isLeaf": true,
+      "publishCategoryId": "16795",
+      "leafIds": [
+        "16795"
+      ],
+      "file": "16795.json"
+    },
+    {
+      "categoryId": "16800",
+      "categoryName": "卫生巾",
+      "path": "个人护理 > 女性护理 > 卫生巾",
+      "isLeaf": false,
+      "publishCategoryId": "31214",
+      "leafIds": [
+        "31214",
+        "27488",
+        "27489",
+        "27490",
+        "31215"
+      ],
+      "file": "16800.json"
+    },
+    {
+      "categoryId": "16801",
+      "categoryName": "卫生棉条",
+      "path": "个人护理 > 女性护理 > 卫生棉条",
+      "isLeaf": true,
+      "publishCategoryId": "16801",
+      "leafIds": [
+        "16801"
+      ],
+      "file": "16801.json"
+    },
+    {
+      "categoryId": "16802",
+      "categoryName": "卫生护垫",
+      "path": "个人护理 > 女性护理 > 卫生护垫",
+      "isLeaf": true,
+      "publishCategoryId": "16802",
+      "leafIds": [
+        "16802"
+      ],
+      "file": "16802.json"
+    },
+    {
+      "categoryId": "16804",
+      "categoryName": "女性护理套装",
+      "path": "个人护理 > 女性护理 > 女性护理套装",
+      "isLeaf": true,
+      "publishCategoryId": "16804",
+      "leafIds": [
+        "16804"
+      ],
+      "file": "16804.json"
+    },
+    {
+      "categoryId": "16805",
+      "categoryName": "其它女性护理产品",
+      "path": "个人护理 > 女性护理 > 其它女性护理产品",
+      "isLeaf": true,
+      "publishCategoryId": "16805",
+      "leafIds": [
+        "16805"
+      ],
+      "file": "16805.json"
+    },
+    {
+      "categoryId": "21489",
+      "categoryName": "日安裤/安睡裤",
+      "path": "个人护理 > 女性护理 > 日安裤/安睡裤",
+      "isLeaf": false,
+      "publishCategoryId": "44177",
+      "leafIds": [
+        "44177",
+        "44178"
+      ],
+      "file": "21489.json"
+    },
+    {
+      "categoryId": "16806",
+      "categoryName": "牙膏",
+      "path": "个人护理 > 口腔护理 > 牙膏",
+      "isLeaf": true,
+      "publishCategoryId": "16806",
+      "leafIds": [
+        "16806"
+      ],
+      "file": "16806.json"
+    },
+    {
+      "categoryId": "16809",
+      "categoryName": "牙刷",
+      "path": "个人护理 > 口腔护理 > 牙刷",
+      "isLeaf": true,
+      "publishCategoryId": "16809",
+      "leafIds": [
+        "16809"
+      ],
+      "file": "16809.json"
+    },
+    {
+      "categoryId": "16810",
+      "categoryName": "牙线/牙线棒/牙签",
+      "path": "个人护理 > 口腔护理 > 牙线/牙线棒/牙签",
+      "isLeaf": true,
+      "publishCategoryId": "16810",
+      "leafIds": [
+        "16810"
+      ],
+      "file": "16810.json"
+    },
+    {
+      "categoryId": "16811",
+      "categoryName": "牙缝刷",
+      "path": "个人护理 > 口腔护理 > 牙缝刷",
+      "isLeaf": true,
+      "publishCategoryId": "16811",
+      "leafIds": [
+        "16811"
+      ],
+      "file": "16811.json"
+    },
+    {
+      "categoryId": "16812",
+      "categoryName": "漱口水",
+      "path": "个人护理 > 口腔护理 > 漱口水",
+      "isLeaf": false,
+      "publishCategoryId": "27492",
+      "leafIds": [
+        "27492",
+        "27491"
+      ],
+      "file": "16812.json"
+    },
+    {
+      "categoryId": "16815",
+      "categoryName": "口腔护理套装",
+      "path": "个人护理 > 口腔护理 > 口腔护理套装",
+      "isLeaf": true,
+      "publishCategoryId": "16815",
+      "leafIds": [
+        "16815"
+      ],
+      "file": "16815.json"
+    },
+    {
+      "categoryId": "16816",
+      "categoryName": "其它口腔护理产品",
+      "path": "个人护理 > 口腔护理 > 其它口腔护理产品",
+      "isLeaf": true,
+      "publishCategoryId": "16816",
+      "leafIds": [
+        "16816"
+      ],
+      "file": "16816.json"
+    },
+    {
+      "categoryId": "44433",
+      "categoryName": "芝麻丸/芝麻饼",
+      "path": "休闲食品 > 中式糕点 > 芝麻丸/芝麻饼",
+      "isLeaf": true,
+      "publishCategoryId": "44433",
+      "leafIds": [
+        "44433"
+      ],
+      "file": "44433.json"
+    },
+    {
+      "categoryId": "44434",
+      "categoryName": "米糕/桂花糕/发糕",
+      "path": "休闲食品 > 中式糕点 > 米糕/桂花糕/发糕",
+      "isLeaf": true,
+      "publishCategoryId": "44434",
+      "leafIds": [
+        "44434"
+      ],
+      "file": "44434.json"
+    },
+    {
+      "categoryId": "44436",
+      "categoryName": "其他中式糕点",
+      "path": "休闲食品 > 中式糕点 > 其他中式糕点",
+      "isLeaf": true,
+      "publishCategoryId": "44436",
+      "leafIds": [
+        "44436"
+      ],
+      "file": "44436.json"
+    },
+    {
+      "categoryId": "44444",
+      "categoryName": "中式糕点礼盒",
+      "path": "休闲食品 > 中式糕点 > 中式糕点礼盒",
+      "isLeaf": true,
+      "publishCategoryId": "44444",
+      "leafIds": [
+        "44444"
+      ],
+      "file": "44444.json"
+    },
+    {
+      "categoryId": "44445",
+      "categoryName": "八珍糕/芡实糕",
+      "path": "休闲食品 > 中式糕点 > 八珍糕/芡实糕",
+      "isLeaf": true,
+      "publishCategoryId": "44445",
+      "leafIds": [
+        "44445"
+      ],
+      "file": "44445.json"
+    },
+    {
+      "categoryId": "44455",
+      "categoryName": "凤梨酥",
+      "path": "休闲食品 > 中式糕点 > 凤梨酥",
+      "isLeaf": true,
+      "publishCategoryId": "44455",
+      "leafIds": [
+        "44455"
+      ],
+      "file": "44455.json"
+    },
+    {
+      "categoryId": "37120",
+      "categoryName": "豆制品",
+      "path": "休闲食品 > 豆干/素食零食 > 豆制品",
+      "isLeaf": false,
+      "publishCategoryId": "37121",
+      "leafIds": [
+        "37121",
+        "37122",
+        "37123",
+        "37157",
+        "37125"
+      ],
+      "file": "37120.json"
+    },
+    {
+      "categoryId": "37131",
+      "categoryName": "素食礼包/礼盒",
+      "path": "休闲食品 > 豆干/素食零食 > 素食礼包/礼盒",
+      "isLeaf": true,
+      "publishCategoryId": "37131",
+      "leafIds": [
+        "37131"
+      ],
+      "file": "37131.json"
+    },
+    {
+      "categoryId": "37133",
+      "categoryName": "辣条/面筋制品",
+      "path": "休闲食品 > 豆干/素食零食 > 辣条/面筋制品",
+      "isLeaf": true,
+      "publishCategoryId": "37133",
+      "leafIds": [
+        "37133"
+      ],
+      "file": "37133.json"
+    },
+    {
+      "categoryId": "37137",
+      "categoryName": "卤味蔬菜零食",
+      "path": "休闲食品 > 豆干/素食零食 > 卤味蔬菜零食",
+      "isLeaf": false,
+      "publishCategoryId": "37141",
+      "leafIds": [
+        "37150",
+        "37141",
+        "37152",
+        "37143",
+        "37155",
+        "37146",
+        "37148"
+      ],
+      "file": "37137.json"
+    },
+    {
+      "categoryId": "37159",
+      "categoryName": "魔芋零食",
+      "path": "休闲食品 > 豆干/素食零食 > 魔芋零食",
+      "isLeaf": false,
+      "publishCategoryId": "37161",
+      "leafIds": [
+        "37161",
+        "37160"
+      ],
+      "file": "37159.json"
+    },
+    {
+      "categoryId": "37163",
+      "categoryName": "素肉",
+      "path": "休闲食品 > 豆干/素食零食 > 素肉",
+      "isLeaf": true,
+      "publishCategoryId": "37163",
+      "leafIds": [
+        "37163"
+      ],
+      "file": "37163.json"
+    },
+    {
+      "categoryId": "44139",
+      "categoryName": "小麻花",
+      "path": "休闲食品 > 膨化食品 > 小麻花",
+      "isLeaf": true,
+      "publishCategoryId": "44139",
+      "leafIds": [
+        "44139"
+      ],
+      "file": "44139.json"
+    },
+    {
+      "categoryId": "44140",
+      "categoryName": "米饼",
+      "path": "休闲食品 > 膨化食品 > 米饼",
+      "isLeaf": true,
+      "publishCategoryId": "44140",
+      "leafIds": [
+        "44140"
+      ],
+      "file": "44140.json"
+    },
+    {
+      "categoryId": "37006",
+      "categoryName": "薯片",
+      "path": "休闲食品 > 膨化食品 > 薯片",
+      "isLeaf": false,
+      "publishCategoryId": "37041",
+      "leafIds": [
+        "37041",
+        "37042",
+        "37022",
+        "37037",
+        "37039"
+      ],
+      "file": "37006.json"
+    },
+    {
+      "categoryId": "37043",
+      "categoryName": "薯条",
+      "path": "休闲食品 > 膨化食品 > 薯条",
+      "isLeaf": true,
+      "publishCategoryId": "37043",
+      "leafIds": [
+        "37043"
+      ],
+      "file": "37043.json"
+    },
+    {
+      "categoryId": "37044",
+      "categoryName": "雪饼/仙贝",
+      "path": "休闲食品 > 膨化食品 > 雪饼/仙贝",
+      "isLeaf": true,
+      "publishCategoryId": "37044",
+      "leafIds": [
+        "37044"
+      ],
+      "file": "37044.json"
+    },
+    {
+      "categoryId": "37045",
+      "categoryName": "炒米",
+      "path": "休闲食品 > 膨化食品 > 炒米",
+      "isLeaf": true,
+      "publishCategoryId": "37045",
+      "leafIds": [
+        "37045"
+      ],
+      "file": "37045.json"
+    },
+    {
+      "categoryId": "37047",
+      "categoryName": "米果卷",
+      "path": "休闲食品 > 膨化食品 > 米果卷",
+      "isLeaf": true,
+      "publishCategoryId": "37047",
+      "leafIds": [
+        "37047"
+      ],
+      "file": "37047.json"
+    },
+    {
+      "categoryId": "37049",
+      "categoryName": "干脆面",
+      "path": "休闲食品 > 膨化食品 > 干脆面",
+      "isLeaf": true,
+      "publishCategoryId": "37049",
+      "leafIds": [
+        "37049"
+      ],
+      "file": "37049.json"
+    },
+    {
+      "categoryId": "37050",
+      "categoryName": "锅巴",
+      "path": "休闲食品 > 膨化食品 > 锅巴",
+      "isLeaf": true,
+      "publishCategoryId": "37050",
+      "leafIds": [
+        "37050"
+      ],
+      "file": "37050.json"
+    },
+    {
+      "categoryId": "37052",
+      "categoryName": "虾片/虾条",
+      "path": "休闲食品 > 膨化食品 > 虾片/虾条",
+      "isLeaf": false,
+      "publishCategoryId": "37054",
+      "leafIds": [
+        "37054",
+        "37057"
+      ],
+      "file": "37052.json"
+    },
+    {
+      "categoryId": "37059",
+      "categoryName": "爆米花",
+      "path": "休闲食品 > 膨化食品 > 爆米花",
+      "isLeaf": true,
+      "publishCategoryId": "37059",
+      "leafIds": [
+        "37059"
+      ],
+      "file": "37059.json"
+    },
+    {
+      "categoryId": "37060",
+      "categoryName": "玉米片",
+      "path": "休闲食品 > 膨化食品 > 玉米片",
+      "isLeaf": true,
+      "publishCategoryId": "37060",
+      "leafIds": [
+        "37060"
+      ],
+      "file": "37060.json"
+    },
+    {
+      "categoryId": "37063",
+      "categoryName": "膨化食品大礼包/礼盒",
+      "path": "休闲食品 > 膨化食品 > 膨化食品大礼包/礼盒",
+      "isLeaf": true,
+      "publishCategoryId": "37063",
+      "leafIds": [
+        "37063"
+      ],
+      "file": "37063.json"
+    },
+    {
+      "categoryId": "37064",
+      "categoryName": "甜甜圈/洋葱圈",
+      "path": "休闲食品 > 膨化食品 > 甜甜圈/洋葱圈",
+      "isLeaf": false,
+      "publishCategoryId": "44128",
+      "leafIds": [
+        "44128",
+        "44129"
+      ],
+      "file": "37064.json"
+    },
+    {
+      "categoryId": "37066",
+      "categoryName": "豌豆脆",
+      "path": "休闲食品 > 膨化食品 > 豌豆脆",
+      "isLeaf": true,
+      "publishCategoryId": "37066",
+      "leafIds": [
+        "37066"
+      ],
+      "file": "37066.json"
+    },
+    {
+      "categoryId": "37067",
+      "categoryName": "八爪烧/鱿鱼酥",
+      "path": "休闲食品 > 膨化食品 > 八爪烧/鱿鱼酥",
+      "isLeaf": true,
+      "publishCategoryId": "37067",
+      "leafIds": [
+        "37067"
+      ],
+      "file": "37067.json"
+    },
+    {
+      "categoryId": "37070",
+      "categoryName": "猫耳朵",
+      "path": "休闲食品 > 膨化食品 > 猫耳朵",
+      "isLeaf": true,
+      "publishCategoryId": "37070",
+      "leafIds": [
+        "37070"
+      ],
+      "file": "37070.json"
+    },
+    {
+      "categoryId": "37072",
+      "categoryName": "虎牙脆/妙脆角",
+      "path": "休闲食品 > 膨化食品 > 虎牙脆/妙脆角",
+      "isLeaf": true,
+      "publishCategoryId": "37072",
+      "leafIds": [
+        "37072"
+      ],
+      "file": "37072.json"
+    },
+    {
+      "categoryId": "37074",
+      "categoryName": "好多鱼/南瓜酥/黄金豆/特色膨化食品",
+      "path": "休闲食品 > 膨化食品 > 好多鱼/南瓜酥/黄金豆/特色膨化食品",
+      "isLeaf": true,
+      "publishCategoryId": "37074",
+      "leafIds": [
+        "37074"
+      ],
+      "file": "37074.json"
+    },
+    {
+      "categoryId": "37078",
+      "categoryName": "芝士球/奶酪球",
+      "path": "休闲食品 > 膨化食品 > 芝士球/奶酪球",
+      "isLeaf": true,
+      "publishCategoryId": "37078",
+      "leafIds": [
+        "37078"
+      ],
+      "file": "37078.json"
+    },
+    {
+      "categoryId": "37080",
+      "categoryName": "玉米卷/粟米棒",
+      "path": "休闲食品 > 膨化食品 > 玉米卷/粟米棒",
+      "isLeaf": true,
+      "publishCategoryId": "37080",
+      "leafIds": [
+        "37080"
+      ],
+      "file": "37080.json"
+    },
+    {
+      "categoryId": "37082",
+      "categoryName": "豆类/全麦/蛋白脆片",
+      "path": "休闲食品 > 膨化食品 > 豆类/全麦/蛋白脆片",
+      "isLeaf": true,
+      "publishCategoryId": "37082",
+      "leafIds": [
+        "37082"
+      ],
+      "file": "37082.json"
+    },
+    {
+      "categoryId": "36950",
+      "categoryName": "饼干礼盒/礼包",
+      "path": "休闲食品 > 饼干 > 饼干礼盒/礼包",
+      "isLeaf": true,
+      "publishCategoryId": "36950",
+      "leafIds": [
+        "36950"
+      ],
+      "file": "36950.json"
+    },
+    {
+      "categoryId": "36627",
+      "categoryName": "曲奇饼干",
+      "path": "休闲食品 > 饼干 > 曲奇饼干",
+      "isLeaf": true,
+      "publishCategoryId": "36627",
+      "leafIds": [
+        "36627"
+      ],
+      "file": "36627.json"
+    },
+    {
+      "categoryId": "36628",
+      "categoryName": "夹心饼干",
+      "path": "休闲食品 > 饼干 > 夹心饼干",
+      "isLeaf": true,
+      "publishCategoryId": "36628",
+      "leafIds": [
+        "36628"
+      ],
+      "file": "36628.json"
+    },
+    {
+      "categoryId": "36629",
+      "categoryName": "威化饼干",
+      "path": "休闲食品 > 饼干 > 威化饼干",
+      "isLeaf": false,
+      "publishCategoryId": "36630",
+      "leafIds": [
+        "36630",
+        "36631"
+      ],
+      "file": "36629.json"
+    },
+    {
+      "categoryId": "36633",
+      "categoryName": "蛋卷",
+      "path": "休闲食品 > 饼干 > 蛋卷",
+      "isLeaf": true,
+      "publishCategoryId": "36633",
+      "leafIds": [
+        "36633"
+      ],
+      "file": "36633.json"
+    },
+    {
+      "categoryId": "36635",
+      "categoryName": "苏打饼干",
+      "path": "休闲食品 > 饼干 > 苏打饼干",
+      "isLeaf": true,
+      "publishCategoryId": "36635",
+      "leafIds": [
+        "36635"
+      ],
+      "file": "36635.json"
+    },
+    {
+      "categoryId": "36636",
+      "categoryName": "压缩饼干",
+      "path": "休闲食品 > 饼干 > 压缩饼干",
+      "isLeaf": true,
+      "publishCategoryId": "36636",
+      "leafIds": [
+        "36636"
+      ],
+      "file": "36636.json"
+    },
+    {
+      "categoryId": "36638",
+      "categoryName": "酥性饼干",
+      "path": "休闲食品 > 饼干 > 酥性饼干",
+      "isLeaf": true,
+      "publishCategoryId": "36638",
+      "leafIds": [
+        "36638"
+      ],
+      "file": "36638.json"
+    },
+    {
+      "categoryId": "36639",
+      "categoryName": "韧性饼干",
+      "path": "休闲食品 > 饼干 > 韧性饼干",
+      "isLeaf": true,
+      "publishCategoryId": "36639",
+      "leafIds": [
+        "36639"
+      ],
+      "file": "36639.json"
+    },
+    {
+      "categoryId": "36641",
+      "categoryName": "粗粮饼干",
+      "path": "休闲食品 > 饼干 > 粗粮饼干",
+      "isLeaf": true,
+      "publishCategoryId": "36641",
+      "leafIds": [
+        "36641"
+      ],
+      "file": "36641.json"
+    },
+    {
+      "categoryId": "36642",
+      "categoryName": "薄脆饼干",
+      "path": "休闲食品 > 饼干 > 薄脆饼干",
+      "isLeaf": true,
+      "publishCategoryId": "36642",
+      "leafIds": [
+        "36642"
+      ],
+      "file": "36642.json"
+    },
+    {
+      "categoryId": "36644",
+      "categoryName": "馍片",
+      "path": "休闲食品 > 饼干 > 馍片",
+      "isLeaf": true,
+      "publishCategoryId": "36644",
+      "leafIds": [
+        "36644"
+      ],
+      "file": "36644.json"
+    },
+    {
+      "categoryId": "36866",
+      "categoryName": "榛子",
+      "path": "休闲食品 > 坚果炒货 > 榛子",
+      "isLeaf": false,
+      "publishCategoryId": "36936",
+      "leafIds": [
+        "36936",
+        "36934"
+      ],
+      "file": "36866.json"
+    },
+    {
+      "categoryId": "36869",
+      "categoryName": "坚果棒/坚果丸子",
+      "path": "休闲食品 > 坚果炒货 > 坚果棒/坚果丸子",
+      "isLeaf": true,
+      "publishCategoryId": "36869",
+      "leafIds": [
+        "36869"
+      ],
+      "file": "36869.json"
+    },
+    {
+      "categoryId": "36871",
+      "categoryName": "鹰嘴豆",
+      "path": "休闲食品 > 坚果炒货 > 鹰嘴豆",
+      "isLeaf": true,
+      "publishCategoryId": "36871",
+      "leafIds": [
+        "36871"
+      ],
+      "file": "36871.json"
+    },
+    {
+      "categoryId": "36873",
+      "categoryName": "香榧子",
+      "path": "休闲食品 > 坚果炒货 > 香榧子",
+      "isLeaf": false,
+      "publishCategoryId": "36938",
+      "leafIds": [
+        "36938",
+        "36940"
+      ],
+      "file": "36873.json"
+    },
+    {
+      "categoryId": "36875",
+      "categoryName": "杏仁",
+      "path": "休闲食品 > 坚果炒货 > 杏仁",
+      "isLeaf": false,
+      "publishCategoryId": "39132",
+      "leafIds": [
+        "39132",
+        "36942"
+      ],
+      "file": "36875.json"
+    },
+    {
+      "categoryId": "36877",
+      "categoryName": "烤银杏/白果",
+      "path": "休闲食品 > 坚果炒货 > 烤银杏/白果",
+      "isLeaf": true,
+      "publishCategoryId": "36877",
+      "leafIds": [
+        "36877"
+      ],
+      "file": "36877.json"
+    },
+    {
+      "categoryId": "36879",
+      "categoryName": "鲍鱼果",
+      "path": "休闲食品 > 坚果炒货 > 鲍鱼果",
+      "isLeaf": true,
+      "publishCategoryId": "36879",
+      "leafIds": [
+        "36879"
+      ],
+      "file": "36879.json"
+    },
+    {
+      "categoryId": "44711",
+      "categoryName": "坚果蜜饯卡券",
+      "path": "休闲食品 > 坚果炒货 > 坚果蜜饯卡券",
+      "isLeaf": false,
+      "publishCategoryId": "44729",
+      "leafIds": [
+        "44729",
+        "44725"
+      ],
+      "file": "44711.json"
+    },
+    {
+      "categoryId": "38616",
+      "categoryName": "炒/烤黑豆",
+      "path": "休闲食品 > 坚果炒货 > 炒/烤黑豆",
+      "isLeaf": true,
+      "publishCategoryId": "38616",
+      "leafIds": [
+        "38616"
+      ],
+      "file": "38616.json"
+    },
+    {
+      "categoryId": "37167",
+      "categoryName": "坚果礼盒",
+      "path": "休闲食品 > 坚果炒货 > 坚果礼盒",
+      "isLeaf": true,
+      "publishCategoryId": "37167",
+      "leafIds": [
+        "37167"
+      ],
+      "file": "37167.json"
+    },
+    {
+      "categoryId": "37169",
+      "categoryName": "每日坚果",
+      "path": "休闲食品 > 坚果炒货 > 每日坚果",
+      "isLeaf": true,
+      "publishCategoryId": "37169",
+      "leafIds": [
+        "37169"
+      ],
+      "file": "37169.json"
+    },
+    {
+      "categoryId": "37170",
+      "categoryName": "混合坚果",
+      "path": "休闲食品 > 坚果炒货 > 混合坚果",
+      "isLeaf": true,
+      "publishCategoryId": "37170",
+      "leafIds": [
+        "37170"
+      ],
+      "file": "37170.json"
+    },
+    {
+      "categoryId": "37172",
+      "categoryName": "瓜子/葵花籽",
+      "path": "休闲食品 > 坚果炒货 > 瓜子/葵花籽",
+      "isLeaf": true,
+      "publishCategoryId": "37172",
+      "leafIds": [
+        "37172"
+      ],
+      "file": "37172.json"
+    },
+    {
+      "categoryId": "36828",
+      "categoryName": "西瓜子",
+      "path": "休闲食品 > 坚果炒货 > 西瓜子",
+      "isLeaf": true,
+      "publishCategoryId": "36828",
+      "leafIds": [
+        "36828"
+      ],
+      "file": "36828.json"
+    },
+    {
+      "categoryId": "36829",
+      "categoryName": "南瓜子",
+      "path": "休闲食品 > 坚果炒货 > 南瓜子",
+      "isLeaf": false,
+      "publishCategoryId": "36830",
+      "leafIds": [
+        "36830",
+        "36831"
+      ],
+      "file": "36829.json"
+    },
+    {
+      "categoryId": "36833",
+      "categoryName": "松子",
+      "path": "休闲食品 > 坚果炒货 > 松子",
+      "isLeaf": false,
+      "publishCategoryId": "36836",
+      "leafIds": [
+        "36836",
+        "36837"
+      ],
+      "file": "36833.json"
+    },
+    {
+      "categoryId": "36839",
+      "categoryName": "开心果",
+      "path": "休闲食品 > 坚果炒货 > 开心果",
+      "isLeaf": false,
+      "publishCategoryId": "36882",
+      "leafIds": [
+        "36882",
+        "36885"
+      ],
+      "file": "36839.json"
+    },
+    {
+      "categoryId": "36840",
+      "categoryName": "腰果",
+      "path": "休闲食品 > 坚果炒货 > 腰果",
+      "isLeaf": false,
+      "publishCategoryId": "36890",
+      "leafIds": [
+        "36890",
+        "36888"
+      ],
+      "file": "36840.json"
+    },
+    {
+      "categoryId": "36842",
+      "categoryName": "核桃",
+      "path": "休闲食品 > 坚果炒货 > 核桃",
+      "isLeaf": false,
+      "publishCategoryId": "36894",
+      "leafIds": [
+        "36894",
+        "36897"
+      ],
+      "file": "36842.json"
+    },
+    {
+      "categoryId": "36844",
+      "categoryName": "夏威夷果",
+      "path": "休闲食品 > 坚果炒货 > 夏威夷果",
+      "isLeaf": false,
+      "publishCategoryId": "36898",
+      "leafIds": [
+        "36898",
+        "36900"
+      ],
+      "file": "36844.json"
+    },
+    {
+      "categoryId": "36846",
+      "categoryName": "巴旦木/桃仁",
+      "path": "休闲食品 > 坚果炒货 > 巴旦木/桃仁",
+      "isLeaf": false,
+      "publishCategoryId": "36902",
+      "leafIds": [
+        "36902",
+        "36904"
+      ],
+      "file": "36846.json"
+    },
+    {
+      "categoryId": "36850",
+      "categoryName": "长寿果/碧根果",
+      "path": "休闲食品 > 坚果炒货 > 长寿果/碧根果",
+      "isLeaf": false,
+      "publishCategoryId": "36909",
+      "leafIds": [
+        "36909",
+        "36912"
+      ],
+      "file": "36850.json"
+    },
+    {
+      "categoryId": "36854",
+      "categoryName": "板栗",
+      "path": "休闲食品 > 坚果炒货 > 板栗",
+      "isLeaf": false,
+      "publishCategoryId": "36915",
+      "leafIds": [
+        "36915",
+        "36917"
+      ],
+      "file": "36854.json"
+    },
+    {
+      "categoryId": "36855",
+      "categoryName": "山核桃",
+      "path": "休闲食品 > 坚果炒货 > 山核桃",
+      "isLeaf": false,
+      "publishCategoryId": "36919",
+      "leafIds": [
+        "36919",
+        "36922"
+      ],
+      "file": "36855.json"
+    },
+    {
+      "categoryId": "36858",
+      "categoryName": "花生",
+      "path": "休闲食品 > 坚果炒货 > 花生",
+      "isLeaf": false,
+      "publishCategoryId": "36925",
+      "leafIds": [
+        "36925",
+        "36926"
+      ],
+      "file": "36858.json"
+    },
+    {
+      "categoryId": "36861",
+      "categoryName": "蚕豆/兰花豆",
+      "path": "休闲食品 > 坚果炒货 > 蚕豆/兰花豆",
+      "isLeaf": true,
+      "publishCategoryId": "36861",
+      "leafIds": [
+        "36861"
+      ],
+      "file": "36861.json"
+    },
+    {
+      "categoryId": "36863",
+      "categoryName": "豌豆/青豆",
+      "path": "休闲食品 > 坚果炒货 > 豌豆/青豆",
+      "isLeaf": true,
+      "publishCategoryId": "36863",
+      "leafIds": [
+        "36863"
+      ],
+      "file": "36863.json"
+    },
+    {
+      "categoryId": "53459",
+      "categoryName": "肉松/肉松条",
+      "path": "休闲食品 > 肉类零食 > 肉松/肉松条",
+      "isLeaf": true,
+      "publishCategoryId": "53459",
+      "leafIds": [
+        "53459"
+      ],
+      "file": "53459.json"
+    },
+    {
+      "categoryId": "36576",
+      "categoryName": "牛肉类",
+      "path": "休闲食品 > 肉类零食 > 牛肉类",
+      "isLeaf": false,
+      "publishCategoryId": "36581",
+      "leafIds": [
+        "36581",
+        "36578",
+        "36579"
+      ],
+      "file": "36576.json"
+    },
+    {
+      "categoryId": "36583",
+      "categoryName": "鸡肉类",
+      "path": "休闲食品 > 肉类零食 > 鸡肉类",
+      "isLeaf": false,
+      "publishCategoryId": "44254",
+      "leafIds": [
+        "44254",
+        "36584",
+        "36586",
+        "36587",
+        "36588"
+      ],
+      "file": "36583.json"
+    },
+    {
+      "categoryId": "36589",
+      "categoryName": "鸭肉类",
+      "path": "休闲食品 > 肉类零食 > 鸭肉类",
+      "isLeaf": false,
+      "publishCategoryId": "36590",
+      "leafIds": [
+        "36590",
+        "36591",
+        "36592",
+        "36593",
+        "36594"
+      ],
+      "file": "36589.json"
+    },
+    {
+      "categoryId": "36595",
+      "categoryName": "猪肉类",
+      "path": "休闲食品 > 肉类零食 > 猪肉类",
+      "isLeaf": false,
+      "publishCategoryId": "44253",
+      "leafIds": [
+        "44253",
+        "36596",
+        "36597",
+        "36599",
+        "36600"
+      ],
+      "file": "36595.json"
+    },
+    {
+      "categoryId": "36601",
+      "categoryName": "兔肉类",
+      "path": "休闲食品 > 肉类零食 > 兔肉类",
+      "isLeaf": true,
+      "publishCategoryId": "36601",
+      "leafIds": [
+        "36601"
+      ],
+      "file": "36601.json"
+    },
+    {
+      "categoryId": "36602",
+      "categoryName": "其他肉类",
+      "path": "休闲食品 > 肉类零食 > 其他肉类",
+      "isLeaf": true,
+      "publishCategoryId": "36602",
+      "leafIds": [
+        "36602"
+      ],
+      "file": "36602.json"
+    },
+    {
+      "categoryId": "36603",
+      "categoryName": "肉类零食礼包/礼盒",
+      "path": "休闲食品 > 肉类零食 > 肉类零食礼包/礼盒",
+      "isLeaf": true,
+      "publishCategoryId": "36603",
+      "leafIds": [
+        "36603"
+      ],
+      "file": "36603.json"
+    },
+    {
+      "categoryId": "36646",
+      "categoryName": "果冻",
+      "path": "休闲食品 > 果冻/布丁 > 果冻",
+      "isLeaf": false,
+      "publishCategoryId": "36649",
+      "leafIds": [
+        "36649",
+        "36650",
+        "36647",
+        "36648"
+      ],
+      "file": "36646.json"
+    },
+    {
+      "categoryId": "36654",
+      "categoryName": "布丁",
+      "path": "休闲食品 > 果冻/布丁 > 布丁",
+      "isLeaf": true,
+      "publishCategoryId": "36654",
+      "leafIds": [
+        "36654"
+      ],
+      "file": "36654.json"
+    },
+    {
+      "categoryId": "36974",
+      "categoryName": "枣",
+      "path": "休闲食品 > 蜜饯果干 > 枣",
+      "isLeaf": false,
+      "publishCategoryId": "39142",
+      "leafIds": [
+        "39142",
+        "36976"
+      ],
+      "file": "36974.json"
+    },
+    {
+      "categoryId": "36975",
+      "categoryName": "梅子干",
+      "path": "休闲食品 > 蜜饯果干 > 梅子干",
+      "isLeaf": false,
+      "publishCategoryId": "36979",
+      "leafIds": [
+        "36979",
+        "39130",
+        "36981",
+        "36982",
+        "36983",
+        "36977"
+      ],
+      "file": "36975.json"
+    },
+    {
+      "categoryId": "36988",
+      "categoryName": "红薯条/干",
+      "path": "休闲食品 > 蜜饯果干 > 红薯条/干",
+      "isLeaf": true,
+      "publishCategoryId": "36988",
+      "leafIds": [
+        "36988"
+      ],
+      "file": "36988.json"
+    },
+    {
+      "categoryId": "36990",
+      "categoryName": "杏干",
+      "path": "休闲食品 > 蜜饯果干 > 杏干",
+      "isLeaf": true,
+      "publishCategoryId": "36990",
+      "leafIds": [
+        "36990"
+      ],
+      "file": "36990.json"
+    },
+    {
+      "categoryId": "36991",
+      "categoryName": "香蕉干",
+      "path": "休闲食品 > 蜜饯果干 > 香蕉干",
+      "isLeaf": true,
+      "publishCategoryId": "36991",
+      "leafIds": [
+        "36991"
+      ],
+      "file": "36991.json"
+    },
+    {
+      "categoryId": "36994",
+      "categoryName": "桃干",
+      "path": "休闲食品 > 蜜饯果干 > 桃干",
+      "isLeaf": true,
+      "publishCategoryId": "36994",
+      "leafIds": [
+        "36994"
+      ],
+      "file": "36994.json"
+    },
+    {
+      "categoryId": "37002",
+      "categoryName": "葡萄干",
+      "path": "休闲食品 > 蜜饯果干 > 葡萄干",
+      "isLeaf": true,
+      "publishCategoryId": "37002",
+      "leafIds": [
+        "37002"
+      ],
+      "file": "37002.json"
+    },
+    {
+      "categoryId": "37005",
+      "categoryName": "苹果干",
+      "path": "休闲食品 > 蜜饯果干 > 苹果干",
+      "isLeaf": true,
+      "publishCategoryId": "37005",
+      "leafIds": [
+        "37005"
+      ],
+      "file": "37005.json"
+    },
+    {
+      "categoryId": "37008",
+      "categoryName": "猕猴桃干",
+      "path": "休闲食品 > 蜜饯果干 > 猕猴桃干",
+      "isLeaf": true,
+      "publishCategoryId": "37008",
+      "leafIds": [
+        "37008"
+      ],
+      "file": "37008.json"
+    },
+    {
+      "categoryId": "37010",
+      "categoryName": "芒果干",
+      "path": "休闲食品 > 蜜饯果干 > 芒果干",
+      "isLeaf": true,
+      "publishCategoryId": "37010",
+      "leafIds": [
+        "37010"
+      ],
+      "file": "37010.json"
+    },
+    {
+      "categoryId": "37016",
+      "categoryName": "蔓越莓干",
+      "path": "休闲食品 > 蜜饯果干 > 蔓越莓干",
+      "isLeaf": true,
+      "publishCategoryId": "37016",
+      "leafIds": [
+        "37016"
+      ],
+      "file": "37016.json"
+    },
+    {
+      "categoryId": "37018",
+      "categoryName": "榴莲干",
+      "path": "休闲食品 > 蜜饯果干 > 榴莲干",
+      "isLeaf": true,
+      "publishCategoryId": "37018",
+      "leafIds": [
+        "37018"
+      ],
+      "file": "37018.json"
+    },
+    {
+      "categoryId": "37019",
+      "categoryName": "金桔干",
+      "path": "休闲食品 > 蜜饯果干 > 金桔干",
+      "isLeaf": true,
+      "publishCategoryId": "37019",
+      "leafIds": [
+        "37019"
+      ],
+      "file": "37019.json"
+    },
+    {
+      "categoryId": "37021",
+      "categoryName": "橄榄",
+      "path": "休闲食品 > 蜜饯果干 > 橄榄",
+      "isLeaf": true,
+      "publishCategoryId": "37021",
+      "leafIds": [
+        "37021"
+      ],
+      "file": "37021.json"
+    },
+    {
+      "categoryId": "37023",
+      "categoryName": "陈皮蜜饯",
+      "path": "休闲食品 > 蜜饯果干 > 陈皮蜜饯",
+      "isLeaf": true,
+      "publishCategoryId": "37023",
+      "leafIds": [
+        "37023"
+      ],
+      "file": "37023.json"
+    },
+    {
+      "categoryId": "37025",
+      "categoryName": "其他蜜饯果干",
+      "path": "休闲食品 > 蜜饯果干 > 其他蜜饯果干",
+      "isLeaf": true,
+      "publishCategoryId": "37025",
+      "leafIds": [
+        "37025"
+      ],
+      "file": "37025.json"
+    },
+    {
+      "categoryId": "37028",
+      "categoryName": "草莓干",
+      "path": "休闲食品 > 蜜饯果干 > 草莓干",
+      "isLeaf": true,
+      "publishCategoryId": "37028",
+      "leafIds": [
+        "37028"
+      ],
+      "file": "37028.json"
+    },
+    {
+      "categoryId": "37030",
+      "categoryName": "菠萝蜜干",
+      "path": "休闲食品 > 蜜饯果干 > 菠萝蜜干",
+      "isLeaf": true,
+      "publishCategoryId": "37030",
+      "leafIds": [
+        "37030"
+      ],
+      "file": "37030.json"
+    },
+    {
+      "categoryId": "37032",
+      "categoryName": "菠萝/凤梨干",
+      "path": "休闲食品 > 蜜饯果干 > 菠萝/凤梨干",
+      "isLeaf": true,
+      "publishCategoryId": "37032",
+      "leafIds": [
+        "37032"
+      ],
+      "file": "37032.json"
+    },
+    {
+      "categoryId": "37055",
+      "categoryName": "即食柠檬片",
+      "path": "休闲食品 > 蜜饯果干 > 即食柠檬片",
+      "isLeaf": true,
+      "publishCategoryId": "37055",
+      "leafIds": [
+        "37055"
+      ],
+      "file": "37055.json"
+    },
+    {
+      "categoryId": "37058",
+      "categoryName": "桑葚干",
+      "path": "休闲食品 > 蜜饯果干 > 桑葚干",
+      "isLeaf": true,
+      "publishCategoryId": "37058",
+      "leafIds": [
+        "37058"
+      ],
+      "file": "37058.json"
+    },
+    {
+      "categoryId": "37068",
+      "categoryName": "混合蔬果干",
+      "path": "休闲食品 > 蜜饯果干 > 混合蔬果干",
+      "isLeaf": true,
+      "publishCategoryId": "37068",
+      "leafIds": [
+        "37068"
+      ],
+      "file": "37068.json"
+    },
+    {
+      "categoryId": "37075",
+      "categoryName": "南瓜干",
+      "path": "休闲食品 > 蜜饯果干 > 南瓜干",
+      "isLeaf": true,
+      "publishCategoryId": "37075",
+      "leafIds": [
+        "37075"
+      ],
+      "file": "37075.json"
+    },
+    {
+      "categoryId": "39129",
+      "categoryName": "山楂制品",
+      "path": "休闲食品 > 蜜饯果干 > 山楂制品",
+      "isLeaf": true,
+      "publishCategoryId": "39129",
+      "leafIds": [
+        "39129"
+      ],
+      "file": "39129.json"
+    },
+    {
+      "categoryId": "39131",
+      "categoryName": "无花果干",
+      "path": "休闲食品 > 蜜饯果干 > 无花果干",
+      "isLeaf": true,
+      "publishCategoryId": "39131",
+      "leafIds": [
+        "39131"
+      ],
+      "file": "39131.json"
+    },
+    {
+      "categoryId": "37087",
+      "categoryName": "蓝莓干",
+      "path": "休闲食品 > 蜜饯果干 > 蓝莓干",
+      "isLeaf": true,
+      "publishCategoryId": "37087",
+      "leafIds": [
+        "37087"
+      ],
+      "file": "37087.json"
+    },
+    {
+      "categoryId": "37095",
+      "categoryName": "酸角/甜角",
+      "path": "休闲食品 > 蜜饯果干 > 酸角/甜角",
+      "isLeaf": true,
+      "publishCategoryId": "37095",
+      "leafIds": [
+        "37095"
+      ],
+      "file": "37095.json"
+    },
+    {
+      "categoryId": "37097",
+      "categoryName": "加应子/李子干",
+      "path": "休闲食品 > 蜜饯果干 > 加应子/李子干",
+      "isLeaf": true,
+      "publishCategoryId": "37097",
+      "leafIds": [
+        "37097"
+      ],
+      "file": "37097.json"
+    },
+    {
+      "categoryId": "37098",
+      "categoryName": "椰子片",
+      "path": "休闲食品 > 蜜饯果干 > 椰子片",
+      "isLeaf": true,
+      "publishCategoryId": "37098",
+      "leafIds": [
+        "37098"
+      ],
+      "file": "37098.json"
+    },
+    {
+      "categoryId": "37099",
+      "categoryName": "樱桃干/车厘子干",
+      "path": "休闲食品 > 蜜饯果干 > 樱桃干/车厘子干",
+      "isLeaf": true,
+      "publishCategoryId": "37099",
+      "leafIds": [
+        "37099"
+      ],
+      "file": "37099.json"
+    },
+    {
+      "categoryId": "37101",
+      "categoryName": "蜜饯果干大礼包/礼盒",
+      "path": "休闲食品 > 蜜饯果干 > 蜜饯果干大礼包/礼盒",
+      "isLeaf": true,
+      "publishCategoryId": "37101",
+      "leafIds": [
+        "37101"
+      ],
+      "file": "37101.json"
+    },
+    {
+      "categoryId": "37104",
+      "categoryName": "冻干果蔬干",
+      "path": "休闲食品 > 蜜饯果干 > 冻干果蔬干",
+      "isLeaf": true,
+      "publishCategoryId": "37104",
+      "leafIds": [
+        "37104"
+      ],
+      "file": "37104.json"
+    },
+    {
+      "categoryId": "36605",
+      "categoryName": "海味零食礼包/礼盒",
+      "path": "休闲食品 > 海味零食 > 海味零食礼包/礼盒",
+      "isLeaf": true,
+      "publishCategoryId": "36605",
+      "leafIds": [
+        "36605"
+      ],
+      "file": "36605.json"
+    },
+    {
+      "categoryId": "36606",
+      "categoryName": "鱼零食",
+      "path": "休闲食品 > 海味零食 > 鱼零食",
+      "isLeaf": false,
+      "publishCategoryId": "36607",
+      "leafIds": [
+        "36607",
+        "36608",
+        "36609",
+        "36610",
+        "36611",
+        "36612"
+      ],
+      "file": "36606.json"
+    },
+    {
+      "categoryId": "36613",
+      "categoryName": "海苔",
+      "path": "休闲食品 > 海味零食 > 海苔",
+      "isLeaf": false,
+      "publishCategoryId": "36616",
+      "leafIds": [
+        "36616",
+        "36617",
+        "36614",
+        "36615"
+      ],
+      "file": "36613.json"
+    },
+    {
+      "categoryId": "36618",
+      "categoryName": "虾零食",
+      "path": "休闲食品 > 海味零食 > 虾零食",
+      "isLeaf": false,
+      "publishCategoryId": "36619",
+      "leafIds": [
+        "36619",
+        "36620"
+      ],
+      "file": "36618.json"
+    },
+    {
+      "categoryId": "36621",
+      "categoryName": "蟹/贝零食",
+      "path": "休闲食品 > 海味零食 > 蟹/贝零食",
+      "isLeaf": false,
+      "publishCategoryId": "36622",
+      "leafIds": [
+        "36622",
+        "36623",
+        "36624",
+        "36625"
+      ],
+      "file": "36621.json"
     }
   ]
 }
