@@ -7,6 +7,8 @@ import { pickOption } from '../shared/vc-review-attrs.js';
 
 const MAX_THUMBS = 10;
 const MANUAL_UNKNOWN = '__manual';
+/** 输入框里预先填好自动值的字段（在采集到的值上直接改，而不是从空白开始输入） */
+const PREFILL_KEYS = new Set(['title']);
 const STATE_CLASS = { ok: '', missing: 'is-missing', error: 'is-error', default: 'is-check', warn: 'is-check', guess: 'is-check', empty: 'is-empty' };
 
 function sourceLine(item) {
@@ -67,7 +69,9 @@ function bindInput(input, key, ctx) {
 }
 
 function fieldNode(field, ctx, refs) {
-  const input = h('input', { value: field.own, inputmode: field.input === 'number' ? 'decimal' : null, autocomplete: 'off' });
+  // 标题没自己改过时，直接把自动生成的标题放进输入框，可以在原标题上改（不动它就还是自动值）
+  const initial = field.own || (PREFILL_KEYS.has(field.key) ? field.auto : '');
+  const input = h('input', { value: initial, inputmode: field.input === 'number' ? 'decimal' : null, autocomplete: 'off' });
   bindInput(input, field.key, ctx);
   const note = h('small', { class: 'rv-note' });
   const wrap = h('label', { class: `rv-field${field.key === 'title' || field.key === 'packListing' ? ' wide' : ''}` }, h('span', {}, field.label, field.required ? h('b', { class: 'req' }, '*') : null), input, note);
