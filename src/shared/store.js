@@ -1,23 +1,19 @@
 // 数据仓储：任务条目 + 设置。存储后端通过 adapter 注入，方便测试。
 import { buildItemUrl, isB2bItemUrl } from './url-utils.js';
 import { mergeSettings } from './settings.js';
-import { isArchived } from './brand-folders.js';
 
 const ITEMS_KEY = 'items';
 const SETTINGS_KEY = 'settings';
-// 发布成功过的 SKU（skuId → 发布时间）：任务删除后仍保留，重新添加链接/抓取店铺时据此去重
+// 发布成功过的 SKU（skuId → 发布时间）：发布成功的商品移出任务列表后，重新添加链接/抓取店铺时据此去重
 const PUBLISHED_KEY = 'publishedSkus';
 // 最近一次保存接口限流（被拒时间、建议冷却到的时间）
 export const THROTTLE_KEY = 'publishThrottle';
 
 /**
- * @typedef {'pending'|'collecting'|'collected'|'publishing'|'published'|'failed'|'need_action'} ItemStatus
+ * 发布成功的商品写进上架总表（master-sheet.js）后移出任务列表，所以列表里没有“已发布”的条目
+ * @typedef {'pending'|'collecting'|'collected'|'publishing'|'failed'|'need_action'} ItemStatus
  * @typedef {{id: string, skuId: string, url: string, status: ItemStatus, product: object|null,
- *   edits: object, target: object|null, message: string, log: string[], createdAt: number, updatedAt: number,
- *   publishedAt?: number, salePrice?: number, shopSkuIds?: string[], priceCheck?: object}} Item
- *   publishedAt：最近一次发布成功（发布商品）的时间，有值的条目显示在“已发布”页；salePrice：发布时填的 VC 京东价；
- *   shopSkuIds：发布后京东给店铺商品分配的 SKU；
- *   priceCheck：最近一次京东今日价检查
+ *   edits: object, target: object|null, message: string, log: string[], createdAt: number, updatedAt: number}} Item
  */
 
 /** @returns {Item} */
@@ -47,7 +43,7 @@ export const EDITED_NOTE = '已修改，尚未重新发布';
 export const INTERRUPTED_NOTE = '上次采集没有完成（任务面板被关闭或浏览器重启），请重新采集';
 const LAST_RESULT_SEP = '｜上次结果：';
 // 这些状态说明发布流程已经跑过：编辑后必须重新发布才会作用到店铺
-const PUBLISH_TRIED = new Set(['need_action', 'failed', 'published']);
+const PUBLISH_TRIED = new Set(['need_action', 'failed']);
 
 function lastResult(message) {
   if (!message?.startsWith(EDITED_NOTE)) return message ?? '';
@@ -82,46 +78,21 @@ const canonical = (v) => {
 /** 两份编辑内容是否相同：忽略键顺序、未填写的项和空的属性覆盖 */
 export const editsEqual = (a, b) => JSON.stringify(canonical(a ?? {}) ?? {}) === JSON.stringify(canonical(b ?? {}) ?? {});
 
-/** 发布接口带回的 SKU：只留数字编号，去重 */
-const normalizeSkuIds = (ids) => [...new Set((Array.isArray(ids) ? ids : []).map((id) => String(id).trim()).filter((id) => /^\d{6,20}$/.test(id)))];
-
 /**
- * 发布结果写回条目的字段：发布成功时记下 publishedAt，条目随之移到“已发布”页；
- * 同时记下发布时的 VC 京东价（检查京东今日价时对比）和京东分配的 SKU。重新发布会生成新商品，
- * 没拿到新 SKU 时清掉旧的，避免对应到旧商品上
+ * 发布没成功时写回条目的字段（发布成功的条目移出任务列表，不走这里）：
+ * 限流时没有保存成功，回到“已采集”，冷却后点“发布选中”会重新发布；停在发布页等人工处理的记作“需处理”
  * @param {Item} item
- * @param {{status: string, message: string, target?: object, price?: number, skuIds?: string[]}} res publishVcItem 的结果
+ * @param {{status: string, message: string, target?: object}} res publishVcItem 的结果
  */
-export function publishResultPatch(item, res, now = Date.now()) {
-  // 限流时没有保存成功：回到“已采集”，冷却后点“发布选中”会重新发布；
-  // “已发布”页里重新发布的商品按失败处理，仍留在“已发布”页
-  const throttled = isArchived(item) ? 'failed' : 'collected';
-  const status = { filled: 'need_action', throttle: throttled }[res.status] ?? res.status;
-  const patch = { status, message: res.message, target: res.target ?? item.target };
-  if (status !== 'published') return patch;
-  const price = res.price > 0 ? { salePrice: res.price } : {};
-  return { ...patch, publishedAt: now, ...price, shopSkuIds: normalizeSkuIds(res.skuIds) };
-}
-
-export const RETURNED_NOTE = '已从“已发布”退回任务列表（店铺里的商品不受影响）';
-// 店铺里那件商品的记录：退回任务列表后不再对应任何店铺商品，重新发布会生成新商品。
-// shopWareId、reprice 是旧版本（POP 店铺、批量改价）留下的，退回时一并清掉
-const SHOP_FIELDS = ['publishedAt', 'salePrice', 'shopSkuIds', 'shopWareId', 'priceCheck', 'reprice'];
-
-/**
- * 已发布商品退回任务列表的“已采集”：保留商品数据、编辑和本地保存记录，清掉店铺售价/价格检查
- * @param {Item} item
- * @returns {Item}
- */
-export function returnToTasksPatch(item, now = Date.now()) {
-  const rest = Object.fromEntries(Object.entries(item).filter(([k]) => !SHOP_FIELDS.includes(k)));
-  return { ...rest, status: 'collected', message: RETURNED_NOTE, updatedAt: Math.max(now, item.updatedAt) };
+export function publishResultPatch(item, res) {
+  const status = { filled: 'need_action', throttle: 'collected' }[res.status] ?? res.status;
+  return { status, message: res.message, target: res.target ?? item.target };
 }
 
 const RECOLLECT_BLOCKED = new Set(['collecting', 'publishing']);
 
-/** 任务列表里采集过的商品可以重新采集（覆盖商品数据，编辑保留）；已发布的要先退回任务列表 */
-export const canRecollect = (item) => Boolean(item?.product) && !isArchived(item) && !RECOLLECT_BLOCKED.has(item.status);
+/** 任务列表里采集过的商品可以重新采集（覆盖商品数据，编辑保留） */
+export const canRecollect = (item) => Boolean(item?.product) && !RECOLLECT_BLOCKED.has(item.status);
 
 /**
  * 批量重新采集：只取勾选里可以重新采集的商品；没勾选时不默认全部（重新采集很慢，还会覆盖数据）
@@ -152,22 +123,21 @@ export function collectFailurePatch(item, res) {
   return { status: PAUSE_COLLECT_STATUSES.has(res.status) ? 'pending' : 'failed', message: res.message };
 }
 
-/** 已发布条目对应的全部 SKU：条目本身 + 一起发布的规格 SKU（同一商品换个颜色的链接也算已发布） */
-function archivedSkuIds(item) {
-  if (!isArchived(item)) return [];
+/** 发布成功的条目对应的全部 SKU：条目本身 + 一起发布的规格 SKU（同一商品换个颜色的链接也算已发布） */
+function publishedSkuIds(item) {
   const variants = (item.product?.variants ?? []).map((v) => String(v?.skuId ?? ''));
   return [...new Set([item.id, String(item.product?.skuId ?? ''), ...variants])].filter(Boolean);
 }
 
 /**
- * 已发布过的 SKU：记录表 + 当前列表里的已发布条目（兼容加记录表之前发布的商品）
- * @param {object[]} items
+ * 已发布过的 SKU（记录表）
  * @param {Record<string, number>} [registry]
  * @returns {Set<string>}
  */
-export function publishedSkuSet(items, registry = {}) {
-  return new Set([...Object.keys(registry ?? {}), ...items.flatMap(archivedSkuIds)]);
-}
+export const publishedSkuSet = (registry = {}) => new Set(Object.keys(registry ?? {}));
+
+/** 旧版本“已发布”页里的条目：发布成功后留在列表里（现在发布成功就移出任务列表） */
+const isLegacyPublished = (item) => item.status === 'published' || item.publishedAt > 0;
 
 /**
  * 新链接分组：新增 / 已发布过（跳过）/ 已在列表里
@@ -201,7 +171,7 @@ export function createItemRepository(storage) {
   const load = async () => (await storage.get(ITEMS_KEY)) ?? [];
   const persist = (items) => storage.set(ITEMS_KEY, items);
   const loadPublished = async () => (await storage.get(PUBLISHED_KEY)) ?? {};
-  // 记进已发布记录（已有的保留原来的时间）：条目离开“已发布”页后，重新添加同一商品仍会被跳过
+  // 记进已发布记录（已有的保留原来的时间）：发布成功的商品移出任务列表后，重新添加同一商品仍会被跳过
   const rememberPublished = async (skuIds) => {
     if (!skuIds.length) return;
     const registry = await loadPublished();
@@ -218,7 +188,7 @@ export function createItemRepository(storage) {
   const addTasks = (skuIds, opts = {}) =>
     serial(async () => {
       const [items, registry] = await Promise.all([load(), loadPublished()]);
-      const plan = planNewSkus(skuIds, items, publishedSkuSet(items, registry), opts);
+      const plan = planNewSkus(skuIds, items, publishedSkuSet(registry), opts);
       const { urls = {} } = opts;
       const added = plan.fresh.map((id) => newItem(id, Date.now(), urls[id]));
       const retargeted = items.map((i) => (plan.existing.includes(i.id) && urls[i.id] ? { ...i, url: urls[i.id] } : i));
@@ -228,6 +198,8 @@ export function createItemRepository(storage) {
 
   return {
     findAll: () => load(),
+    /** 发布成功过的 SKU（重新添加时跳过的那些） */
+    publishedSkus: async () => publishedSkuSet(await loadPublished()),
     findById: async (id) => (await load()).find((i) => i.id === String(id)) ?? null,
 
     addTasks,
@@ -319,28 +291,36 @@ export function createItemRepository(storage) {
         return { imported: valid.length, skipped: (Array.isArray(list) ? list.length : 0) - valid.length };
       }),
 
-    // 删除已发布的条目时把它的 SKU 记进已发布记录，之后重新添加同一商品仍会被跳过
     remove: (ids) =>
       serial(async () => {
         const drop = new Set(ids.map(String));
-        const items = await load();
-        await rememberPublished(items.filter((i) => drop.has(i.id)).flatMap(archivedSkuIds));
-        await persist(items.filter((i) => !drop.has(i.id)));
+        await persist((await load()).filter((i) => !drop.has(i.id)));
       }),
 
     /**
-     * 已发布商品退回任务列表的“已采集”状态；不是已发布（或没有商品数据）的条目跳过
-     * @returns {Promise<{returned: string[], skipped: string[]}>}
+     * 发布成功：记进已发布记录（之后重新添加同一商品会跳过），移出任务列表（商品已写进上架总表）
+     * @returns {Promise<Item|null>} 移出的条目
      */
-    returnToTasks: (ids) =>
+    finishPublished: (id) =>
       serial(async () => {
-        const wanted = new Set(ids.map(String));
         const items = await load();
-        const targets = items.filter((i) => wanted.has(i.id) && isArchived(i) && i.product);
-        const hit = new Set(targets.map((i) => i.id));
-        await rememberPublished(targets.flatMap(archivedSkuIds));
-        if (targets.length) await persist(items.map((i) => (hit.has(i.id) ? returnToTasksPatch(i) : i)));
-        return { returned: [...hit], skipped: [...wanted].filter((id) => !hit.has(id)) };
+        const item = items.find((i) => i.id === String(id));
+        if (!item) return null;
+        await rememberPublished(publishedSkuIds(item));
+        await persist(items.filter((i) => i !== item));
+        return item;
+      }),
+
+    /**
+     * 删掉旧版本“已发布”页里的条目（用户 2026-11-20 确认可以删）：只删任务记录，不动店铺和本地文件夹
+     * @returns {Promise<string[]>} 删掉的条目
+     */
+    dropLegacyPublished: () =>
+      serial(async () => {
+        const items = await load();
+        const legacy = items.filter(isLegacyPublished).map((i) => i.id);
+        if (legacy.length) await persist(items.filter((i) => !isLegacyPublished(i)));
+        return legacy;
       }),
   };
 }

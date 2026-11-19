@@ -37,8 +37,11 @@ const NUMBER_RULES = [
   { key: 'packSpecification', from: 'logistics', label: '包装规格', decimals: 0, min: 1, max: 100000, critical: false },
 ];
 
+// 不写进发布页、只在插件里记录的价格：协议价（上架表里填，发布成功后写进上架总表），格式按采购价
+const RECORD_RULES = [{ key: 'agreementPrice', label: '协议价', decimals: 4, min: 0.0001, max: 9999999 }];
+
 /** 数字字段的页面规则（小数位数、范围）：表格导入价格时按同一套规则校验 */
-export const vcNumberRule = (key) => NUMBER_RULES.find((r) => r.key === key) ?? null;
+export const vcNumberRule = (key) => NUMBER_RULES.find((r) => r.key === key) ?? RECORD_RULES.find((r) => r.key === key) ?? null;
 
 const finite = (v) => (v != null && Number.isFinite(Number(v)) ? Number(v) : undefined);
 

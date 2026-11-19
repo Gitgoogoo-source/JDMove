@@ -9,7 +9,6 @@ import { HEAD, attrFormat, sheetLabel, templateAttrs, templateCell } from './vc-
 import { attrKey } from './vc-review-attrs.js';
 import { vcTemplateLeafLabel } from './vc-templates.js';
 import { safeSheetNames } from './xlsx-write.js';
-import { isArchived } from './brand-folders.js';
 
 export const REVIEW_BOOK_FORMAT = 'jdmove-review-v1';
 export const META_SHEET = '_meta';
@@ -127,8 +126,7 @@ function refText(refs, multiSheet) {
 
 /** 没进到附表的商品，采集结果写什么 */
 function collectText(item, inBatch) {
-  if (!item) return inBatch ? '已从任务列表删除' : '已发布过，没有加入任务列表';
-  if (isArchived(item)) return '已发布';
+  if (!item) return inBatch ? '已发布（写进了上架总表）或已从任务列表删除' : '已发布过，没有加入任务列表';
   if (['pending', 'collecting'].includes(item.status)) return '待采集';
   if (!item.product) return `采集失败：${item.message || '原因未知'}`;
   return item.message || '已采集';
@@ -138,7 +136,7 @@ function summaryRow(entry, ctx) {
   const row = ctx.rowsById.get(entry.skuId);
   const item = ctx.itemsById.get(entry.skuId) ?? row?.item;
   const base = [refText(entry.refs, ctx.multiSheet), entry.label ?? '', entry.url, entry.skuId, item?.product?.title ?? '', collectText(item, ctx.inBatch(entry.skuId))];
-  if (!row) return { cells: [...base, '', '', '没有检查', ''], fill: item?.product || isArchived(item) ? null : 'warn' };
+  if (!row) return { cells: [...base, '', '', '没有检查', ''], fill: item?.product ? null : 'warn' };
   const { review, match } = row;
   const checks = review.checks ? `请核对 ${review.checks} 项（橙色）` : '';
   const missing = [review.problems.join('、'), checks].filter(Boolean).join('；');

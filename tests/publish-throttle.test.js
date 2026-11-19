@@ -97,12 +97,6 @@ test('publishResultPatch: 限流（没提交成功）的商品回到“已采集
   assert.equal(patch.publishedAt, undefined);
 });
 
-test('publishResultPatch: “已发布”页里重新发布遇到限流时标为失败，仍留在“已发布”页', () => {
-  const item = { id: '1', status: 'published', target: null, publishedAt: 5 };
-  const patch = publishResultPatch(item, { status: 'throttle', message: '京麦提交接口限流：操作过于频繁' });
-  assert.equal(patch.status, 'failed');
-});
-
 test('createThrottleRepository: 记录、读取、清除冷却记录', async () => {
   const data = {};
   const repo = createThrottleRepository({ get: async (k) => data[k], set: async (k, v) => (data[k] = v) });

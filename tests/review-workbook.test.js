@@ -156,14 +156,13 @@ test('上传：不合规的值写明哪张表第几行；导出时就填不上�
   assert.deepEqual(plan.matched, [HANGING.id]);
 });
 
-test('publishPlan：已发布、没采集、正在发布的商品不发布', () => {
+test('publishPlan：不在任务列表（已发布移出或删掉）、没采集、正在发布的商品不发布', () => {
   const items = [
-    { ...WIPES, id: 'a', status: 'published', publishedAt: 1 },
     { ...WIPES, id: 'b', product: null, status: 'failed' },
     { ...WIPES, id: 'c', status: 'publishing' },
   ];
-  const res = publishPlan({ ids: ['a', 'b', 'c', 'x'], items, drafts: new Map(), catalog, settings });
-  assert.deepEqual(res.skipped.map((s) => `${s.id}:${s.reason}`), ['a:已发布', 'b:还没采集', 'c:正在发布', 'x:已发布']);
+  const res = publishPlan({ ids: ['b', 'c', 'x'], items, drafts: new Map(), catalog, settings });
+  assert.deepEqual(res.skipped.map((s) => `${s.id}:${s.reason}`), ['b:还没采集', 'c:正在发布', 'x:已发布或已从任务列表删除']);
   const pending = publishPlan({ ids: ['d'], items: [{ ...WIPES, id: 'd', status: 'pending' }], drafts: new Map(), catalog, settings });
   assert.equal(pending.skipped[0].reason, '还没采集', '有旧数据、重新采集还没跑的不发布');
 });

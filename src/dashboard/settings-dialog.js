@@ -47,9 +47,6 @@ export async function editSettings(settings) {
     attrDefaults: h('textarea', {}, s.attrDefaultsText),
     packList: h('textarea', {}, s.packList),
     categoryMap: h('textarea', { placeholder: '休闲食品>巧克力 => 17991,17994,18132 | 巧克力' }, mapToText(s.categoryMap)),
-    pwMinDelay: num(s.priceWatch.minDelaySec, { min: 2 }),
-    pwMaxDelay: num(s.priceWatch.maxDelaySec, { min: 2 }),
-    pwMargin: num(s.priceWatch.alertMargin, { min: 0, step: '0.01' }),
     vcErp: h('input', { value: s.vc.erpCode, placeholder: '如 xudezhi.6；留空沿用页面默认值', pattern: '[A-Za-z0-9._\\-]{1,50}' }),
     vcUnit: h('input', { value: s.vc.saleUnit, placeholder: '留空按包装形式/规格推断，如 箱、提、包' }),
     vcPackSpec: num(s.vc.packSpecification, { min: 1, step: '1' }),
@@ -87,12 +84,6 @@ export async function editSettings(settings) {
           h('div', { class: 'row3' }, field('销售单位', f.vcUnit), field('包装规格', f.vcPackSpec), field('商品包装', f.vcPackType)),
           field('质保期', f.vcWarranty, '源商品主数据里没有质保时使用'),
           h('small', { class: 'muted' }, '没有条形码的商品请在「编辑 → UPC」填写（同一个条码填到所有商品会被判重码，入仓还要贴码）。')),
-        h('fieldset', {}, h('legend', {}, '已发布商品：京东今日价检查'),
-          h('div', { class: 'row3' },
-            field('检查最小间隔（秒）', f.pwMinDelay),
-            field('检查最大间隔（秒）', f.pwMaxDelay),
-            field('预警线（元）', f.pwMargin)),
-          h('small', { class: 'muted' }, '售价是发布时填的 VC 京东价。预警线：售价比京东今日价高出不到这个数也提醒，0 = 只在京东今日价高于售价时提醒。检查价格只打开商品页读价格（用采集窗口和消费者账号），比采集快；遇到频控/验证同样会暂停。')),
         field('属性默认值', f.attrDefaults, '源页面没有对应参数时使用，每行“属性名=值”'),
         field('包装清单（可选）', f.packList),
         field('类目映射', f.categoryMap, '每行：源类目路径（任意连续几级，用 > 分隔，写上级可覆盖所有子类，多条命中时用最具体的）=> 目标类目ID路径 | 名称'),
@@ -138,10 +129,5 @@ export async function editSettings(settings) {
     attrDefaultsText: f.attrDefaults.value,
     packList: f.packList.value,
     categoryMap: textToMap(f.categoryMap.value),
-    priceWatch: {
-      minDelaySec: Number(f.pwMinDelay.value),
-      maxDelaySec: Number(f.pwMaxDelay.value),
-      alertMargin: Number(f.pwMargin.value),
-    },
   });
 }

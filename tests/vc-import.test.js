@@ -128,18 +128,17 @@ test('mergeVcImport: 只覆盖表格里填了的字段，其他编辑内容保�
   assert.deepEqual(edits.vc.costPrice, 50, '不修改原对象');
 });
 
-test('planVcImport: 可更新 / 没变化 / 不在任务列表 / 已发布 / 京东价高于市场价 / 毛利为负', () => {
+test('planVcImport: 可更新 / 没变化 / 不在任务列表（含已发布移出的）/ 京东价高于市场价 / 毛利为负', () => {
   const items = [
     item('100000000001'),
     item('100000000002', { edits: { vc: { marketPrice: 89.9, jdPrice: 69.9, costPrice: 50 } } }),
-    item('100000000003', { status: 'published', publishedAt: 1 }),
     item('100000000004', { edits: { vc: { marketPrice: 50 } } }),
     item('100000000005'),
   ];
   const entries = [
     { row: 2, skuId: '100000000001', values: { marketPrice: 89.9, jdPrice: 69.9, costPrice: 50, buyer: 'a', saler: 'a' } },
     { row: 3, skuId: '100000000002', values: { jdPrice: 69.9 } },
-    { row: 4, skuId: '100000000003', values: { jdPrice: 1 } },
+    { row: 4, skuId: '100000000003', values: { jdPrice: 1 } }, // 发布成功后移出了任务列表
     { row: 5, skuId: '100000000004', values: { jdPrice: 60 } },
     { row: 6, skuId: '100000000005', values: { jdPrice: 50, costPrice: 55 } },
     { row: 7, skuId: '100000000099', values: { jdPrice: 1 } },
@@ -150,8 +149,7 @@ test('planVcImport: 可更新 / 没变化 / 不在任务列表 / 已发布 / 京
   assert.deepEqual(plan.updates[0].changes[1], { label: '京东价', from: '', to: '69.9' });
   assert.equal(plan.updates[0].title, '商品100000000001');
   assert.deepEqual(plan.unchanged.map((e) => e.row), [3]);
-  assert.deepEqual(plan.archived.map((e) => e.row), [4]);
-  assert.deepEqual(plan.missing.map((e) => e.row), [7]);
+  assert.deepEqual(plan.missing.map((e) => e.row), [4, 7]);
   assert.equal(plan.errors.length, 1);
   assert.match(plan.errors[0].message, /京东价 ¥60 高于市场价 ¥50/);
   assert.match(plan.warnings[0].message, /毛利为负/);
@@ -250,12 +248,11 @@ test('planVcImport: 只导入 ERP 的行不因为原来的价格冲突被拦；�
   assert.match(price.errors[0].message, /京东价 ¥61 高于市场价 ¥50/);
 });
 
-test('importEdit: 保存时按最新数据再检查——预览后已发布、合并后京东价高于市场价的不改', async () => {
+test('importEdit: 保存时按最新数据再检查——合并后京东价高于市场价的不改', async () => {
   const { importEdit } = await import('../src/shared/vc-import.js');
   const edit = importEdit({ jdPrice: 69.9 });
   const edits = { vc: { marketPrice: 89.9 } };
-  assert.deepEqual(edit(edits, item('1')), { vc: { marketPrice: 89.9, jdPrice: 69.9 } });
-  assert.equal(edit(edits, item('1', { status: 'published', publishedAt: 1 })), edits);
+  assert.deepEqual(edit(edits), { vc: { marketPrice: 89.9, jdPrice: 69.9 } });
   const stale = { vc: { marketPrice: 50 } };
-  assert.equal(edit(stale, item('1')), stale, '预览之后市场价被改低了');
+  assert.equal(edit(stale), stale, '预览之后市场价被改低了');
 });

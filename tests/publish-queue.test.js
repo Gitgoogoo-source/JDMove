@@ -60,12 +60,35 @@ test('发布队列：限流的商品回到“已采集”留在任务列表，�
   assert.match(rec.message, /限流/);
 });
 
-test('发布队列：之后保存成功时清除冷却记录，并记下 VC 京东价', async () => {
-  const { fake, runner } = setup({ status: 'published', message: '商品已发布', price: 69.9 }, { publishThrottle: { at: 1, until: 2, message: '京麦提交接口限流' } });
+test('发布队列：之后保存成功时清除冷却记录', async () => {
+  const { fake, runner } = setup({ status: 'published', message: '商品已发布', skuIds: ['100200300401'] }, { publishThrottle: { at: 1, until: 2, message: '京麦提交接口限流' } });
   await runner.publish(['1']);
-  assert.equal(fake.localStore.items[0].status, 'published');
-  assert.equal(fake.localStore.items[0].salePrice, 69.9);
   assert.equal(fake.localStore.publishThrottle, null);
+});
+
+test('发布队列：发布成功的商品记进上架总表（每个 SKU 一条，带协议价和参考链接），移出任务列表并记进已发布记录', async () => {
+  const listing = { title: '维达抽纸 3层', brandTitle: '维达', prices: { marketPrice: 89.9, jdPrice: 69.9, costPrice: 50 }, upc: '6901236326411' };
+  const { fake, runner, logs } = setup({ status: 'published', message: '商品已发布', skuIds: ['100200300401', '100200300402'], listing });
+  fake.localStore.items = [{ ...task('1'), edits: { vc: { agreementPrice: 55.5 } } }, task('2')];
+  await runner.publish(['1']);
+  assert.deepEqual(fake.localStore.items.map((i) => i.id), ['2'], '发布成功的移出任务列表');
+  assert.ok('1' in fake.localStore.publishedSkus);
+  const records = fake.localStore.masterRecords;
+  assert.deepEqual(records.map((r) => r.sku), ['100200300401', '100200300402']);
+  assert.equal(records[0].name, '维达抽纸 3层');
+  assert.equal(records[0].agreementPrice, 55.5);
+  assert.equal(records[0].jdPrice, 69.9);
+  assert.equal(records[0].upc, '6901236326411');
+  assert.equal(records[0].refUrl, 'https://item.jd.com/1.html');
+  assert.ok(records.every((r) => !r.writtenAt), '任务结束后才写文件');
+  assert.ok(logs.some((l) => /已记入上架总表/.test(l)), logs.join('\n'));
+});
+
+test('发布队列：没发布成功的商品留在任务列表，不记进上架总表', async () => {
+  const { fake, runner } = setup({ status: 'failed', message: '提交未成功' });
+  await runner.publish(['1']);
+  assert.equal(fake.localStore.items[0].status, 'failed');
+  assert.equal(fake.localStore.masterRecords, undefined);
 });
 
 test('发布队列：每轮结束后调用 onRunEnd，带上模式、商品和结果统计', async () => {

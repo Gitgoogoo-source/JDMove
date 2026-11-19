@@ -25,8 +25,6 @@ export const DEFAULT_SETTINGS = Object.freeze({
     // 保存接口限流（操作过于频繁）后建议等待的分钟数：冷却期内点“发布选中”会先确认；0 = 不提醒
     throttleCooldownMin: 60,
   },
-  // 已发布商品的京东今日价检查：间隔、预警线（售价比京东今日价高出不到这个数也提醒）
-  priceWatch: { minDelaySec: 3, maxDelaySec: 6, alertMargin: 0 },
   // VC 自营发布：采购员/销售员共用的 ERP（留空沿用页面默认值）、销售单位（留空按包装形式/规格推断）、
   // 包装规格、商品包装、质保期（源商品没有时用）
   vc: { erpCode: '', saleUnit: '', packSpecification: 1, packType: '普通商品', warranty: '无质保' },
@@ -55,7 +53,8 @@ function deepMerge(base, patch) {
 const vcAction = (action) => (Object.hasOwn(PUBLISH_ACTIONS, action) ? action : DEFAULT_PUBLISH_ACTION);
 
 export function mergeSettings(saved) {
-  const merged = deepMerge(DEFAULT_SETTINGS, saved ?? {});
+  // priceWatch：旧版本“检查京东今日价”的设置（功能已删除），存过的也丢掉
+  const { priceWatch: _dropped, ...merged } = deepMerge(DEFAULT_SETTINGS, saved ?? {});
   return { ...merged, publish: { ...merged.publish, action: vcAction(merged.publish.action) } };
 }
 
@@ -80,7 +79,6 @@ export function validateSettings(input) {
     errors.push('最大间隔不能小于最小间隔');
     maxDelay = minDelay;
   }
-  const priceWatch = validatePriceWatch(v.priceWatch, num, errors);
 
   const value = {
     ...v,
@@ -108,7 +106,6 @@ export function validateSettings(input) {
       fillSkuAttrs: Boolean(v.publish.fillSkuAttrs),
       throttleCooldownMin: num(v.publish.throttleCooldownMin, d.publish.throttleCooldownMin, { min: 0, max: 1440 }, '限流冷却时间'),
     },
-    priceWatch,
     vc: validateVc(v.vc, num, errors),
     categoryMap: Array.isArray(v.categoryMap) ? v.categoryMap : [],
   };
@@ -128,21 +125,6 @@ function validateVc(vc, num, errors) {
     packSpecification: Math.floor(num(vc.packSpecification, d.packSpecification, { min: 1, max: 100000 }, '包装规格')),
     packType,
     warranty: String(vc.warranty ?? '').trim() || d.warranty,
-  };
-}
-
-function validatePriceWatch(pw, num, errors) {
-  const d = DEFAULT_SETTINGS.priceWatch;
-  const minDelay = num(pw.minDelaySec, d.minDelaySec, { min: 2, max: 600 }, '价格检查最小间隔');
-  let maxDelay = num(pw.maxDelaySec, d.maxDelaySec, { min: 2, max: 1200 }, '价格检查最大间隔');
-  if (maxDelay < minDelay) {
-    errors.push('价格检查的最大间隔不能小于最小间隔');
-    maxDelay = minDelay;
-  }
-  return {
-    minDelaySec: minDelay,
-    maxDelaySec: maxDelay,
-    alertMargin: num(pw.alertMargin, d.alertMargin, { min: 0, max: 100000 }, '价格预警线'),
   };
 }
 

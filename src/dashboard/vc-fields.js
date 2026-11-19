@@ -23,6 +23,8 @@ export function vcFields(item, vcSettings = {}) {
   const own = item.edits?.vc ?? {};
   const src = item.product?.vc ?? {};
   const prices = Object.fromEntries(Object.entries(VC_PRICE_LABELS).map(([k]) => [k, numberInput(own[k], '必填')]));
+  // 协议价不填进发布页，只记进上架总表
+  const agreementPrice = numberInput(own.agreementPrice, '选填', '0.0001');
   const erpPlaceholder = vcSettings.erpCode ? `留空用设置里的 ${vcSettings.erpCode}` : '留空沿用页面默认值';
   const ownCodes = ownErp(own);
   const erp = Object.fromEntries(Object.keys(ERP_LABELS).map((k) => [k, h('input', { value: ownCodes[k], placeholder: erpPlaceholder, pattern: ERP_PATTERN })]));
@@ -48,6 +50,7 @@ export function vcFields(item, vcSettings = {}) {
     {},
     h('legend', {}, 'VC 自营（这几项采集不到，需要手动填写；商品多时可用“表格导入价格/ERP”批量填写）'),
     h('div', { class: 'row3' }, ...Object.entries(VC_PRICE_LABELS).map(([k, label]) => field(`${label}（元）`, prices[k]))),
+    h('div', { class: 'row2' }, field('协议价（元）', agreementPrice, '不填进发布页；发布成功后写进上架总表（上架表里有“协议价”列时自动带过来）'), h('div')),
     h('div', { class: 'row2' }, field(ERP_LABELS.buyer, erp.buyer, '发布时在页面上输入 ERP 并选中对应的人'), field(ERP_LABELS.saler, erp.saler, '是同一个人时两个填一样的')),
     h('div', { class: 'row2' }, field('型号', model, '留空用采集到的型号'), field('品牌ID', brandId, '留空用采集到的品牌ID，必须是账号已授权的品牌')),
     h('div', { class: 'row3' }, field('包装长(mm)', dims.lengthMm), field('包装宽(mm)', dims.widthMm), field('包装高(mm)', dims.heightMm)),
@@ -57,6 +60,7 @@ export function vcFields(item, vcSettings = {}) {
   const read = () => {
     const values = {
       ...Object.fromEntries(Object.entries(prices).map(([k, input]) => [k, positive(input)])),
+      agreementPrice: positive(agreementPrice),
       // 两个相同时存成 erpCode，和以前的数据一样
       ...withErp({}, { buyer: text(erp.buyer), saler: text(erp.saler) }),
       model: text(model),

@@ -10,13 +10,11 @@ import {
   publishedSkuSet,
   planNewSkus,
   EDITED_NOTE,
-  RETURNED_NOTE,
   canRecollect,
   pickRecollect,
   collectFailurePatch,
   INTERRUPTED_NOTE,
 } from '../src/shared/store.js';
-import { isArchived } from '../src/shared/brand-folders.js';
 
 function memoryStorage(initial = {}) {
   let data = structuredClone(initial);
@@ -72,18 +70,16 @@ test('mergeSettings: 旧版本的 POP 设置（售价倍率、库存、发布平
   });
   assert.equal('price' in merged || 'stock' in merged, false);
   assert.deepEqual(['platform', 'defaultUpc', 'actionVersion'].filter((k) => k in merged.publish), []);
-  assert.deepEqual(merged.priceWatch, { minDelaySec: 3, maxDelaySec: 6, alertMargin: 2 });
+  assert.equal('priceWatch' in merged, false);
 });
 
 test('validateSettings accepts defaults', () => {
   assert.equal(validateSettings(DEFAULT_SETTINGS).ok, true);
 });
 
-test('validateSettings: price watch clamps delays and the alert margin', () => {
-  const { value, errors } = validateSettings(mergeSettings({ priceWatch: { minDelaySec: 10, maxDelaySec: 4, alertMargin: -2 } }));
-  assert.equal(value.priceWatch.maxDelaySec, 10);
-  assert.equal(value.priceWatch.alertMargin, DEFAULT_SETTINGS.priceWatch.alertMargin);
-  assert.equal(errors.length, 2);
+test('mergeSettings: 旧版本“检查京东今日价”的设置读取时丢掉', () => {
+  assert.equal('priceWatch' in mergeSettings({ priceWatch: { minDelaySec: 10 } }), false);
+  assert.equal('priceWatch' in validateSettings({ priceWatch: { minDelaySec: 10 } }).value, false);
 });
 
 test('parseAttrDefaults parses key=value lines', () => {
@@ -187,11 +183,11 @@ test('saveEdits uses the stored status, not a stale snapshot', async () => {
 test('saveEdits never flips status and does not stack the edited note', async () => {
   const repo = createItemRepository(memoryStorage());
   await repo.saveCollected({ skuId: '100001', title: 'a' });
-  await repo.update('100001', { status: 'published', message: '完成' });
+  await repo.update('100001', { status: 'need_action', message: '停在发布页' });
   await repo.saveEdits('100001', { title: 'x' });
   const again = await repo.saveEdits('100001', { title: 'y' });
-  assert.equal(again.status, 'published');
-  assert.equal(again.message, `${EDITED_NOTE}｜上次结果：完成`);
+  assert.equal(again.status, 'need_action');
+  assert.equal(again.message, `${EDITED_NOTE}｜上次结果：停在发布页`);
 
   await repo.saveCollected({ skuId: '100002', title: 'b' });
   const fresh = await repo.saveEdits('100002', { price: 9 });
@@ -207,40 +203,10 @@ test('saveEdits never flips status and does not stack the edited note', async ()
   assert.equal(await repo.saveEdits('nope', {}), null);
 });
 
-test('publishResultPatch stamps publishedAt only on a successful publish', () => {
+test('publishResultPatch: 没发布成功时的状态——停在发布页记作需处理，失败照记，不带任何店铺字段', () => {
   const item = { ...newItem('100001', 1), target: { id: 't0' } };
-  assert.deepEqual(publishResultPatch(item, { status: 'published', message: '完成', target: { id: 't1' } }, 50), {
-    status: 'published',
-    message: '完成',
-    target: { id: 't1' },
-    publishedAt: 50,
-    shopSkuIds: [],
-  });
-  assert.deepEqual(publishResultPatch(item, { status: 'filled', message: '已填写完成' }, 50), {
-    status: 'need_action',
-    message: '已填写完成',
-    target: { id: 't0' },
-  });
-  // 已发布过的商品重新发布失败：保留上次发布成功的时间，继续留在已发布页
-  const archived = { ...item, publishedAt: 7 };
-  const failed = publishResultPatch(archived, { status: 'failed', message: '提交未成功' }, 50);
-  assert.equal(failed.status, 'failed');
-  assert.equal('publishedAt' in failed, false);
-});
-
-test('publishResultPatch records the VC 京东价 of a successful publish', () => {
-  const item = { ...newItem('100001', 1), salePrice: 9 };
-  assert.equal(publishResultPatch(item, { status: 'published', message: '完成', price: 59.9 }, 50).salePrice, 59.9);
-  const failed = publishResultPatch(item, { status: 'failed', message: 'x', price: 59.9 }, 50);
-  assert.equal('salePrice' in failed, false);
-});
-
-test('publishResultPatch: 记下发布接口带回的店铺 SKU（去重、只留数字）；重新发布没拿到 SKU 时清掉旧的', () => {
-  const item = { ...newItem('100001', 1), shopSkuIds: ['100200300999'] };
-  const res = { status: 'published', message: '完成', skuIds: ['100200300401', 100200300402, '100200300401', 'abc', ''] };
-  assert.deepEqual(publishResultPatch(item, res, 50).shopSkuIds, ['100200300401', '100200300402']);
-  assert.deepEqual(publishResultPatch(item, { status: 'published', message: '完成' }, 50).shopSkuIds, []);
-  assert.equal('shopSkuIds' in publishResultPatch(item, { status: 'failed', message: 'x', skuIds: ['100200300401'] }, 50), false);
+  assert.deepEqual(publishResultPatch(item, { status: 'filled', message: '已填写完成' }), { status: 'need_action', message: '已填写完成', target: { id: 't0' } });
+  assert.deepEqual(publishResultPatch(item, { status: 'failed', message: '提交未成功', target: { id: 't1' } }), { status: 'failed', message: '提交未成功', target: { id: 't1' } });
 });
 
 test('editsEqual ignores key order, undefined values and empty overrides', () => {
@@ -250,38 +216,32 @@ test('editsEqual ignores key order, undefined values and empty overrides', () =>
   assert.equal(editsEqual(undefined, { attrOverrides: { 产地: '中国' } }), false);
 });
 
-test('addSkus does not bring a published item back to the task list', async () => {
-  const repo = createItemRepository(memoryStorage());
-  await repo.saveCollected({ skuId: '100001', title: 'a' });
-  await repo.update('100001', { status: 'published', publishedAt: 5 });
-  assert.deepEqual((await repo.addSkus(['100001', '100002'])).map((i) => i.id), ['100002']);
-  assert.equal((await repo.findById('100001')).status, 'published');
-});
-
-test('addTasks skips published SKUs and reports what was skipped', async () => {
-  const repo = createItemRepository(memoryStorage());
-  await repo.saveCollected({ skuId: '100001', title: 'A' });
-  await repo.update('100001', { status: 'published', publishedAt: 5 });
-  await repo.addSkus(['100004']);
-  const res = await repo.addTasks(['100001', '100002', '100003', '100004', '100002']);
-  assert.deepEqual(res.added.map((i) => i.id), ['100002', '100003']);
-  assert.deepEqual(res.published, ['100001']);
-  assert.deepEqual(res.existing, ['100004']);
-});
-
-test('deleted published items are remembered and still skipped when re-added', async () => {
+test('finishPublished：发布成功的商品移出任务列表，SKU 和一起发布的规格 SKU 记下，重新添加时跳过', async () => {
   const storage = memoryStorage();
   const repo = createItemRepository(storage);
   await repo.saveCollected({ skuId: '100001', title: 'A', variants: [{ skuId: '100001' }, { skuId: '100009' }] });
-  await repo.update('100001', { status: 'published', publishedAt: 5 });
   await repo.addSkus(['100002']);
-  await repo.remove(['100001', '100002']);
-  assert.deepEqual(await repo.findAll(), []);
+  const done = await repo.finishPublished('100001');
+  assert.equal(done.id, '100001');
+  assert.deepEqual((await repo.findAll()).map((i) => i.id), ['100002']);
   assert.deepEqual(Object.keys(storage.dump().publishedSkus).sort(), ['100001', '100009']);
-
+  assert.deepEqual([...(await repo.publishedSkus())].sort(), ['100001', '100009']);
   const res = await repo.addTasks(['100001', '100009', '100002', '100003']);
-  assert.deepEqual(res.added.map((i) => i.id), ['100002', '100003']);
+  assert.deepEqual(res.added.map((i) => i.id), ['100003']);
   assert.deepEqual(res.published, ['100001', '100009']);
+  assert.deepEqual(res.existing, ['100002']);
+  assert.equal(await repo.finishPublished('nope'), null);
+});
+
+test('dropLegacyPublished：删掉旧版本“已发布”页里的条目（状态已发布或有发布时间），其他不动', async () => {
+  const storage = memoryStorage();
+  const repo = createItemRepository(storage);
+  await repo.addSkus(['100001', '100002', '100003']);
+  await repo.update('100001', { status: 'published', publishedAt: 5 });
+  await repo.update('100002', { status: 'failed', publishedAt: 9 });
+  assert.deepEqual((await repo.dropLegacyPublished()).sort(), ['100001', '100002']);
+  assert.deepEqual((await repo.findAll()).map((i) => i.id), ['100003']);
+  assert.deepEqual(await repo.dropLegacyPublished(), []);
 });
 
 test('addTasks re-adds deleted published SKUs when includePublished is set', async () => {
@@ -302,19 +262,15 @@ test('removing unpublished items does not mark them as published', async () => {
   assert.deepEqual((await repo.addSkus(['100001'])).map((i) => i.id), ['100001']);
 });
 
-test('publishedSkuSet merges registry with archived items and their variants', () => {
-  const items = [
-    { id: '1', status: 'published', product: { variants: [{ skuId: '2' }] } },
-    { id: '3', status: 'failed', publishedAt: 9, product: null },
-    { id: '4', status: 'collected', product: { variants: [{ skuId: '5' }] } },
-  ];
-  assert.deepEqual([...publishedSkuSet(items, { 7: 1 })].sort(), ['1', '2', '3', '7']);
+test('publishedSkuSet：已发布记录表里的 SKU', () => {
+  assert.deepEqual([...publishedSkuSet({ 7: 1, 8: 2 })].sort(), ['7', '8']);
+  assert.deepEqual([...publishedSkuSet(undefined)], []);
 });
 
-test('planNewSkus keeps archived items in the archive even when includePublished is set', () => {
-  const items = [{ id: '1', status: 'published' }];
-  const plan = planNewSkus(['1', '2'], items, new Set(['1']), { includePublished: true });
-  assert.deepEqual(plan, { fresh: ['2'], published: [], existing: ['1'] });
+test('planNewSkus: includePublished 时已发布过的也重新加入', () => {
+  const plan = planNewSkus(['1', '2', '3'], [{ id: '3' }], new Set(['1']), { includePublished: true });
+  assert.deepEqual(plan, { fresh: ['1', '2'], published: [], existing: ['3'] });
+  assert.deepEqual(planNewSkus(['1', '2'], [], new Set(['1'])), { fresh: ['2'], published: ['1'], existing: [] });
 });
 
 test('saveCollected writes to the task SKU even if the page reports another SKU', async () => {
@@ -323,74 +279,17 @@ test('saveCollected writes to the task SKU even if the page reports another SKU'
   await repo.saveCollected({ skuId: '100099', title: 'A' }, '100001');
   const all = await repo.findAll();
   assert.deepEqual(all.map((i) => [i.id, i.status]), [['100001', 'collected']]);
-  await repo.update('100001', { status: 'published', publishedAt: 1 });
-  assert.deepEqual([...publishedSkuSet(await repo.findAll())].sort(), ['100001', '100099']);
+  await repo.finishPublished('100001');
+  assert.deepEqual([...(await repo.publishedSkus())].sort(), ['100001', '100099']);
 });
 
-/** 一个发布成功过的商品：带编辑、店铺售价/编号、价格检查记录 */
-async function publishedRepo() {
-  const storage = memoryStorage();
-  const repo = createItemRepository(storage);
-  await repo.saveCollected({ skuId: '100001', title: 'a', variants: [{ skuId: '100009' }] });
-  await repo.saveEdits('100001', { price: 30 });
-  await repo.update('100001', {
-    status: 'published',
-    message: '保存成功',
-    publishedAt: 1000,
-    salePrice: 30,
-    shopSkuIds: ['100200300401'],
-    shopWareId: '10088812345',
-    priceCheck: { price: 35, checkedAt: 2000 },
-    reprice: { status: 'ok' },
-    target: { name: '巧克力', cateList: [1, 2, 3] },
-  });
-  return { storage, repo };
-}
-
-test('returnToTasks: 已发布商品退回任务列表的“已采集”，保留商品数据和编辑，清掉店铺记录', async () => {
-  const { repo } = await publishedRepo();
-  const res = await repo.returnToTasks(['100001']);
-  assert.deepEqual(res, { returned: ['100001'], skipped: [] });
-  const item = await repo.findById('100001');
-  assert.equal(item.status, 'collected');
-  assert.equal(item.message, RETURNED_NOTE);
-  assert.equal(isArchived(item), false, '应回到任务列表');
-  for (const key of ['publishedAt', 'salePrice', 'shopSkuIds', 'shopWareId', 'priceCheck', 'reprice']) assert.ok(!(key in item), `应清掉 ${key}`);
-  assert.equal(item.product.title, 'a');
-  assert.deepEqual(item.edits, { price: 30 });
-  assert.equal(item.target.name, '巧克力');
-});
-
-test('returnToTasks: 只处理已发布的商品，任务列表里的和不存在的跳过', async () => {
-  const { repo } = await publishedRepo();
-  await repo.saveCollected({ skuId: '100002', title: 'b' });
-  const before = await repo.findById('100002');
-  const res = await repo.returnToTasks(['100002', 'nope']);
-  assert.deepEqual(res, { returned: [], skipped: ['100002', 'nope'] });
-  assert.deepEqual(await repo.findById('100002'), before);
-});
-
-test('returnToTasks: 退回后仍记得发布过，删除任务再添加同一商品时照样跳过', async () => {
-  const { storage, repo } = await publishedRepo();
-  await repo.returnToTasks(['100001']);
-  assert.ok('100001' in storage.dump().publishedSkus);
-  assert.ok('100009' in storage.dump().publishedSkus, '一起发布的规格 SKU 也记下');
-  const inList = await repo.addTasks(['100001']);
-  assert.deepEqual(inList.added, [], '不会重复加入');
-  assert.equal((await repo.findAll()).length, 1);
-  await repo.remove(['100001']);
-  const again = await repo.addTasks(['100001']);
-  assert.deepEqual(again.published, ['100001']);
-});
-
-test('canRecollect: 任务列表里已采集过的商品可以重新采集，已发布的和采集中的不行', () => {
+test('canRecollect: 任务列表里已采集过的商品可以重新采集，采集中/发布中的不行', () => {
   const base = { ...newItem('1'), product: { title: 'a' } };
   assert.equal(canRecollect({ ...base, status: 'collected' }), true);
   assert.equal(canRecollect({ ...base, status: 'need_action' }), true);
   assert.equal(canRecollect({ ...base, status: 'failed' }), true);
   assert.equal(canRecollect({ ...base, status: 'collecting' }), false);
   assert.equal(canRecollect({ ...base, status: 'publishing' }), false);
-  assert.equal(canRecollect({ ...base, status: 'published', publishedAt: 1 }), false);
   assert.equal(canRecollect(newItem('2')), false, '没采集过的用“采集”');
 });
 
@@ -399,7 +298,7 @@ test('pickRecollect: 只取勾选里可以重新采集的商品，其余计入�
   const items = [
     collected('1'),
     collected('2', { status: 'need_action' }),
-    collected('3', { status: 'published', publishedAt: 1 }),
+    collected('3', { status: 'publishing' }),
     newItem('4'),
     collected('5'),
   ];

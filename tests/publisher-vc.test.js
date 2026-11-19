@@ -152,13 +152,14 @@ test('publishVcItem: 没填 ERP 时不改采购员/销售员，沿用页面默�
   assert.ok(lines.some((l) => /ERP 没有填写/.test(l)));
 });
 
-test('publishVcItem: 旧设置里的“提交并上架”也点“发布商品”，成功后记下京东价', async () => {
-  const page = vcPage();
+test('publishVcItem: 旧设置里的“提交并上架”也点“发布商品”，成功后带回填进页面的标题、品牌名、价格、条形码（写上架总表用）', async () => {
+  const page = vcPage({ vcPayloadCheck: { ok: true, problems: [], floats: [], brandTitle: '维达' }, runAction: { ok: true, messages: ['商品已发布'], errors: [], skuIds: ['100200300401'] } });
   installFakeChrome({ backend: page.backend });
   const lines = [];
-  const res = await publishVcItem(vcItem(), settings({ action: 'submit_on' }), (l) => lines.push(l), { imageMakers: makers });
+  const item = vcItem({ title: '棉韧抽纸 3层100抽*36包', vc: { ...PRICES, erpCode: 'xudezhi.6' } });
+  const res = await publishVcItem(item, settings({ action: 'submit_on' }), (l) => lines.push(l), { imageMakers: makers });
   assert.equal(res.status, 'published', res.message);
-  assert.equal(res.price, 69.9);
+  assert.deepEqual(res.listing, { title: '棉韧抽纸 3层100抽*36包', brandTitle: '维达', prices: PRICES, upc: '6901236326411' });
   assert.deepEqual(page.calls.find((c) => c.method === 'runAction').args, ['vc_publish']);
   assert.ok(lines.some((l) => /已发布/.test(l)));
 });
@@ -208,15 +209,36 @@ test('publishVcItem: 发布成功时带回京东分配的 SKU 并写进日志', 
   assert.ok(lines.some((l) => /京东分配的 SKU：100200300401/.test(l)));
 });
 
-test('publishVcItem: 发布 → 点“发布商品”；接口没返回 SKU 时仍算发布成功并提醒', async () => {
+test('publishVcItem: 发布 → 点“发布商品”；接口没返回 SKU、商品审核列表里也找不到时仍算发布成功并提醒', async () => {
   const page = vcPage();
-  installFakeChrome({ backend: page.backend });
+  const fake = installFakeChrome({ backend: page.backend, page: () => [] });
   const lines = [];
   const res = await publishVcItem(vcItem(), settings({ action: 'publish' }), (l) => lines.push(l), { imageMakers: makers });
   assert.deepEqual(page.calls.find((c) => c.method === 'runAction').args, ['vc_publish']);
   assert.equal(res.status, 'published');
   assert.deepEqual(res.skuIds, []);
   assert.ok(lines.some((l) => /没拿到京东分配的 SKU/.test(l)));
+  assert.ok(lines.some((l) => /商品审核列表里没找到/.test(l)), lines.join('\n'));
+  assert.ok(fake.calls.some((c) => c.op === 'tabs.update' && /activeTab=ApplyWare/.test(c.url)), '打开了商品审核列表');
+});
+
+test('publishVcItem: 接口没返回 SKU 时到商品审核列表按名称和提交时间找回（名称=品牌名+标题）', async () => {
+  const page = vcPage({ vcPayloadCheck: { ok: true, problems: [], floats: [], brandTitle: '维达' } });
+  const now = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  const stamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+  const rows = [
+    `维达棉韧抽纸 3层100抽*36包\n商品编码: 100448634314\n提交: ${stamp}\n审核中`,
+    '维达棉韧抽纸 3层100抽*36包\n商品编码: 100400000001\n提交: 2026-11-09 17:21:58\n审核通过',
+    `别的商品\n商品编码: 100400000002\n提交: ${stamp}`,
+  ];
+  installFakeChrome({ backend: page.backend, page: () => rows });
+  const lines = [];
+  const item = vcItem({ title: '棉韧抽纸 3层100抽*36包', vc: { ...PRICES, erpCode: 'xudezhi.6' } });
+  const res = await publishVcItem(item, settings({ action: 'publish' }), (l) => lines.push(l), { imageMakers: makers });
+  assert.equal(res.status, 'published');
+  assert.deepEqual(res.skuIds, ['100448634314']);
+  assert.ok(lines.some((l) => /在商品审核列表里找到了 SKU 100448634314/.test(l)));
 });
 
 test('publishVcItem: 页面本地校验没通过时不提交，保留页面并写出原因', async () => {

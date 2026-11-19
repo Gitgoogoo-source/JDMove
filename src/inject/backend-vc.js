@@ -155,8 +155,8 @@
 
   /**
    * @param {{fields: {field: string, label: string}[]}} input 插件写过的字段
-   * @returns {Promise<{ok: boolean, problems: string[], floats: string[], error?: string}>}
-   *   problems：插件写过、但提交数据里变成带小数数字的字段；floats：提交数据里所有带小数的数字（只提醒）
+   * @returns {Promise<{ok: boolean, problems: string[], floats: string[], brandTitle?: string, error?: string}>}
+   *   brandTitle：标题前面的品牌名；problems：插件写过、但提交数据里变成带小数数字的字段；floats：提交数据里所有带小数的数字（只提醒）
    */
   async function vcPayloadCheck({ fields = [] } = {}) {
     // setValue 之后表单数据要到下一轮才同步进 convertData（实测立刻调用读到的全是 null）
@@ -174,7 +174,17 @@
       .map(({ field, label }) => [label, getPath(data, field)])
       .filter(([, v]) => typeof v === 'number' && !Number.isInteger(v))
       .map(([label, v]) => `${label}=${v}（数字）`);
-    return { ok: problems.length === 0, problems, floats: floatPaths(data) };
+    return { ok: problems.length === 0, problems, floats: floatPaths(data), brandTitle: titleBrandName() };
+  }
+
+  /** 标题前面的品牌名（发布后商品审核列表里显示“品牌名+标题”，上架总表的商品上架名称按这个拼） */
+  function titleBrandName() {
+    try {
+      const value = B.getFApi().getValue('productTitle');
+      return (value && typeof value.titleBrandName === 'string' && value.titleBrandName.trim()) || '';
+    } catch {
+      return '';
+    }
   }
 
   // ---------- 采购员 / 销售员 ERP ----------

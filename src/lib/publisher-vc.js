@@ -2,13 +2,16 @@
 import { buildVcPublishPlan, vcPreflight, vcTarget, vcActionLabel } from '../shared/vc-plan.js';
 import { descriptionHtml } from '../shared/publish-plan.js';
 import { buildVcPublishUrl, imgzoneUrl } from '../shared/url-utils.js';
-import { callVcBackend, openWorkTab, navigateTab, closeTab, sleep, waitForTabUrl } from './chrome-env.js';
+import { callVcBackend, openWorkTab, navigateTab, closeTab, sleep, waitForTabUrl, runInPage } from './chrome-env.js';
 import { landedPageKind } from './category-search.js';
 import { forgetLeaf, resolveLeafTarget, sharedLeafCache } from './vc-leaf.js';
 import { startImagePrep } from './image-prep.js';
 import { createStopwatch } from '../shared/stopwatch.js';
 import { detectSaveThrottle } from '../shared/publish-throttle.js';
 import { loadVcTemplate } from './vc-templates.js';
+import { APPLY_LIST_URL, parseApplyRows, pickPublishedSku } from '../shared/apply-list.js';
+import { listingBrandTitle, listingName } from '../shared/master-sheet.js';
+import { itemBrand } from '../shared/brand-folders.js';
 
 const LOGIN_MSG = '商家后台需要重新登录';
 const NOT_OPENED_MSG = 'VC 发布页没有打开：品牌可能没有授权，或类目不在账号的产品线里（可在「编辑」中指定类目ID和品牌ID）';
@@ -18,6 +21,9 @@ const DETAIL_CHUNK = 6;
 // 发布成功后页面 100ms 内整页跳走（发布页代码核实）：VC 跳到“商品管理 → 申请中”（ware/wareList?…activeTab=ApplyWare），
 // 部分发布类型跳到 ware/publish-success?wareId=…；脚本可能来不及返回结果
 const PUBLISHED_LANDING_RE = /^https:\/\/[^/?#]+\/ware\/(?:wareList\?[^#]*activeTab=ApplyWare|publish-success\?)/;
+const APPLY_LIST_RE = /\/ware\/wareList\?[^#]*activeTab=ApplyWare/;
+// 商品审核列表加载出商品行最多等这么久
+const APPLY_LIST_WAIT_MS = 10000;
 
 async function waitVcReady(tabId, timeoutMs = 40000) {
   const end = Date.now() + timeoutMs;
@@ -183,7 +189,39 @@ async function checkPayload(tabId, plan, log) {
   if (res && res.ok === false && res.problems?.length) {
     return stop('failed', `这些字段在提交数据里是带小数的数字，保存会被拒收（[455]/[456]）：${res.problems.join('、')}`);
   }
-  return {};
+  return { brandTitle: res?.brandTitle || '' };
+}
+
+/** 商品审核列表每一行的文字（页面里执行）：以“商品编码: 数字”所在的格子为准，往上找到带“提交:”时间的那一行 */
+async function readApplyRowsInPage(waitMs) {
+  const end = Date.now() + waitMs;
+  for (;;) {
+    const cells = [...document.querySelectorAll('body *')].filter((e) => e.children.length === 0 && /商品编码\s*[:：]\s*\d{6,}/.test(e.textContent || ''));
+    const rows = cells.map((cell) => {
+      for (let n = cell, i = 0; n && i < 10; i += 1, n = n.parentElement) if (/提交\s*[:：]/.test(n.innerText || '')) return n.innerText;
+      return (cell.parentElement || cell).innerText || '';
+    });
+    if (rows.length || Date.now() > end) return rows;
+    await new Promise((r) => setTimeout(r, 500));
+  }
+}
+
+/**
+ * 发布接口的返回没抓到 SKU 时：到“商品管理 → 商品审核”列表按商品名称和提交时间找回商品编码（单 SKU 商品就是 SKU）
+ * @returns {Promise<string>} 找不到时为 ''
+ */
+async function skuFromApplyList(tabId, name, since, log) {
+  try {
+    const url = await waitForTabUrl(tabId, APPLY_LIST_RE, 0);
+    if (!url) await navigateTab(tabId, APPLY_LIST_URL);
+    const texts = await runInPage(tabId, [], readApplyRowsInPage, [APPLY_LIST_WAIT_MS]);
+    const sku = pickPublishedSku(parseApplyRows(texts), { name, since });
+    log(sku ? `在商品审核列表里找到了 SKU ${sku}（按商品名称和提交时间）` : '商品审核列表里没找到这个商品，上架总表里商品编码sku 留空，请到 VC 后台核对');
+    return sku;
+  } catch (e) {
+    log(`到商品审核列表找 SKU 失败：${e.message}`);
+    return '';
+  }
 }
 
 /** 点“发布商品”；页面整页跳走、脚本来不及返回时按落地地址判断（这时拿不到 SKU） */
@@ -206,6 +244,9 @@ async function submitVc(tabId, landTimeoutMs) {
   return result;
 }
 
+/** 发布时实际填进页面的内容：写进上架总表（标题、品牌名、三个价格、条形码） */
+const listingOf = (plan, brandTitle) => ({ title: plan.title, brandTitle, prices: plan.prices, upc: plan.sku.upc || '' });
+
 function submitOutcome(result, plan, target, tabId, log) {
   const throttle = !result?.ok && detectSaveThrottle({ responses: result?.saveResponses, messages: result?.messages, confirmText: result?.confirmText });
   if (throttle) {
@@ -218,12 +259,11 @@ function submitOutcome(result, plan, target, tabId, log) {
     return { status: 'failed', message: detail || '提交未成功', target, tabId };
   }
   const skuIds = result.skuIds ?? [];
-  log(skuIds.length ? `已发布，京东分配的 SKU：${skuIds.join('、')}` : '已发布，但没拿到京东分配的 SKU，请到 VC 后台商品列表查看');
+  log(skuIds.length ? `已发布，京东分配的 SKU：${skuIds.join('、')}` : '已发布，但发布接口的返回里没拿到京东分配的 SKU，到商品审核列表里找');
   return {
     status: 'published',
     message: (result.messages ?? []).join('；') || '商品已发布',
     target,
-    price: plan.prices.jdPrice,
     skuIds,
     productId: result.productId || '',
     applyId: result.applyId || '',
@@ -262,9 +302,14 @@ async function publishInVcTab(tab, item, settings, log, target, ctx) {
     if (!vcActionLabel(settings.publish.action)) {
       return { status: 'filled', message: '已填写完成，请在工作窗口中检查后手动点“发布商品”', target, tabId: tab.id };
     }
+    const since = Date.now();
     const result = await submitVc(tab.id, ctx.landTimeoutMs);
     ctx.timer.lap('发布商品');
-    return submitOutcome(result, plan, target, tab.id, log);
+    const listing = listingOf(plan, listingBrandTitle(payload.brandTitle, itemBrand(item)));
+    const outcome = { ...submitOutcome(result, plan, target, tab.id, log), listing };
+    if (outcome.status !== 'published' || outcome.skuIds.length) return outcome;
+    const sku = await skuFromApplyList(tab.id, listingName(listing.brandTitle, listing.title), since, log);
+    return sku ? { ...outcome, skuIds: [sku] } : outcome;
   } catch (e) {
     return { status: 'failed', message: e.message, target, tabId: tab.id };
   }
@@ -312,7 +357,8 @@ async function templateFor(target, log, loadTemplate) {
  *   leafCache?: Map<string, object[]>, loadTemplate?: (cateList: string[]) => Promise<object|null>}} [deps]
  *   leafCache：读到的子类目（类目ID → 子类目），默认整个运行期共用一份；loadTemplate：读上架模板（测试时替换）
  * @returns {Promise<{status: 'published'|'filled'|'need_action'|'failed'|'throttle', message: string, target?: object, tabId?: number,
- *   price?: number}>} price：京东价（记作店铺售价，检查京东今日价时对比）；tabId：需要人工检查时保留的发布页
+ *   skuIds?: string[], listing?: import('../shared/master-sheet.js').PublishListing}>}
+ *   skuIds：京东分配的 SKU；listing：发布时填进页面的标题/价格/条形码（写进上架总表）；tabId：需要人工检查时保留的发布页
  */
 export async function publishVcItem(
   item,

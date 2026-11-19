@@ -17,18 +17,18 @@ test('newBatch：记下文件名、链接和要跟进的商品', () => {
   assert.equal(b.exportedAt, undefined);
 });
 
-test('batchProgress：没有待采集/采集中的商品时算采集结束；已发布、已删除的不拖住批次', () => {
+test('batchProgress：没有待采集/采集中的商品时算采集结束；已发布（移出任务列表）、已删除的不拖住批次', () => {
   const b = newBatch({ fileName: 'a', links: [], skuIds: ['1', '2', '3', '4', '5'], now: 1 });
   const items = [
     { id: '1', status: 'collected', product: {} },
     { id: '2', status: 'failed', product: null },
     { id: '3', status: 'pending', product: null },
-    { id: '4', status: 'published', publishedAt: 9, product: {} },
   ];
-  const p = batchProgress(b, items);
+  const p = batchProgress(b, items, new Set(['4']));
   assert.deepEqual({ ...p }, { total: 5, collected: 1, failed: 1, waiting: 1, published: 1, removed: 1, done: false });
   assert.equal(batchProgress(b, items.map((i) => (i.id === '3' ? { ...i, status: 'collecting' } : i))).done, false);
   assert.equal(batchProgress(b, items.filter((i) => i.id !== '3')).done, true);
+  assert.equal(batchProgress(b, items).removed, 2, '不传已发布记录时都算删掉的');
   assert.equal(batchProgress(b, [{ id: '1', status: 'need_action', product: {} }]).collected, 1, '发布失败/需处理的仍算已采集');
 });
 
@@ -46,12 +46,11 @@ test('createBatchRepository：新批次在前，最多保留 MAX_BATCHES 个；u
   assert.ok(Array.isArray(storage.data[BATCHES_KEY]));
 });
 
-test('idsToCollect：只采还没数据的；勾选重新采集时已采集的也采；已发布、正在采集、不在列表的不动', () => {
+test('idsToCollect：只采还没数据的；勾选重新采集时已采集的也采；正在采集、不在列表的不动', () => {
   const items = [
     { id: '1', status: 'pending', product: null },
     { id: '2', status: 'collected', product: {} },
     { id: '3', status: 'failed', product: null },
-    { id: '4', status: 'published', publishedAt: 1, product: {} },
     { id: '5', status: 'collecting', product: null },
     { id: '6', status: 'need_action', product: {} },
   ];

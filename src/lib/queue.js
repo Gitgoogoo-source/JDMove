@@ -1,38 +1,24 @@
 // 批量任务执行器：在任务面板页面中运行（页面保持打开即可持续执行）
 import { validateSettings } from '../shared/settings.js';
 import { collectFailurePatch, publishResultPatch } from '../shared/store.js';
-import { priceCheckPatch, priceStatus } from '../shared/price-watch.js';
 import { throttleRecord } from '../shared/publish-throttle.js';
-import { itemRepo, settingsRepo, throttleRepo, sleep, randomBetween } from './chrome-env.js';
-import { collectUrl, checkPriceUrl, closeCollectTab } from './collector.js';
+import { masterRecords } from '../shared/master-sheet.js';
+import { itemRepo, settingsRepo, throttleRepo, masterRepo, sleep, randomBetween } from './chrome-env.js';
+import { collectUrl, closeCollectTab } from './collector.js';
 import { publishVcItem } from './publisher-vc.js';
 import { crawlShop } from './shop-crawler.js';
 
 const MAX_LOG_LINES = 60;
 const PAUSE_STATUSES = ['throttle', 'login', 'setup'];
 // 这些模式在采集窗口里打开京东商品页：结束时关闭采集标签页
-const COLLECT_TAB_MODES = new Set(['collect', 'pricecheck']);
-
-/** 价格检查结果的日志：今日价、售价和是否倒挂 */
-function priceCheckLine(check, st) {
-  const today = `京东今日价 ¥${check.price}${check.label ? `（${check.label}）` : ''}，售价 ¥${st.sale ?? '—'}`;
-  if (st.inverted) return `${today}：价格倒挂，卖出一单亏 ¥${-st.profit}`;
-  if (st.alert) return `${today}：利润仅 ¥${st.profit}，低于预警线`;
-  return st.profit == null ? today : `${today}：正常（差价 ¥${st.profit}）`;
-}
-
-const SUMMARIES = {
-  pricecheck: (t) =>
-    `京东今日价检查结束：成功 ${(t.ok ?? 0) + (t.alert ?? 0)} 个，价格倒挂/预警 ${t.alert ?? 0} 个，失败 ${t.fail ?? 0} 个` +
-    (t.alert ? '（已列在“已发布 → 价格倒挂”中）' : ''),
-};
+const COLLECT_TAB_MODES = new Set(['collect']);
 
 /**
  * @param {{onChange: () => void, onLog: (line: string) => void,
  *   saveLocal?: (item: object, opts?: {raw?: object}) => Promise<{dir: string, saved: number, failed: string[]}|null>,
  *   onRunEnd?: (info: {mode: string, ids: string[], tally: Record<string, number>, paused: boolean, stopped: boolean, aborted: boolean}) => void}} hooks
  *   saveLocal 把商品写到本地存储位置（刚采集时带上页面原始数据 raw）；未设置存储位置时返回 null；
- *   onRunEnd 每轮批量任务（采集/发布/保存/价格检查）结束后调用（上架表批次据此判断采集完了没有）
+ *   onRunEnd 每轮批量任务（采集/发布/保存）结束后调用（上架表批次据此判断采集完了没有；发布结束后写上架总表文件）
  * @param {{publish?: (item: object, settings: object, log: (msg: string) => void) => Promise<object>}} [deps]
  *   publish：发布单个商品，默认 VC 自营发布流程（测试时替换）
  */
@@ -96,13 +82,25 @@ export function createQueueRunner({ onChange, onLog, saveLocal = async () => nul
     return 'fail';
   }
 
+  /** 发布成功：记进上架总表（任务结束后写进文件），移出任务列表 */
+  async function finishPublished(item, res, log) {
+    const records = masterRecords({ item, res });
+    await masterRepo.add(records);
+    const skus = records.map((r) => r.sku).filter(Boolean);
+    log(`结果：${res.message}；已记入上架总表（商品编码sku ${skus.length ? skus.join('、') : '没拿到，留空'}），已移出任务列表`);
+    await itemRepo.finishPublished(item.id);
+  }
+
   async function publishOne(item, settings) {
     await itemRepo.update(item.id, { status: 'publishing', message: '' });
     const { log } = itemLogger(item.id);
     const res = await publish(item, settings, log);
-    const patch = publishResultPatch(item, res);
-    await itemRepo.update(item.id, patch);
-    log(`结果：${res.message}${patch.publishedAt ? '（已移到“已发布”）' : ''}`);
+    if (res.status === 'published') {
+      await finishPublished(item, res, log);
+    } else {
+      await itemRepo.update(item.id, publishResultPatch(item, res));
+      log(`结果：${res.message}`);
+    }
     // 限流时店铺暂时不能保存任何新商品：整批暂停，记下建议的冷却时间
     if (res.status === 'throttle') {
       await throttleRepo.set(throttleRecord({ message: res.message, now: Date.now(), cooldownMin: settings.publish.throttleCooldownMin }));
@@ -113,33 +111,12 @@ export function createQueueRunner({ onChange, onLog, saveLocal = async () => nul
     return res.message?.includes('重新登录') ? 'pause' : 'ok';
   }
 
-  // 只读取京东商品页当前显示的价格，和店铺售价对比；频控/验证/登录时整体暂停
-  async function priceCheckOne(item, settings) {
-    const res = await checkPriceUrl(item.url, { useIncognito: settings.collect.useIncognito });
-    if (PAUSE_STATUSES.includes(res.status)) {
-      setState({ pauseReason: res.message, pausedMode: 'pricecheck' });
-      return 'pause';
-    }
-    const patch = priceCheckPatch(res, Date.now(), item.priceCheck);
-    await itemRepo.update(item.id, patch);
-    if (res.status !== 'ok') {
-      const kept = patch.priceCheck.price > 0 ? `（保留上次的价格 ¥${patch.priceCheck.price}）` : '';
-      onLog(`[${item.id}] 京东今日价获取失败：${res.message}${kept}`);
-      return 'fail';
-    }
-    const st = priceStatus({ ...item, ...patch }, settings);
-    onLog(`[${item.id}] ${priceCheckLine(patch.priceCheck, st)}`);
-    return st.alert ? 'alert' : 'ok';
-  }
-
   /** 每种批量任务：单条处理函数 + 两条之间的间隔（秒） */
   function modeRunner(mode, settings) {
-    const pw = settings.priceWatch;
     const runners = {
       collect: [(item) => collectOne(item, settings), () => randomBetween(settings.collect.minDelaySec, settings.collect.maxDelaySec)],
       publish: [(item) => publishOne(item, settings), () => settings.publish.delaySec],
       save: [(item) => saveLocalOne(item), () => 0],
-      pricecheck: [(item) => priceCheckOne(item, settings), () => randomBetween(pw.minDelaySec, pw.maxDelaySec)],
     };
     const [handle, delay] = runners[mode];
     return { handle, delay };
@@ -175,7 +152,6 @@ export function createQueueRunner({ onChange, onLog, saveLocal = async () => nul
     } finally {
       // 暂停时保留采集页：频控/验证需要用户在该页面手动处理
       if (COLLECT_TAB_MODES.has(mode) && !paused) await closeCollectTab().catch((e) => onLog(`关闭采集标签页失败：${e.message}`));
-      if (SUMMARIES[mode] && !aborted) onLog(SUMMARIES[mode](tally));
       const stopped = state.stopRequested;
       setState({ running: false, currentId: null, mode: null });
       notifyEnd({ mode, ids, tally, paused, stopped, aborted });
@@ -249,7 +225,6 @@ export function createQueueRunner({ onChange, onLog, saveLocal = async () => nul
     collect: (ids) => run('collect', ids),
     publish: (ids) => run('publish', ids),
     saveLocal: (ids) => run('save', ids),
-    checkPrices: (ids) => run('pricecheck', ids),
     stop: () => setState({ stopRequested: true }),
   };
 }

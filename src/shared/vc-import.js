@@ -5,7 +5,6 @@ import { extractSkuIds } from './url-utils.js';
 import { VC_PRICE_LABELS } from './vc-plan.js';
 import { vcNumberRule } from './vc-form-values.js';
 import { ERP_LABELS, ERP_FORMAT_HINT, isErpCode, ownErp, withErp } from './vc-erp.js';
-import { isArchived } from './brand-folders.js';
 
 /** 可导入的字段（buyer/saler 是采购员/销售员 ERP） */
 export const VC_IMPORT_FIELDS = { ...VC_PRICE_LABELS, buyer: ERP_LABELS.buyer, saler: ERP_LABELS.saler };
@@ -108,7 +107,7 @@ const decimalsOf = (n) => (String(n).split('.')[1] ?? '').length;
 /** 价格：可以带 ¥、元、千分位逗号；按 VC 页面的规则检查范围和小数位数 */
 export function parsePrice(key, raw) {
   const rule = vcNumberRule(key);
-  const label = VC_PRICE_LABELS[key];
+  const label = VC_PRICE_LABELS[key] ?? rule?.label ?? key;
   const stripped = String(raw ?? '').replace(/[¥￥元\s]/g, '');
   const text = THOUSANDS_RE.test(stripped) ? stripped.replace(/,/g, '') : stripped;
   if (!NUMBER_RE.test(text)) return { error: `${label}“${short(raw)}”不是数字` };
@@ -201,13 +200,12 @@ export const applyVcImport = (edits, values) => ({ ...(edits ?? {}), vc: mergeVc
 
 /**
  * 真正保存时用的修改函数（给 itemRepo.saveEditsMany）：按存储里的最新条目再检查一遍——
- * 预览之后才发布成功的、合并后京东价高于市场价的，原样不改
+ * 合并后京东价高于市场价的原样不改（预览之后才发布成功的已经移出任务列表，不会被改到）
  * @param {VcImportValues} values
- * @returns {(edits: object, item: object) => object}
+ * @returns {(edits: object) => object}
  */
 export function importEdit(values) {
-  return (edits, item) => {
-    if (isArchived(item)) return edits;
+  return (edits) => {
     const next = applyVcImport(edits, values);
     return priceConflict(next.vc, values) ? edits : next;
   };
@@ -237,21 +235,20 @@ function marginWarning(vc) {
 }
 
 /**
- * 对照任务列表：哪些商品会被修改。已发布的商品不改（改了也不会作用到店铺）
+ * 对照任务列表：哪些商品会被修改（发布成功的商品已移出任务列表，算作找不到）
  * @param {VcImportEntry[]} entries
  * @param {object[]} items
  * @returns {{updates: {id: string, row: number, skuId: string, title: string, values: VcImportValues, changes: object[]}[],
- *   unchanged: VcImportEntry[], missing: VcImportEntry[], archived: VcImportEntry[], errors: VcImportProblem[], warnings: VcImportProblem[]}}
+ *   unchanged: VcImportEntry[], missing: VcImportEntry[], errors: VcImportProblem[], warnings: VcImportProblem[]}}
  */
 export function planVcImport(entries, items) {
   const byId = new Map(items.map((i) => [i.id, i]));
   const byProductSku = new Map(items.filter((i) => i.product?.skuId).map((i) => [String(i.product.skuId), i]));
-  const result = { updates: [], unchanged: [], missing: [], archived: [], errors: [], warnings: [] };
+  const result = { updates: [], unchanged: [], missing: [], errors: [], warnings: [] };
   const seen = new Map();
   for (const e of entries) {
     const item = byId.get(e.skuId) ?? byProductSku.get(e.skuId);
     if (!item) result.missing.push(e);
-    else if (isArchived(item)) result.archived.push(e);
     else if (seen.has(item.id)) result.errors.push({ row: e.row, skuId: e.skuId, message: `和第 ${seen.get(item.id)} 行是任务列表里的同一个商品，这一行没有导入` });
     else {
       seen.set(item.id, e.row);

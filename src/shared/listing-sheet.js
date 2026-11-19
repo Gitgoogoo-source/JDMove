@@ -2,37 +2,40 @@
 // 读每个（没隐藏的）工作表里表头以“参考链接”开头的列（如“参考链接(多包/组合/新规格)”），别的链接列（京东链接等）不读。
 // 一个格子可以写多个链接（“名称 + 链接”换行写多条），每个链接是一个商品，链接前面的文字记作说明；
 // 同一个链接出现在多行时只采集一次，记下所有行。
-// 认得出的标准列（市场价、京东价、采购价、采购员ERP、销售员ERP、条形码、型号）一起导入：只在一行只有一个参考链接、
+// 固定模板见 listing-template.js（任务面板“下载上架表模板”），别的表只要有“参考链接”列也能读。
+// 认得出的标准列（市场价、京东价、采购价、协议价、采购员ERP、销售员ERP、条形码、型号）一起导入：只在一行只有一个参考链接、
 // 且这个链接只出现在这一行（或几行填的值一样）时导入，否则不知道值属于哪个商品
 import { extractItemLinks } from './url-utils.js';
 import { parsePrice } from './vc-import.js';
 import { ERP_FORMAT_HINT, ERP_LABELS, isErpCode } from './vc-erp.js';
 import { normalizeUpc } from './sku-attrs.js';
 import { applyReviewValue } from './vc-review.js';
-import { isArchived } from './brand-folders.js';
 
-export const LISTING_HEADER_MISSING = '没找到“参考链接”列：上架表里要有一列表头以“参考链接”开头（如“参考链接”“参考链接(多包/组合/新规格)”），每个格子写一个或多个京东商品链接';
+export const LISTING_HEADER_MISSING =
+  '没找到“参考链接”列：上架表里要有一列表头以“参考链接”开头（如“参考链接”“参考链接(多包/组合/新规格)”），每个格子写一个或多个京东商品链接。可以点“下载上架表模板”照着填';
 const HEADER_SCAN_ROWS = 10;
 const LINK_HEADER_RE = /^参考链接/;
 const MODEL_MAX = 60;
+const NAME_HEADER = '商品名称';
 const SHOW_MAX = 40;
 // 列名要一致（只去掉空格、*、单位括号）：“京东价(到手价)”这类写了别的说明的列不读，免得把对标商品的价格当成自己的
 const VALUE_HEADERS = {
   marketPrice: ['市场价'],
   jdPrice: ['京东价'],
   costPrice: ['采购价'],
+  agreementPrice: ['协议价'],
   buyer: ['采购员erp', '采购员'],
   saler: ['销售员erp', '销售员'],
-  upc: ['条形码', '商品条形码', 'upc', '69码'],
+  upc: ['条形码', '商品条形码', 'upc', '69码', '条形码(69码)', '条形码（69码）'],
   model: ['型号'],
 };
-const VALUE_LABELS = { marketPrice: '市场价', jdPrice: '京东价', costPrice: '采购价', ...ERP_LABELS, upc: '条形码', model: '型号' };
-const PRICE_KEYS = ['marketPrice', 'jdPrice', 'costPrice'];
+const VALUE_LABELS = { marketPrice: '市场价', jdPrice: '京东价', costPrice: '采购价', agreementPrice: '协议价', ...ERP_LABELS, upc: '条形码', model: '型号' };
+const PRICE_KEYS = ['marketPrice', 'jdPrice', 'costPrice', 'agreementPrice'];
 
 /**
  * @typedef {{sheet: string, row: number}} ListingRef  row：Excel 里的行号（从 1 开始）
  * @typedef {{skuId: string, url: string, label: string, refs: ListingRef[]}} ListingLink
- * @typedef {{marketPrice?: number, jdPrice?: number, costPrice?: number, buyer?: string, saler?: string, upc?: string, model?: string}} ListingValues
+ * @typedef {{marketPrice?: number, jdPrice?: number, costPrice?: number, agreementPrice?: number, buyer?: string, saler?: string, upc?: string, model?: string}} ListingValues
  * @typedef {{sheet: string, row: number, level: 'warn'|'error', text: string}} ListingProblem
  */
 
@@ -51,12 +54,14 @@ function findListingHeader(rows) {
     const linkCols = cells.map((c, i) => (LINK_HEADER_RE.test(clean(c).replace(/\s/g, '')) ? i : -1)).filter((i) => i >= 0);
     if (!linkCols.length) continue;
     const valueCols = {};
+    // 模板里的“商品名称”列：链接前面没写名称时用它作说明
+    const nameCol = cells.findIndex((c) => strictHeader(c) === NAME_HEADER);
     cells.forEach((c, i) => {
       const name = strictHeader(c);
       const key = Object.keys(VALUE_HEADERS).find((k) => VALUE_HEADERS[k].includes(name));
       if (key && valueCols[key] == null) valueCols[key] = i;
     });
-    return { row: r, linkCols, valueCols };
+    return { row: r, linkCols, valueCols, nameCol };
   }
   return null;
 }
@@ -125,7 +130,8 @@ function parseSheet({ name, rows }, acc) {
     const ref = { sheet: name, row: r + 1 };
     const warn = (text) => acc.problems.push({ ...ref, level: 'warn', text });
     const texts = header.linkCols.map((c) => clean(cells[c])).filter(Boolean);
-    const links = [...new Map(texts.flatMap(cellLinks).map((l) => [l.skuId, l])).values()];
+    const rowName = header.nameCol >= 0 ? clean(cells[header.nameCol]) : '';
+    const links = [...new Map(texts.flatMap(cellLinks).map((l) => [l.skuId, { ...l, label: l.label || rowName }])).values()];
     if (!links.length) {
       if (texts.length) warn(`参考链接“${short(texts.join(' '))}”里没有京东商品链接，这一行没有加入`);
       else acc.noLink.push(ref);
@@ -161,14 +167,11 @@ export function parseListingBook(sheets) {
 }
 
 /**
- * 上架表里的值写进商品的编辑内容（给 itemRepo.saveEditsMany）：价格/ERP/型号 → VC 自营，条形码 → UPC；
- * 表格里填了的覆盖原来的，已发布的商品不改
+ * 上架表里的值写进商品的编辑内容（给 itemRepo.saveEditsMany）：价格/协议价/ERP/型号 → VC 自营，条形码 → UPC；
+ * 表格里填了的覆盖原来的（发布成功的商品已经移出任务列表，不会被改到）
  * @param {ListingValues} values
- * @returns {(edits: object, item: object) => object}
+ * @returns {(edits: object) => object}
  */
 export function listingEdit(values) {
-  return (edits, item) => {
-    if (isArchived(item)) return edits;
-    return Object.entries(values).reduce((next, [key, value]) => applyReviewValue(next, key, value), edits ?? {});
-  };
+  return (edits) => Object.entries(values).reduce((next, [key, value]) => applyReviewValue(next, key, value), edits ?? {});
 }

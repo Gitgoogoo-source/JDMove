@@ -13,7 +13,6 @@ import { buildReview, rebaseEdits, reviewTemplate } from '../shared/vc-review.js
 import { batchesToExport, batchProgress, idsToCollect, newBatch } from '../shared/batch.js';
 import { isB2bItemUrl } from '../shared/url-utils.js';
 import { buildXlsx } from '../shared/xlsx-write.js';
-import { isArchived } from '../shared/brand-folders.js';
 import { PUBLISH_ACTIONS } from '../shared/settings.js';
 import { batchRepo, itemRepo, settingsRepo } from '../lib/chrome-env.js';
 import { loadVcCatalog } from '../lib/vc-templates.js';
@@ -29,12 +28,14 @@ const STALE_MS = 1000;
  */
 export function createBatchFlow({ runner, storage, onLog, reload, confirmCooldown }) {
   let batches = [];
+  // 发布成功过的 SKU（发布成功的商品已移出任务列表，进度条里按它数“已发布”）
+  let published = new Set();
   // 生成发布前检查表排队执行（采集结束自动生成和手动点的同时来时都不丢）
   let exportChain = Promise.resolve();
   let exportsPending = 0;
 
   const refresh = async () => {
-    batches = await batchRepo.list();
+    [batches, published] = await Promise.all([batchRepo.list(), itemRepo.publishedSkus()]);
   };
 
   /** 商品 → 发布前检查表的一行（编辑内容可以用导入后、还没保存的） */
@@ -42,7 +43,7 @@ export function createBatchFlow({ runner, storage, onLog, reload, confirmCooldow
     const byId = new Map(items.map((i) => [i.id, i]));
     return ids
       .map((id) => byId.get(id))
-      .filter((i) => i?.product && !isArchived(i))
+      .filter((i) => i?.product)
       .map((item) => {
         const edits = drafts.get(item.id) ?? item.edits ?? {};
         const match = reviewTemplate({ product: item.product, edits, settings, catalog });
@@ -110,8 +111,8 @@ export function createBatchFlow({ runner, storage, onLog, reload, confirmCooldow
     const local = await storage.prepare();
     const urls = Object.fromEntries(parsed.links.filter((l) => isB2bItemUrl(l.url)).map((l) => [l.skuId, l.url]));
     const res = await itemRepo.addTasks(parsed.links.map((l) => l.skuId), { urls });
-    // 这批要跟进的：现在在任务列表里的（含从“已发布”退回任务列表的，它们在已发布记录里，addTasks 算作“已发布过”）
-    const inList = new Set((await itemRepo.findAll()).filter((i) => !isArchived(i)).map((i) => i.id));
+    // 这批要跟进的：现在在任务列表里的（已发布过的 addTasks 跳过了，不在列表里）
+    const inList = new Set((await itemRepo.findAll()).map((i) => i.id));
     const tracked = [...new Set(parsed.links.map((l) => l.skuId))].filter((id) => inList.has(id));
     const wanted = new Set(tracked);
     const skipped = res.published.filter((id) => !inList.has(id));
@@ -120,7 +121,7 @@ export function createBatchFlow({ runner, storage, onLog, reload, confirmCooldow
     await batchRepo.add(batch);
     const skip = skipped.length ? `，${skipped.length} 个已发布过（跳过）` : '';
     onLog(`上架表 ${fileName}：${parsed.links.length} 个商品链接，新加入 ${res.added.length} 个，已在任务列表 ${tracked.length - res.added.length} 个${skip}`);
-    if (changed.length) onLog(`上架表：${changed.length} 个商品的价格 / ERP / 条形码 / 型号已写进「编辑」`);
+    if (changed.length) onLog(`上架表：${changed.length} 个商品的价格 / 协议价 / ERP / 条形码 / 型号已写进「编辑」`);
     parsed.problems.slice(0, LOG_PROBLEMS).forEach((p) => onLog(`上架表${whereText(p)}：${p.text}`));
     await refresh();
     await reload();
@@ -152,7 +153,7 @@ export function createBatchFlow({ runner, storage, onLog, reload, confirmCooldow
     if (book.error) return onLog(`上传表格：${fileName}：${book.error}`);
     const [{ catalog, errors }, items, settings] = await Promise.all([loadVcCatalog(), itemRepo.findAll(), settingsRepo.get()]);
     errors.forEach(onLog);
-    const candidates = items.filter((i) => i.product && !isArchived(i));
+    const candidates = items.filter((i) => i.product);
     const plan = planReviewImport(book.entries, { items: candidates, drafts: new Map(), catalog, settings, missingText: NOT_IN_TASKS, base: book.base });
     const drafts = new Map(plan.updates.map((u) => [u.id, u.edits]));
     const pub = publishPlan({ ids: plan.matched, items, drafts, catalog, settings, held: templateChangedIds(plan.updates) });
@@ -203,7 +204,7 @@ export function createBatchFlow({ runner, storage, onLog, reload, confirmCooldow
     const batch = batches.find((b) => !b.dismissed);
     bar.hidden = !batch;
     if (!batch) return bar.replaceChildren();
-    const p = batchProgress(batch, items);
+    const p = batchProgress(batch, items, published);
     const parts = [`共 ${p.total} 个`, `已采集 ${p.collected}`, p.waiting ? `待采集 ${p.waiting}` : '', p.failed ? `采集失败 ${p.failed}` : '', p.published ? `已发布 ${p.published}` : ''];
     const state = batch.exportedAt ? `已生成发布前检查表 ${batch.exportName}` : p.done ? '' : '采集完后自动生成发布前检查表';
     const dismiss = async () => {

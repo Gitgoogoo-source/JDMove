@@ -20,6 +20,10 @@ export function fakeDir(name = 'root') {
         kind: 'file',
         name: child,
         data: null,
+        async getFile() {
+          const d = file.data;
+          return { arrayBuffer: async () => (d instanceof Blob ? d.arrayBuffer() : (d ?? new Uint8Array()).buffer) };
+        },
         async createWritable() {
           return {
             write: async (d) => {

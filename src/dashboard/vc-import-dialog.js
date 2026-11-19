@@ -39,7 +39,6 @@ export function importNotes(sheet, plan) {
   return [
     plan.unchanged.length ? `${plan.unchanged.length} 个和现在一样` : '',
     sheet.blank ? `${sheet.blank} 行没填值（不修改）` : '',
-    plan.archived.length ? `${plan.archived.length} 个已发布（不修改）` : '',
     bad ? `${bad} 行有问题没有导入` : '',
     plan.warnings.length ? `${plan.warnings.length} 个需要核对` : '',
   ].filter(Boolean);

@@ -15,6 +15,7 @@
     <button id="btnAdd" class="primary">添加链接</button>
     <button id="btnShop">抓取店铺</button>
     <button id="btnUpload" title="上传上架表（有“参考链接”列）：加入任务列表并采集，采集完自动生成发布前检查表；上传改好的发布前检查表：保存修改并发布齐全的商品">上传表格</button>
+    <button id="btnListingTemplate" title="下载固定的上架表模板：参考链接必填，市场价/京东价/采购价/协议价/条形码等选填；填好后点“上传表格”">下载上架表模板</button>
     <span class="sep"></span>
     <button id="btnCollect">采集选中</button>
     <button id="btnRecollect" title="把勾选的已采集商品重新采集一遍，覆盖商品信息和图片（编辑内容保留）">重新采集选中</button>
@@ -30,7 +31,7 @@
     <button id="btnSettings">设置</button>
     <button id="btnStorage">存储位置：未设置</button>
     <span class="sep"></span>
-    <button id="btnArchive" aria-pressed="false">已发布</button>
+    <button id="btnMaster" title="发布成功的商品写进这个文件夹里的 上架总表.xlsx（一般选项目根目录）">上架总表：未设置</button>
     <label class="filter">筛选
       <select id="filter">
         <option value="all">全部</option>
@@ -46,17 +47,7 @@
   <p id="pauseBanner" class="banner" hidden></p>
   <div id="batchBar" class="banner batch-bar" hidden></div>
 
-  <nav id="archiveBar" class="archive-bar" hidden>
-    <div id="archiveCrumb" class="crumb"></div>
-    <div class="archive-tools">
-      <button id="btnPriceCheck" title="打开每个已发布商品对标的京东商品页，读取今天的价格，和发布时填的 VC 京东价对比">检查京东今日价</button>
-      <button id="btnReturn" title="把勾选的已发布商品移回任务列表，状态改为“已采集”，可以重新编辑、采集或发布（店铺里的商品不受影响）">退回任务列表</button>
-      <input id="folderSearch" type="search" placeholder="搜索品牌" aria-label="搜索品牌" />
-    </div>
-  </nav>
-
   <main>
-    <div id="folders" class="folders" hidden></div>
     <table id="itemsTable" class="items">
       <thead>
         <tr>

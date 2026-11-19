@@ -1,6 +1,5 @@
 // 任务表格行渲染
 import { h, safeImgSrc } from './dom.js';
-import { priceStatus, formatCheckTime, sameDay } from '../shared/price-watch.js';
 import { canRecollect } from '../shared/store.js';
 
 export const STATUS_TEXT = {
@@ -8,41 +7,23 @@ export const STATUS_TEXT = {
   collecting: '采集中',
   collected: '已采集',
   publishing: '发布中',
-  published: '已发布',
   failed: '失败',
   need_action: '需处理',
 };
 
-/**
- * 京东价一行：倒挂/利润不足时标红并写出差价。最近一次检查失败时写出原因，
- * 仍显示上次成功检查到的价格（倒挂提醒不会因为一次打不开页面就消失）
- */
-function todayPrice(check, st) {
-  if (!check) return null;
-  const failure = check.error
-    ? [h('div', { class: 'today failed' }, '最近一次检查失败'), h('div', { class: 'sub' }, `${check.error} · ${formatCheckTime(check.errorAt ?? check.checkedAt)}`)]
-    : [];
-  if (!(check.price > 0)) return failure;
-  const name = sameDay(check.checkedAt, Date.now()) ? '今日' : '京东';
-  const verdict = st.inverted ? `倒挂：每单亏 ¥${-st.profit}` : st.alert ? `利润仅 ¥${st.profit}` : '';
-  return [
-    h('div', { class: st.alert ? 'today alert' : 'today' }, `${name} ¥${check.price}`, check.label ? h('span', { class: 'price-label' }, check.label) : null),
-    verdict ? h('div', { class: 'verdict' }, verdict) : null,
-    h('div', { class: 'sub' }, `${formatCheckTime(check.checkedAt)} 检查`),
-    ...failure,
-  ];
-}
+const positive = (v) => (Number(v) > 0 ? Number(v) : null);
 
-function priceCell(item, st) {
+/** 价格：采集时源商品页的价格 + 发布时要填的 VC 京东价 / 协议价 */
+function priceCell(item) {
   const src = item.product?.price;
-  const sale = h('div', { class: 'sub', title: 'VC 京东价（发布时填的，检查京东今日价时和它对比）' }, `京东价 ¥${st.sale ?? '—'}`);
-  if (!(src > 0)) return h('td', {}, sale, todayPrice(item.priceCheck, st));
+  const vc = item.edits?.vc ?? {};
+  const agreement = positive(vc.agreementPrice);
   return h(
     'td',
     {},
-    h('div', { title: '采集时源商品页显示的价格' }, `源 ¥${src}`),
-    sale,
-    todayPrice(item.priceCheck, st),
+    src > 0 ? h('div', { title: '采集时源商品页显示的价格' }, `源 ¥${src}`) : null,
+    h('div', { class: 'sub', title: '发布时填的 VC 京东价' }, `京东价 ¥${positive(vc.jdPrice) ?? '—'}`),
+    agreement ? h('div', { class: 'sub', title: '协议价：不填进发布页，发布成功后写进上架总表' }, `协议价 ¥${agreement}`) : null,
   );
 }
 
@@ -54,13 +35,6 @@ function categoryCell(item) {
       ? `已用：${item.target.name}`
       : '自动匹配';
   return h('td', {}, h('div', { class: 'sub' }, source), h('div', {}, target));
-}
-
-/** 发布后京东给店铺商品分配的 SKU（发布接口没返回时不显示） */
-function shopSkuLine(item) {
-  const ids = item.shopSkuIds ?? [];
-  if (!ids.length) return null;
-  return h('div', { class: 'sub shop-sku', title: '发布商品后京东给店铺商品分配的 SKU' }, `店铺 SKU ${ids.join('、')}`);
 }
 
 function localCell(local) {
@@ -78,10 +52,9 @@ function localCell(local) {
 export function renderRow(item, ctx) {
   const p = item.product;
   const img = safeImgSrc(p?.mainImages?.[0]);
-  const st = priceStatus(item, ctx.settings);
   return h(
     'tr',
-    { dataset: { id: item.id }, class: st.alert ? 'price-alert' : '' },
+    { dataset: { id: item.id } },
     h('td', {}, h('input', { type: 'checkbox', checked: ctx.checked, onchange: (e) => ctx.onCheck(item.id, e.target.checked) })),
     h('td', {}, img ? h('img', { class: 'thumb', src: img, alt: '', referrerpolicy: 'no-referrer', loading: 'lazy' }) : h('div', { class: 'thumb' })),
     h(
@@ -90,10 +63,9 @@ export function renderRow(item, ctx) {
       h('div', { class: 'title' }, item.edits?.title || p?.title || '（未采集）'),
       h('a', { class: 'sub', href: item.url, target: '_blank', rel: 'noreferrer' }, `SKU ${item.skuId}`),
       p?.vc?.spuId && p.vc.spuId !== item.skuId ? h('div', { class: 'sub' }, `SPU ${p.vc.spuId}`) : null,
-      shopSkuLine(item),
       localCell(item.local),
     ),
-    priceCell(item, st),
+    priceCell(item),
     categoryCell(item),
     h(
       'td',
@@ -108,7 +80,7 @@ export function renderRow(item, ctx) {
         'div',
         { class: 'ops' },
         h('button', { class: 'link', disabled: ctx.busy, onclick: () => ctx.onEdit(item.id) }, '编辑'),
-        h('button', { class: 'link', disabled: ctx.busy, onclick: () => ctx.onRetry(item.id) }, p ? '重新发布' : '采集'),
+        h('button', { class: 'link', disabled: ctx.busy, onclick: () => ctx.onRetry(item.id) }, p ? '发布' : '采集'),
         canRecollect(item)
           ? h('button', { class: 'link', disabled: ctx.busy, title: '重新打开京东商品页采集，覆盖已采集的数据（编辑内容保留）', onclick: () => ctx.onRecollect(item.id) }, '重新采集')
           : null,

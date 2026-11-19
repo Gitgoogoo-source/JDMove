@@ -4,7 +4,6 @@ import { BASE_SHEET, META_SHEET, REVIEW_BOOK_FORMAT } from './review-workbook.js
 import { parseReviewSheet, REVIEW_HEADER_MISSING } from './vc-review-sheet.js';
 import { parseListingBook } from './listing-sheet.js';
 import { buildReview, reviewTemplate } from './vc-review.js';
-import { isArchived } from './brand-folders.js';
 
 export const UNKNOWN_TABLE =
   '认不出这个表格：上架表要有一列表头以“参考链接”开头；发布前检查表请上传插件导出的那份（不要删除隐藏的 _meta 工作表，也可以是「表格导入价格/ERP」的表）';
@@ -93,7 +92,7 @@ export function publishPlan({ ids, items, drafts, catalog, settings, held = new 
   const out = { ready: [], incomplete: [], skipped: [] };
   for (const id of new Set(ids)) {
     const item = byId.get(id);
-    if (!item || isArchived(item)) out.skipped.push({ id, reason: '已发布' });
+    if (!item) out.skipped.push({ id, reason: '已发布或已从任务列表删除' });
     else if (!item.product) out.skipped.push({ id, reason: '还没采集' });
     else if (!PUBLISHABLE.has(item.status)) out.skipped.push({ id, reason: BUSY_REASONS[item.status] ?? '状态不对' });
     else if (held.has(id)) out.incomplete.push({ id, title: drafts.get(id)?.title || item.product.title || '', problems: [], reason: held.get(id) });

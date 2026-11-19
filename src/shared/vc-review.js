@@ -28,6 +28,8 @@ export const REVIEW_FIELDS = Object.freeze([
   { key: 'marketPrice', label: '市场价(元)', group: 'price', input: 'number', step: '0.01', required: true, rule: 'marketPrice' },
   { key: 'jdPrice', label: '京东价(元)', group: 'price', input: 'number', step: '0.01', required: true, rule: 'jdPrice' },
   { key: 'costPrice', label: '采购价(元)', group: 'price', input: 'number', step: '0.0001', required: true, rule: 'costPrice' },
+  // 协议价不填进发布页：上架表里带过来，发布成功后写进上架总表
+  { key: 'agreementPrice', label: '协议价(元)', group: 'price', input: 'number', step: '0.0001', rule: 'agreementPrice' },
   { key: 'buyer', label: '采购员ERP', group: 'price', input: 'text' },
   { key: 'saler', label: '销售员ERP', group: 'price', input: 'text' },
   { key: 'lengthMm', label: '包装长(mm)', group: 'logistics', input: 'number', step: '1', required: true, rule: 'length', field: 'length' },

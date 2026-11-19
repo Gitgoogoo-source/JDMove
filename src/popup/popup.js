@@ -15,10 +15,10 @@ async function activeTab() {
 }
 
 async function refreshStats() {
-  const { items = [] } = await chrome.storage.local.get('items');
+  // 发布成功的商品移出任务列表、写进上架总表：已发 = 上架总表里的记录数（含还没写进文件的）
+  const { items = [], masterRecords = [] } = await chrome.storage.local.get(['items', 'masterRecords']);
   const collected = items.filter((i) => i.product).length;
-  const published = items.filter((i) => i.status === 'published').length;
-  $('stats').textContent = `共 ${items.length} · 已采 ${collected} · 已发 ${published}`;
+  $('stats').textContent = `任务 ${items.length} · 已采 ${collected} · 已发 ${masterRecords.length}`;
 }
 
 async function send(type, extra = {}) {

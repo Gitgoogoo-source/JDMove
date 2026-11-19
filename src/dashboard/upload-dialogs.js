@@ -1,6 +1,5 @@
 // 「上传表格」的两个确认弹窗：上架表（加入任务列表并采集）、发布前检查表（保存修改并发布齐全的商品）
 import { h, openDialog } from './dom.js';
-import { isArchived } from '../shared/brand-folders.js';
 
 const LIST_MAX = 200;
 const ROWS_SHOWN = 20;
@@ -28,13 +27,11 @@ function dialogShell(title, body, buttons) {
   );
 }
 
-/** 上架表里的链接和任务列表对照：新加入 / 已在列表（已采集的直接用）/ 已发布 */
+/** 上架表里的链接和任务列表对照：新加入 / 已在列表（已采集的直接用） */
 function listingStats(parsed, items) {
   const byId = new Map(items.map((i) => [i.id, i]));
   const known = parsed.links.map((l) => byId.get(l.skuId)).filter(Boolean);
-  const archived = known.filter(isArchived).length;
-  const tasks = known.filter((i) => !isArchived(i));
-  return { fresh: parsed.links.length - known.length, existing: tasks.length, collected: tasks.filter((i) => i.product).length, archived };
+  return { fresh: parsed.links.length - known.length, existing: known.length, collected: known.filter((i) => i.product).length };
 }
 
 /**
@@ -49,8 +46,7 @@ export async function confirmListingUpload({ fileName, parsed, items }) {
   const lines = [
     `新加入任务列表：${st.fresh} 个（以前发布过的会跳过）`,
     st.existing ? `已在任务列表：${st.existing} 个，其中已采集 ${st.collected} 个（直接用已有的数据，不重新采集）` : '',
-    st.archived ? `已发布：${st.archived} 个（跳过）` : '',
-    parsed.values.length ? `${parsed.values.length} 个商品带了价格 / ERP / 条形码 / 型号，会写进它们的「编辑」` : '',
+    parsed.values.length ? `${parsed.values.length} 个商品带了价格 / 协议价 / ERP / 条形码 / 型号，会写进它们的「编辑」` : '',
     parsed.noLink.length ? `参考链接为空的行：${parsed.noLink.length} 行（${noLinkRows}${parsed.noLink.length > ROWS_SHOWN ? '…' : ''}），不加入` : '',
   ].filter(Boolean);
   const ok = h('button', { value: 'ok', class: 'primary', disabled: !parsed.links.length }, '加入并开始采集');

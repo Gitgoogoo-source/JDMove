@@ -1,6 +1,5 @@
 // 采集：在页面中运行抓取脚本并归一化
 import { collectWarnings, normalizeProduct, validateProduct } from '../shared/product-normalize.js';
-import { parsePrice } from '../shared/pricing.js';
 import { classifyPageUrl, isB2bItemUrl } from '../shared/url-utils.js';
 import { ITEM_FILES, B2B_ITEM_FILES, runInPage, openWorkTab, navigateTab, closeTab, bringTabToFront, sleep } from './chrome-env.js';
 
@@ -64,22 +63,6 @@ export async function collectFromTab(tabId, { scrollDetail = true, allVariants =
   return { status: 'ok', product, warnings, raw };
 }
 
-/**
- * 对已打开的商品页只读取当前显示的价格
- * @returns {Promise<{status: 'ok'|'throttle'|'login'|'setup'|'error', price?: number, label?: string, message?: string}>}
- */
-export async function priceFromTab(tabId) {
-  const { files, problem } = await itemPage(tabId);
-  if (problem) return problem;
-  const raw = await runInPage(tabId, files, () => window.__JDMOVE__.extractPrice(), []);
-  if (!raw) return { status: 'error', message: '页面脚本未返回数据' };
-  const blocked = blockedResult(raw.pageType);
-  if (blocked) return blocked;
-  const price = parsePrice(raw.priceText);
-  if (!(price > 0)) return { status: 'error', message: '商品页没有显示价格（可能已下架或无货）' };
-  return { status: 'ok', price, label: raw.label || '' };
-}
-
 async function collectTab(key = COLLECT_TAB_KEY) {
   const { [key]: id } = await chrome.storage.session.get(key);
   if (!id) return null;
@@ -119,18 +102,6 @@ export async function collectUrl(url, opts = {}) {
   await bringTabToFront(tab.id);
   await sleep(1500);
   return collectFromTab(tab.id, opts);
-}
-
-/** 在采集窗口中打开商品页，只读取京东今日价（不滚动、不取图），用于检查已发布商品的价格倒挂 */
-export async function checkPriceUrl(url, { useIncognito = false } = {}) {
-  let tab;
-  try {
-    tab = await openInCollectTab(url, { useIncognito });
-  } catch (e) {
-    return { status: openErrorStatus(e), message: e.message };
-  }
-  await sleep(800);
-  return priceFromTab(tab.id);
 }
 
 /**

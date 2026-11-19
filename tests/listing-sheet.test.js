@@ -77,11 +77,8 @@ test('parseListingBook：标准列（价格/ERP/条形码/型号）只在一行�
   assert.ok(texts.some((t) => /第 5、6 行/.test(t)));
 });
 
-test('listingEdit：值写进编辑内容（价格/ERP/型号 → VC 自营，条形码 → UPC）；已发布的商品不改', () => {
-  const edit = listingEdit({ marketPrice: 39.9, jdPrice: 29.9, buyer: 'a.b', saler: 'a.b', upc: '6924743915824', model: 'X1' });
-  const next = edit({ title: 'T', vc: { costPrice: 20 } }, { status: 'collected' });
-  assert.deepEqual(next, { title: 'T', vc: { costPrice: 20, marketPrice: 39.9, jdPrice: 29.9, erpCode: 'a.b', model: 'X1' }, upc: '6924743915824' });
-  const archived = { status: 'published', publishedAt: 1 };
-  const before = { vc: { marketPrice: 1 } };
-  assert.equal(edit(before, archived), before);
+test('listingEdit：值写进编辑内容（价格/协议价/ERP/型号 → VC 自营，条形码 → UPC）', () => {
+  const edit = listingEdit({ marketPrice: 39.9, jdPrice: 29.9, agreementPrice: 18.5, buyer: 'a.b', saler: 'a.b', upc: '6924743915824', model: 'X1' });
+  const next = edit({ title: 'T', vc: { costPrice: 20 } });
+  assert.deepEqual(next, { title: 'T', vc: { costPrice: 20, marketPrice: 39.9, jdPrice: 29.9, agreementPrice: 18.5, erpCode: 'a.b', model: 'X1' }, upc: '6924743915824' });
 });
