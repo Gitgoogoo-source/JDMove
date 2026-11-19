@@ -186,6 +186,16 @@
   const VC_PUBLISH_API_RE = /[?&]api=dsm\.productbff\.product\.warePublishPageSaveProductService\.saveProductNew(?:&|$)/;
   const idField = (text, name) => (String(text || '').match(new RegExp(`"${name}"\\s*:\\s*"?(\\d{6,20})`)) || [])[1] || '';
   const idText = (v) => (v != null && /^\d{1,20}$/.test(String(v).trim()) ? String(v).trim() : '');
+  /** 在返回里按键名深搜所有编号（最多 6 层） */
+  function deepIds(node, key, depth = 0, out = []) {
+    if (!node || typeof node !== 'object' || depth > 6) return out;
+    for (const [k, v] of Object.entries(node)) {
+      if (k === key && idText(v)) out.push(idText(v));
+      else if (v && typeof v === 'object') deepIds(v, key, depth + 1, out);
+    }
+    return [...new Set(out)];
+  }
+  const deepId = (node, key) => deepIds(node, key)[0] || '';
   /** 发布接口返回里的编号：{data:{productId, applyId, skuList:[{uuid, skuId}]}}（兼容没有外层 data 的写法） */
   function publishIdsOf(text) {
     let body = null;
@@ -194,10 +204,18 @@
     } catch {
       return { skuIds: [], productId: '', applyId: '' };
     }
+    // 先按已知结构取；取不到再在整个返回里按键名深搜（接口外层可能多包一层 data/result）
     const data = body && typeof body.data === 'object' && body.data ? body.data : body || {};
     const skuList = Array.isArray(data.skuList) ? data.skuList : [];
-    const skuIds = [...new Set(skuList.map((s) => idText(s && s.skuId)).filter(Boolean))];
-    return { skuIds, productId: idText(data.productId), applyId: idText(data.applyId) };
+    let skuIds = [...new Set(skuList.map((s) => idText(s && s.skuId)).filter(Boolean))];
+    let productId = idText(data.productId);
+    let applyId = idText(data.applyId);
+    if (!productId && !skuIds.length) {
+      productId = deepId(body, 'productId') || deepId(body, 'wareId') || deepId(body, 'spuId');
+      applyId = applyId || deepId(body, 'applyId');
+      skuIds = deepIds(body, 'skuId');
+    }
+    return { skuIds, productId, applyId };
   }
   // 返回了编号但同时标着失败（success:false、4xx/5xx 错误码）不算成功
   const FAILED_BODY_RE = /"success"\s*:\s*false|"code"\s*:\s*"?[45]\d\d\b/;
@@ -278,7 +296,10 @@
 
   /** 发布商品接口的返回 → runAction 的结果：没有失败标记且返回了商品编号或 SKU 才算发布成功 */
   function vcPublishResult(save, url) {
-    const ok = save.failure == null && Boolean(save.productId || save.skuIds.length);
+    const hasIds = Boolean(save.productId || save.skuIds.length);
+    const ok = save.failure == null && hasIds;
+    // 接口没标失败、也没返回编号：京东可能已受理（页面会跳到“申请中”），交给调用方按落地页确认
+    const unconfirmed = save.failure == null && !hasIds;
     const why = save.failure || '发布接口没有返回商品编号';
     const skuNote = save.skuIds.length ? `SKU ${save.skuIds.join('、')}` : '发布接口没有返回 SKU';
     const ids = [save.productId && `商品编号 ${save.productId}`, save.applyId && `申请单 ${save.applyId}`, skuNote].filter(Boolean);
@@ -287,6 +308,7 @@
       messages: ok ? [`商品已发布（${ids.join('，')}）`] : [`发布商品失败：${why}`],
       errors: [],
       confirmText: '',
+      unconfirmed,
       url,
       skuIds: ok ? save.skuIds : [],
       productId: ok ? save.productId : '',

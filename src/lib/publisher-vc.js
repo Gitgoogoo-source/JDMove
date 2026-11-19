@@ -233,7 +233,7 @@ async function submitVc(tabId, landTimeoutMs) {
   } catch (e) {
     error = e;
   }
-  if (result && (result.ok || result.confirmText || result.errors?.length || result.messages?.length)) return result;
+  if (result && !result.unconfirmed && (result.ok || result.confirmText || result.errors?.length || result.messages?.length)) return result;
   const landed = await waitForTabUrl(tabId, PUBLISHED_LANDING_RE, landTimeoutMs);
   if (landed) {
     const productId = new URL(landed).searchParams.get('wareId') || '';

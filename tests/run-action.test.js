@@ -192,6 +192,15 @@ test('runAction: 发布成功但 skuList 为空时仍算发布成功并说明；
   const empty = await publishPage('{"code":200,"data":null}').B.runAction('vc_publish', { timeoutMs: 5000 });
   assert.equal(empty.ok, false);
   assert.match(empty.messages.join(), /发布接口没有返回商品编号/);
+  assert.equal(empty.unconfirmed, true);
+});
+
+test('runAction: 编号包在多层 data/result 里时按键名深搜取到', async () => {
+  const body = '{"code":200,"data":{"result":{"productId":10023456789,"skuList":[{"skuId":100200300401}]}}}';
+  const res = await publishPage(body).B.runAction('vc_publish', { timeoutMs: 5000 });
+  assert.equal(res.ok, true);
+  assert.equal(res.productId, '10023456789');
+  assert.deepEqual([...res.skuIds], ['100200300401']);
 });
 
 test('runAction: 发布接口失败（限流 bCode 10003）时不算成功，原始返回带回扩展侧', async () => {
