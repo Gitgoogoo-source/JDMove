@@ -1,4 +1,4 @@
-// VC 发布页“保存草稿”（backend-media.js 的 runAction('vc_draft')）：按保存草稿接口的返回或页面提示判断结果
+// VC 发布页“发布商品”/“保存草稿”（backend-media.js 的 runAction）：按接口返回或页面提示判断结果
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -59,15 +59,17 @@ test('runAction: 保存草稿后的“保存成功”弹窗自动点“我知道
   assert.equal(state.popup, null);
 });
 
-test('runAction: 只支持“保存草稿”，不会去点“发布商品”等其他按钮', async () => {
+test('runAction: 只支持“发布商品”和“保存草稿”，找不到按钮时说明', async () => {
   const { B } = loadPage('保存成功', ['我知道了'], '发布商品');
-  for (const action of ['submit_on', 'vc_publish', 'auto']) {
+  for (const action of ['submit_on', 'auto']) {
     const res = await B.runAction(action);
     assert.equal(res.ok, false);
     assert.match(res.error, /不支持的操作/);
   }
   const missing = await B.runAction('vc_draft');
   assert.match(missing.error, /找不到“保存草稿”按钮/);
+  const other = loadPage('保存成功', ['我知道了'], '保存草稿');
+  assert.match((await other.B.runAction('vc_publish')).error, /找不到“发布商品”按钮/);
 });
 
 test('runAction: 确认框有“确定”时点掉继续等结果；草稿箱满（只有“继续保存”）时不点，交给人工', async () => {
@@ -158,4 +160,72 @@ test('runAction: 其他接口的返回不当作保存草稿的结果', async () 
   const res = await B.runAction('vc_draft', { timeoutMs: 50 });
   assert.equal(res.ok, false);
   assert.equal(res.draftId, undefined);
+});
+
+// 发布商品：“发布商品”按钮的真实请求（2026-11-19 从发布页代码核实）是 sff.jd.com/api?…&api=<接口名>，
+// 成功返回 data 里有 productId、applyId、skuList:[{uuid, skuId}]
+const PUBLISH_URL = 'https://sff.jd.com/api?v=1.0&appId=XXX&api=dsm.productbff.product.warePublishPageSaveProductService.saveProductNew';
+const PUBLISH_OK = '{"code":200,"data":{"productId":10023456789,"applyId":5566778,"skuList":[{"uuid":"a1","skuId":100200300401},{"uuid":"a2","skuId":"100200300402"}]}}';
+const publishPage = (response, { url = PUBLISH_URL } = {}) => {
+  const Xhr = fakeXhrClass(response, url);
+  const page = loadPage('', [], '发布商品', { showPopup: false, globals: { XMLHttpRequest: Xhr }, afterClick: () => new Xhr().send() });
+  return { ...page, Xhr };
+};
+
+test('runAction: 发布商品接口成功时带回 skuList 里京东分配的 SKU、商品编号和申请单号，结束后恢复页面原来的 XHR', async () => {
+  const { B, Xhr } = publishPage(PUBLISH_OK);
+  const originalSend = Xhr.prototype.send;
+  const res = await B.runAction('vc_publish', { timeoutMs: 5000 });
+  assert.equal(res.ok, true);
+  assert.deepEqual([...res.skuIds], ['100200300401', '100200300402']);
+  assert.equal(res.productId, '10023456789');
+  assert.equal(res.applyId, '5566778');
+  assert.match(res.messages.join(), /商品已发布（商品编号 10023456789，申请单 5566778，SKU 100200300401、100200300402）/);
+  assert.equal(Xhr.prototype.send, originalSend);
+});
+
+test('runAction: 发布成功但 skuList 为空时仍算发布成功并说明；既没有商品编号也没有 SKU 时不算成功', async () => {
+  const none = await publishPage('{"code":200,"data":{"productId":10023456789,"skuList":[]}}').B.runAction('vc_publish', { timeoutMs: 5000 });
+  assert.equal(none.ok, true);
+  assert.deepEqual([...none.skuIds], []);
+  assert.match(none.messages.join(), /发布接口没有返回 SKU/);
+  const empty = await publishPage('{"code":200,"data":null}').B.runAction('vc_publish', { timeoutMs: 5000 });
+  assert.equal(empty.ok, false);
+  assert.match(empty.messages.join(), /发布接口没有返回商品编号/);
+});
+
+test('runAction: 发布接口失败（限流 bCode 10003）时不算成功，原始返回带回扩展侧', async () => {
+  const body = '{"msg":"操作过于频繁，请稍后再试","code":201,"bCode":"10003"}';
+  const res = await publishPage(body).B.runAction('vc_publish', { timeoutMs: 5000 });
+  assert.equal(res.ok, false);
+  assert.deepEqual([...res.skuIds], []);
+  assert.match(res.messages.join(), /发布商品失败：操作过于频繁/);
+  assert.deepEqual([...res.saveResponses], [body]);
+});
+
+test('runAction: 发布时草稿接口、saveProductNewV2 和其他接口的返回都不当作发布结果', async () => {
+  for (const url of [DRAFT_URL, `${PUBLISH_URL}V2`, 'https://sff.jd.com/api?api=dsm.productbff.other']) {
+    const res = await publishPage(PUBLISH_OK, { url }).B.runAction('vc_publish', { timeoutMs: 50 });
+    assert.equal(res.ok, false, url);
+    assert.equal(res.skuIds, undefined, url);
+  }
+});
+
+test('runAction: 发布前的“确认发布”框自动点确定；不认识的确认框不点，交给人工', async () => {
+  const Xhr = fakeXhrClass(PUBLISH_OK, PUBLISH_URL);
+  const confirm = loadPage('提示 确认发布该商品吗？', ['取消', '确定'], '发布商品', { globals: { XMLHttpRequest: Xhr } });
+  confirm.buttons[1].click = function click() {
+    this.clicks += 1;
+    confirm.state.popup = null;
+    new Xhr().send();
+  };
+  const ok = await confirm.B.runAction('vc_publish', { timeoutMs: 5000 });
+  assert.equal(ok.ok, true);
+  assert.deepEqual([...ok.skuIds], ['100200300401', '100200300402']);
+
+  const unknown = loadPage('提示 商品条形码已存在，是否继续？', ['取消', '确定'], '发布商品');
+  const res = await unknown.B.runAction('vc_publish', { timeoutMs: 5000 });
+  assert.equal(res.ok, false);
+  assert.match(res.confirmText, /条形码已存在/);
+  assert.equal(unknown.buttons[1].clicks, 0);
 });

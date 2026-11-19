@@ -377,11 +377,11 @@ export function buildVcPublishPlan({ product, edits = {}, settings, schema, temp
 }
 
 /**
- * 设置里的“填写完成后”对应 VC 页面上的按钮：VC 只有“发布商品”（提交采销审核）和“保存草稿”。
- * VC 自营一律点“保存草稿”，由人工在草稿箱里检查后再提交；只有“只填写，不保存”时不点按钮
- * @returns {'vc_draft'|null} null = 只填写不保存
+ * 设置里的“填写完成后”对应 VC 页面上的按钮：一律点“发布商品”（发布后京东才给商品分配 SKU，插件记下它）；
+ * 只有“只填写，不发布”时不点按钮
+ * @returns {'vc_publish'|null} null = 只填写不发布
  */
 export function vcActionLabel(action) {
   if (action === 'none') return null;
-  return 'vc_draft';
+  return 'vc_publish';
 }

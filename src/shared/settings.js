@@ -1,11 +1,11 @@
 // 插件设置：默认值、合并与校验（纯函数）。商品一律发布到 VC 自营（供应商后台 vcp.jd.com）
 
-// VC 发布页填写完成后：一律点“保存草稿”（到 VC 后台草稿箱检查后再手动提交），或者不点按钮停在页面
+// VC 发布页填写完成后：点“发布商品”（发布后京东才分配 SKU，插件记下），或者不点按钮停在页面
 export const PUBLISH_ACTIONS = {
-  draft: '保存草稿（到 VC 后台草稿箱检查后再手动提交）',
-  none: '只填写，不保存（停在页面供人工检查）',
+  publish: '发布商品（发布后记下京东分配的 SKU）',
+  none: '只填写，不发布（停在页面供人工检查）',
 };
-const DEFAULT_PUBLISH_ACTION = 'draft';
+const DEFAULT_PUBLISH_ACTION = 'publish';
 // VC 发布页“商品包装”的选项
 export const VC_PACK_TYPES = ['普通商品', '易碎品', '裸瓶液体', '带包装液体'];
 // 京东员工 ERP 账号：字母、数字、点、下划线、横线
@@ -51,7 +51,7 @@ function deepMerge(base, patch) {
   return out;
 }
 
-/** 旧版本的“提交并上架/提交暂不上架”等动作在 VC 上一律是“保存草稿”，只有“只填写”保留 */
+/** 旧版本的“保存草稿”“提交并上架”等动作一律改为“发布商品”，只有“只填写”保留 */
 const vcAction = (action) => (Object.hasOwn(PUBLISH_ACTIONS, action) ? action : DEFAULT_PUBLISH_ACTION);
 
 export function mergeSettings(saved) {

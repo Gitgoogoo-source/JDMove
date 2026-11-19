@@ -56,6 +56,13 @@ function categoryCell(item) {
   return h('td', {}, h('div', { class: 'sub' }, source), h('div', {}, target));
 }
 
+/** 发布后京东给店铺商品分配的 SKU（发布接口没返回时不显示） */
+function shopSkuLine(item) {
+  const ids = item.shopSkuIds ?? [];
+  if (!ids.length) return null;
+  return h('div', { class: 'sub shop-sku', title: '发布商品后京东给店铺商品分配的 SKU' }, `店铺 SKU ${ids.join('、')}`);
+}
+
 function localCell(local) {
   if (local?.error) return h('div', { class: 'sub local-error' }, `本地保存失败：${local.error}`);
   if (!local?.dir) return null;
@@ -83,6 +90,7 @@ export function renderRow(item, ctx) {
       h('div', { class: 'title' }, item.edits?.title || p?.title || '（未采集）'),
       h('a', { class: 'sub', href: item.url, target: '_blank', rel: 'noreferrer' }, `SKU ${item.skuId}`),
       p?.vc?.spuId && p.vc.spuId !== item.skuId ? h('div', { class: 'sub' }, `SPU ${p.vc.spuId}`) : null,
+      shopSkuLine(item),
       localCell(item.local),
     ),
     priceCell(item, st),

@@ -23,9 +23,9 @@ test('classifyPageUrl: VC 发布页识别为发布页；POP 发布页不再支�
   assert.equal(classifyPageUrl('https://shop.jd.com/jdm/home'), 'other');
 });
 
-test('设置：只发布到 VC 自营（没有平台选项），默认保存草稿，VC 默认值齐全', () => {
+test('设置：只发布到 VC 自营（没有平台选项），默认发布商品，VC 默认值齐全', () => {
   assert.equal('platform' in DEFAULT_SETTINGS.publish, false);
-  assert.equal(DEFAULT_SETTINGS.publish.action, 'draft');
+  assert.equal(DEFAULT_SETTINGS.publish.action, 'publish');
   assert.deepEqual(mergeSettings({}).vc, { erpCode: '', saleUnit: '', packSpecification: 1, packType: '普通商品', warranty: '无质保' });
 });
 

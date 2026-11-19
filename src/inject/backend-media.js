@@ -1,4 +1,4 @@
-// VC 发布页：图片上传工具、商品详情、保存草稿（MAIN world）。
+// VC 发布页：图片上传工具、商品详情、发布商品/保存草稿（MAIN world）。
 // 依赖 backend-core.js 先注入；backend-vc*.js 复用这里的上传工具（mediaUtil）。
 (() => {
   const NS = window.__JDMOVE__;
@@ -159,12 +159,14 @@
     return { ok: false, error: `商品详情没有写进表单（编辑器 ${editorLength} 字符，表单 ${notes().length} 字符）` };
   }
 
-  // ---------- 保存草稿 ----------
-  // VC 发布页有“发布商品”和“保存草稿”两个按钮，插件只点“保存草稿”
-  const ACTION_BUTTONS = { vc_draft: ['保存草稿'] };
+  // ---------- 发布商品 / 保存草稿 ----------
+  // VC 发布页有“发布商品”和“保存草稿”两个按钮。插件默认点“发布商品”：发布后京东才给商品分配 SKU，插件从发布接口的返回里记下它
+  const ACTION_BUTTONS = { vc_publish: ['发布商品'], vc_draft: ['保存草稿'] };
   // 保存成功后页面弹出“保存成功 … 我知道了”，需要点掉才算结束
   const SUCCESS_POPUP_RE = /保存成功|提交成功|发布成功|操作成功/;
   const ACK_LABELS = ['我知道了', '知道了', '确定', '关闭'];
+  // 点“发布商品”后弹出的确认框：只自动确认“确认发布/提交吗”这类，其他提示（如条码重复）交给人工
+  const PUBLISH_CONFIRM_RE = /确[认定](要)?(发布|提交)/;
 
   function ackButton(box) {
     for (const label of ACK_LABELS) {
@@ -177,7 +179,26 @@
   // 保存草稿的接口（地址里 api=dsm.productbff.product.draft.saveDraftNew）：成功返回 {code:200, data:{draftId}}，
   // 网关拒收时 {code:455/456, msg:"无效的数字/字符串，请核对后再试 [456]"}
   const VC_DRAFT_API_RE = /saveDraftNew/i;
-  const draftIdOf = (text) => (String(text || '').match(/"draftId"\s*:\s*"?(\d{6,20})/) || [])[1] || '';
+  // “发布商品”按钮调用的接口（2026-11-19 从发布页代码核实）：页面 POST /dsm/<接口名>，实际请求是
+  // sff.jd.com/api?…&api=dsm.productbff.product.warePublishPageSaveProductService.saveProductNew（页面里还有个 saveProductNewV2，按钮不用它）。
+  // 成功返回的 data 里有 productId（商品编号/SPU）、applyId（申请单号）、skuList:[{uuid, skuId}]（京东分配的 SKU）；
+  // 页面拿到后 100ms 整页跳到“商品管理 → 申请中”（ware/wareList?…activeTab=ApplyWare）。失败时请求被拒，页面按错误码提示
+  const VC_PUBLISH_API_RE = /[?&]api=dsm\.productbff\.product\.warePublishPageSaveProductService\.saveProductNew(?:&|$)/;
+  const idField = (text, name) => (String(text || '').match(new RegExp(`"${name}"\\s*:\\s*"?(\\d{6,20})`)) || [])[1] || '';
+  const idText = (v) => (v != null && /^\d{1,20}$/.test(String(v).trim()) ? String(v).trim() : '');
+  /** 发布接口返回里的编号：{data:{productId, applyId, skuList:[{uuid, skuId}]}}（兼容没有外层 data 的写法） */
+  function publishIdsOf(text) {
+    let body = null;
+    try {
+      body = JSON.parse(text);
+    } catch {
+      return { skuIds: [], productId: '', applyId: '' };
+    }
+    const data = body && typeof body.data === 'object' && body.data ? body.data : body || {};
+    const skuList = Array.isArray(data.skuList) ? data.skuList : [];
+    const skuIds = [...new Set(skuList.map((s) => idText(s && s.skuId)).filter(Boolean))];
+    return { skuIds, productId: idText(data.productId), applyId: idText(data.applyId) };
+  }
   // 返回了编号但同时标着失败（success:false、4xx/5xx 错误码）不算成功
   const FAILED_BODY_RE = /"success"\s*:\s*false|"code"\s*:\s*"?[45]\d\d\b/;
   // 接口的原始返回带回扩展侧判断（如限流 bCode 10003）；只带回前 2000 个字符
@@ -195,14 +216,23 @@
     return failed ? String(obj.msg || obj.message || '') : null;
   }
 
-  // 点击期间临时拦截 XHR/fetch 的返回，记下保存草稿接口的结果；结束后 restore() 恢复原来的 XHR/fetch，不长期改动页面
-  function installDraftCapture() {
-    const drafts = [];
+  /** 哪个保存接口：按请求地址里的 api= 接口名判断 */
+  function saveKind(url) {
+    if (VC_DRAFT_API_RE.test(String(url || ''))) return 'vc_draft';
+    if (VC_PUBLISH_API_RE.test(String(url || ''))) return 'vc_publish';
+    return '';
+  }
+
+  // 点击期间临时拦截 XHR/fetch 的返回，记下保存草稿/发布商品接口的结果；结束后 restore() 恢复原来的 XHR/fetch，不长期改动页面
+  function installSaveCapture() {
+    const saves = [];
     const restores = [];
     const record = (text, url) => {
-      if (!VC_DRAFT_API_RE.test(String(url || ''))) return;
+      const kind = saveKind(url);
+      if (!kind) return;
       const t = String(text);
-      drafts.push({ at: Date.now(), draftId: draftIdOf(t), failure: saveFailure(t), text: t.slice(0, SAVE_RESPONSE_MAX) });
+      const ids = kind === 'vc_publish' ? publishIdsOf(t) : { draftId: idField(t, 'draftId') };
+      saves.push({ kind, at: Date.now(), ...ids, failure: saveFailure(t), text: t.slice(0, SAVE_RESPONSE_MAX) });
     };
     if (typeof XMLHttpRequest !== 'undefined') {
       const origSend = XMLHttpRequest.prototype.send;
@@ -228,7 +258,7 @@
         });
       };
     }
-    return { drafts, restore: () => [...restores].reverse().forEach((fn) => fn()) };
+    return { saves, restore: () => [...restores].reverse().forEach((fn) => fn()) };
   }
 
   /** 保存草稿接口的返回 → runAction 的结果 */
@@ -246,8 +276,27 @@
     };
   }
 
+  /** 发布商品接口的返回 → runAction 的结果：没有失败标记且返回了商品编号或 SKU 才算发布成功 */
+  function vcPublishResult(save, url) {
+    const ok = save.failure == null && Boolean(save.productId || save.skuIds.length);
+    const why = save.failure || '发布接口没有返回商品编号';
+    const skuNote = save.skuIds.length ? `SKU ${save.skuIds.join('、')}` : '发布接口没有返回 SKU';
+    const ids = [save.productId && `商品编号 ${save.productId}`, save.applyId && `申请单 ${save.applyId}`, skuNote].filter(Boolean);
+    return {
+      ok,
+      messages: ok ? [`商品已发布（${ids.join('，')}）`] : [`发布商品失败：${why}`],
+      errors: [],
+      confirmText: '',
+      url,
+      skuIds: ok ? save.skuIds : [],
+      productId: ok ? save.productId : '',
+      applyId: ok ? save.applyId : '',
+      saveResponses: [save.text],
+    };
+  }
+
   async function runAction(action, opts) {
-    const capture = installDraftCapture();
+    const capture = installSaveCapture();
     try {
       return await clickAndWatch(action, opts, capture);
     } finally {
@@ -260,8 +309,20 @@
     return (store && store.publishDisabledMsg) || '请检查页面提示';
   };
 
+  /**
+   * 点击后出现的确认框怎么处理：返回 true = 已自动点了确定，继续等结果。
+   * 草稿：点“确定”（草稿箱满时弹“继续保存”，会删掉最早的一条草稿，没有“确定”按钮，不点）。
+   * 发布：只确认“确认发布/提交”这类，其他的停下来交给人工
+   */
+  function handleConfirm(action, box) {
+    const ok = buttonByText('确定', box);
+    const autoConfirm = action === 'vc_draft' || PUBLISH_CONFIRM_RE.test(textOf(box));
+    if (ok && autoConfirm) click(ok);
+    return Boolean(ok && autoConfirm);
+  }
+
   // 只认点击之后新出现的提示：页面上可能还留着“批量设置成功”之类的提示，不能当成保存结果
-  async function clickAndWatch(action, { timeoutMs = 20000 } = {}, capture = { drafts: [] }) {
+  async function clickAndWatch(action, { timeoutMs = 20000 } = {}, capture = { saves: [] }) {
     const labels = ACTION_BUTTONS[action];
     if (!labels) return { ok: false, error: `不支持的操作：${action}` };
     const btn = labels.map((l) => buttonByText(l)).find(Boolean);
@@ -275,12 +336,13 @@
     click(btn);
     const end = Date.now() + timeoutMs;
     let confirmText = '';
+    let confirmed = false;
     let popupSuccess = false;
-    let draft = null;
+    let save = null;
     while (Date.now() < end) {
-      // 按接口返回判断（成功后 100ms 页面就跳到草稿箱，不等弹窗）
-      draft = capture.drafts.find((d) => d.at >= clickedAt) || null;
-      if (draft) break;
+      // 按接口返回判断（成功后页面很快整页跳走，不等弹窗）
+      save = capture.saves.find((d) => d.kind === action && d.at >= clickedAt) || null;
+      if (save) break;
       messages().filter((m) => !preexisting.has(m)).forEach((m) => seen.add(m));
       const box = visibleDialogs().find(
         (d) => d.classList.contains('jd-message-box') || /提示|确认/.test(textOf(d).slice(0, 20)) || SUCCESS_POPUP_RE.test(textOf(d)),
@@ -294,15 +356,15 @@
       }
       if (box && !confirmText) {
         confirmText = textOf(box).slice(0, 200);
-        // 草稿箱满时弹“继续保存”（会删掉最早的一条草稿）：没有“确定”按钮，不点，交给人工
-        const ok = buttonByText('确定', box);
-        if (ok) click(ok);
+        confirmed = handleConfirm(action, box);
+        // 发布时不认识的确认框：不替人决定，停下来
+        if (!confirmed && action === 'vc_publish') break;
       }
       if (location.href !== startUrl) break;
       if ([...seen].some((m) => SUCCESS_POPUP_RE.test(m) || /失败|错误|请/.test(m))) break;
       await sleep(100);
     }
-    if (draft) return vcDraftResult(draft, location.href);
+    if (save) return action === 'vc_publish' ? vcPublishResult(save, location.href) : vcDraftResult(save, location.href);
     const msgs = [...seen];
     const errors = B.collectErrors();
     const success = popupSuccess || msgs.some((m) => SUCCESS_POPUP_RE.test(m)) || location.href !== startUrl;

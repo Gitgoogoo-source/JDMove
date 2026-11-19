@@ -114,7 +114,7 @@ export async function confirmReviewUpload({ fileName, book, plan, pub, items, no
       changesBox(plan.updates, itemsById),
       incompleteBox(pub.incomplete, onDownloadIncomplete),
       problemList('没有导入的行 / 提醒', problems),
-      h('p', { class: 'muted' }, '“保存并发布”：保存表格里的修改，然后在当前窗口新开标签页打开 VC 发布页逐个填写（按设置里的“填写完成后”保存草稿）。只改插件里的数据，草稿要到 VC 后台检查后提交。'),
+      h('p', { class: 'muted' }, '“保存并发布”：保存表格里的修改，然后在当前窗口新开标签页打开 VC 发布页逐个填写（按设置里的“填写完成后”点“发布商品”，记下京东分配的 SKU）。'),
     ],
     [h('button', { value: 'cancel', formnovalidate: true }, '取消'), save, publish],
   );

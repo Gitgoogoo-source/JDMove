@@ -264,10 +264,10 @@ test('buildVcPublishPlan: 参数里有保质期时换算成天数', () => {
   assert.equal(plan.logistics.sldays, 1080);
 });
 
-test('vcActionLabel: VC 一律点“保存草稿”，只填写不保存时不点按钮', () => {
-  assert.equal(vcActionLabel('submit_on'), 'vc_draft');
-  assert.equal(vcActionLabel('submit_off'), 'vc_draft');
-  assert.equal(vcActionLabel('draft'), 'vc_draft');
+test('vcActionLabel: VC 一律点“发布商品”，只填写不发布时不点按钮', () => {
+  assert.equal(vcActionLabel('publish'), 'vc_publish');
+  assert.equal(vcActionLabel('submit_on'), 'vc_publish');
+  assert.equal(vcActionLabel('draft'), 'vc_publish');
   assert.equal(vcActionLabel('none'), null);
 });
 

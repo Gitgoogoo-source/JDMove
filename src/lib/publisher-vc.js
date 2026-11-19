@@ -1,4 +1,4 @@
-// VC 自营发布：源商品的类目/品牌 → 直接打开 VC 发布页 → 按计划逐项填写 → 页面本地校验 → 保存草稿（不点“发布商品”）
+// VC 自营发布：源商品的类目/品牌 → 直接打开 VC 发布页 → 按计划逐项填写 → 页面本地校验 → 点“发布商品”，记下京东分配的 SKU
 import { buildVcPublishPlan, vcPreflight, vcTarget, vcActionLabel } from '../shared/vc-plan.js';
 import { descriptionHtml } from '../shared/publish-plan.js';
 import { buildVcPublishUrl, imgzoneUrl } from '../shared/url-utils.js';
@@ -15,8 +15,9 @@ const NOT_OPENED_MSG = 'VC 发布页没有打开：品牌可能没有授权，�
 const LAND_TIMEOUT_MS = 5000;
 // 详情图转存时每次传给页面的张数
 const DETAIL_CHUNK = 6;
-// 保存草稿成功后页面 100ms 内整页跳到草稿箱（wareList?activeTab=DraftWare），脚本可能来不及返回
-const DRAFT_LIST_RE = /^https:\/\/[^/?#]+\/ware\/wareList\?[^#]*activeTab=DraftWare/;
+// 发布成功后页面 100ms 内整页跳走（发布页代码核实）：VC 跳到“商品管理 → 申请中”（ware/wareList?…activeTab=ApplyWare），
+// 部分发布类型跳到 ware/publish-success?wareId=…；脚本可能来不及返回结果
+const PUBLISHED_LANDING_RE = /^https:\/\/[^/?#]+\/ware\/(?:wareList\?[^#]*activeTab=ApplyWare|publish-success\?)/;
 
 async function waitVcReady(tabId, timeoutMs = 40000) {
   const end = Date.now() + timeoutMs;
@@ -185,18 +186,22 @@ async function checkPayload(tabId, plan, log) {
   return {};
 }
 
-/** 点“保存草稿”；草稿保存成功后页面整页跳到草稿箱，脚本来不及返回时按落地地址判断 */
-async function saveVcDraft(tabId, landTimeoutMs) {
+/** 点“发布商品”；页面整页跳走、脚本来不及返回时按落地地址判断（这时拿不到 SKU） */
+async function submitVc(tabId, landTimeoutMs) {
   let result;
   let error;
   try {
-    result = await callVcBackend(tabId, 'runAction', 'vc_draft');
+    result = await callVcBackend(tabId, 'runAction', 'vc_publish');
   } catch (e) {
     error = e;
   }
   if (result && (result.ok || result.confirmText || result.errors?.length || result.messages?.length)) return result;
-  const draftUrl = await waitForTabUrl(tabId, DRAFT_LIST_RE, landTimeoutMs);
-  if (draftUrl) return { ...result, ok: true, url: draftUrl, messages: ['草稿已保存'], errors: [], confirmText: '' };
+  const landed = await waitForTabUrl(tabId, PUBLISHED_LANDING_RE, landTimeoutMs);
+  if (landed) {
+    const productId = new URL(landed).searchParams.get('wareId') || '';
+    const note = productId ? `商品编号 ${productId}，没拿到 SKU` : '页面已跳到申请中列表，没拿到 SKU';
+    return { ...result, ok: true, url: landed, messages: [`商品已发布（${note}）`], errors: [], confirmText: '', skuIds: [], productId };
+  }
   if (error) throw error;
   return result;
 }
@@ -212,8 +217,17 @@ function submitOutcome(result, plan, target, tabId, log) {
     const detail = [result?.error, ...(result?.errors ?? []), ...(result?.messages ?? [])].filter(Boolean).join('；');
     return { status: 'failed', message: detail || '提交未成功', target, tabId };
   }
-  log(result.draftId ? `已保存草稿（草稿编号 ${result.draftId}）：请到 VC 后台草稿箱检查后手动提交` : '已保存草稿：请到 VC 后台草稿箱检查后手动提交');
-  return { status: 'published', message: (result.messages ?? []).join('；') || '已保存草稿', target, price: plan.prices.jdPrice };
+  const skuIds = result.skuIds ?? [];
+  log(skuIds.length ? `已发布，京东分配的 SKU：${skuIds.join('、')}` : '已发布，但没拿到京东分配的 SKU，请到 VC 后台商品列表查看');
+  return {
+    status: 'published',
+    message: (result.messages ?? []).join('；') || '商品已发布',
+    target,
+    price: plan.prices.jdPrice,
+    skuIds,
+    productId: result.productId || '',
+    applyId: result.applyId || '',
+  };
 }
 
 async function publishInVcTab(tab, item, settings, log, target, ctx) {
@@ -246,17 +260,17 @@ async function publishInVcTab(tab, item, settings, log, target, ctx) {
     if (payload.stop) return { ...payload.stop, target, tabId: tab.id };
 
     if (!vcActionLabel(settings.publish.action)) {
-      return { status: 'filled', message: '已填写完成，请在工作窗口中检查后手动点“保存草稿”或“发布商品”', target, tabId: tab.id };
+      return { status: 'filled', message: '已填写完成，请在工作窗口中检查后手动点“发布商品”', target, tabId: tab.id };
     }
-    const result = await saveVcDraft(tab.id, ctx.landTimeoutMs);
-    ctx.timer.lap('保存草稿');
+    const result = await submitVc(tab.id, ctx.landTimeoutMs);
+    ctx.timer.lap('发布商品');
     return submitOutcome(result, plan, target, tab.id, log);
   } catch (e) {
     return { status: 'failed', message: e.message, target, tabId: tab.id };
   }
 }
 
-/** 自动换过类目时在结果里写明，不只写在日志里（保存草稿后要按这个核对类目） */
+/** 自动换过类目时在结果里写明，不只写在日志里（发布后要按这个核对类目） */
 const withLeafNote = (result, note) => (note ? { ...result, message: `${result.message}（${note}）` } : result);
 
 /** 源类目不是末级类目：到类目选择页选子类目，在同一个标签页里换成末级类目的发布页再填一遍 */

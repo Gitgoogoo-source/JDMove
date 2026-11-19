@@ -152,21 +152,21 @@ test('publishVcItem: 没填 ERP 时不改采购员/销售员，沿用页面默�
   assert.ok(lines.some((l) => /ERP 没有填写/.test(l)));
 });
 
-test('publishVcItem: 旧设置里的“提交并上架”也只点“保存草稿”，成功后记下京东价', async () => {
+test('publishVcItem: 旧设置里的“提交并上架”也点“发布商品”，成功后记下京东价', async () => {
   const page = vcPage();
   installFakeChrome({ backend: page.backend });
   const lines = [];
   const res = await publishVcItem(vcItem(), settings({ action: 'submit_on' }), (l) => lines.push(l), { imageMakers: makers });
   assert.equal(res.status, 'published', res.message);
   assert.equal(res.price, 69.9);
-  assert.deepEqual(page.calls.find((c) => c.method === 'runAction').args, ['vc_draft']);
-  assert.ok(lines.some((l) => /已保存草稿/.test(l)));
+  assert.deepEqual(page.calls.find((c) => c.method === 'runAction').args, ['vc_publish']);
+  assert.ok(lines.some((l) => /已发布/.test(l)));
 });
 
 test('publishVcItem: 字段一律按字符串写入（毛重 4.33 写 "4.33"，数字会被保存接口拒收 [456]）', async () => {
   const page = vcPage();
   installFakeChrome({ backend: page.backend });
-  await publishVcItem(vcItem(), settings({ action: 'draft' }), () => {}, { imageMakers: makers });
+  await publishVcItem(vcItem(), settings({ action: 'publish' }), () => {}, { imageMakers: makers });
   const { entries } = page.calls.find((c) => c.method === 'vcSetFields').args[0];
   assert.ok(entries.every((e) => typeof e.value === 'string'), JSON.stringify(entries));
   const value = (field) => entries.find((e) => e.field === field)?.value;
@@ -181,35 +181,42 @@ test('publishVcItem: 字段一律按字符串写入（毛重 4.33 写 "4.33"，�
 test('publishVcItem: 提交数据里字段不是文本时不保存，保留页面并说明', async () => {
   const page = vcPage({ vcPayloadCheck: { ok: false, problems: ['毛重=4.33（数字）'], floats: ['weight=4.33'] } });
   installFakeChrome({ backend: page.backend });
-  const res = await publishVcItem(vcItem(), settings({ action: 'draft' }), () => {}, { imageMakers: makers });
+  const res = await publishVcItem(vcItem(), settings({ action: 'publish' }), () => {}, { imageMakers: makers });
   assert.equal(res.status, 'failed');
   assert.match(res.message, /毛重=4\.33（数字）/);
   assert.ok(res.tabId);
   assert.ok(!page.methods().includes('runAction'));
 });
 
-test('publishVcItem: 保存草稿接口返回 [456] 时标为失败并带出页面原文', async () => {
-  const page = vcPage({ runAction: { ok: false, messages: ['保存草稿失败：无效的字符串，请核对后再试 [456]'], errors: [] } });
+test('publishVcItem: 发布接口返回 [456] 时标为失败并带出页面原文', async () => {
+  const page = vcPage({ runAction: { ok: false, messages: ['发布商品失败：无效的字符串，请核对后再试 [456]'], errors: [] } });
   installFakeChrome({ backend: page.backend });
-  const res = await publishVcItem(vcItem(), settings({ action: 'draft' }), () => {}, { imageMakers: makers });
+  const res = await publishVcItem(vcItem(), settings({ action: 'publish' }), () => {}, { imageMakers: makers });
   assert.equal(res.status, 'failed');
   assert.match(res.message, /\[456\]/);
 });
 
-test('publishVcItem: 保存草稿成功时记下草稿编号', async () => {
-  const page = vcPage({ runAction: { ok: true, messages: ['草稿已保存'], errors: [], draftId: '414309950' } });
+test('publishVcItem: 发布成功时带回京东分配的 SKU 并写进日志', async () => {
+  const page = vcPage({ runAction: { ok: true, messages: ['商品已发布（SKU 100200300401）'], errors: [], skuIds: ['100200300401'], productId: '10023456789', applyId: '5566778' } });
   installFakeChrome({ backend: page.backend });
   const lines = [];
-  const res = await publishVcItem(vcItem(), settings({ action: 'draft' }), (l) => lines.push(l), { imageMakers: makers });
+  const res = await publishVcItem(vcItem(), settings({ action: 'publish' }), (l) => lines.push(l), { imageMakers: makers });
   assert.equal(res.status, 'published');
-  assert.ok(lines.some((l) => /草稿编号 414309950/.test(l)));
+  assert.deepEqual(res.skuIds, ['100200300401']);
+  assert.equal(res.productId, '10023456789');
+  assert.equal(res.applyId, '5566778');
+  assert.ok(lines.some((l) => /京东分配的 SKU：100200300401/.test(l)));
 });
 
-test('publishVcItem: 保存草稿 → 点“保存草稿”', async () => {
+test('publishVcItem: 发布 → 点“发布商品”；接口没返回 SKU 时仍算发布成功并提醒', async () => {
   const page = vcPage();
   installFakeChrome({ backend: page.backend });
-  await publishVcItem(vcItem(), settings({ action: 'draft' }), () => {}, { imageMakers: makers });
-  assert.deepEqual(page.calls.find((c) => c.method === 'runAction').args, ['vc_draft']);
+  const lines = [];
+  const res = await publishVcItem(vcItem(), settings({ action: 'publish' }), (l) => lines.push(l), { imageMakers: makers });
+  assert.deepEqual(page.calls.find((c) => c.method === 'runAction').args, ['vc_publish']);
+  assert.equal(res.status, 'published');
+  assert.deepEqual(res.skuIds, []);
+  assert.ok(lines.some((l) => /没拿到京东分配的 SKU/.test(l)));
 });
 
 test('publishVcItem: 页面本地校验没通过时不提交，保留页面并写出原因', async () => {
@@ -448,4 +455,26 @@ test('publishVcItem: 按类目路径读上架模板写进日志；超出模板�
   assert.equal(res.status, 'need_action');
   assert.match(res.message, /长“408”超出页面允许的范围（1~400mm/);
   assert.ok(!fake.ops().includes('tabs.create'));
+});
+
+test('publishVcItem: 发布后页面整页跳走、脚本没来得及返回时，按落地地址判断（申请中列表 / publish-success?wareId=）', async () => {
+  for (const [landing, productId] of [
+    ['https://wares-jdm.jd.com/ware/wareList?businessModel=1&activeTab=ApplyWare', ''],
+    ['https://wares-jdm.jd.com/ware/publish-success?wareId=10023456789&applyId=5566778&categoryId=31403', '10023456789'],
+  ]) {
+    let fake;
+    const page = vcPage({
+      runAction: () => {
+        for (const [id, tab] of fake.tabs) fake.tabs.set(id, { ...tab, url: landing });
+        return {}; // 页面跳走，脚本被打断，没有结果
+      },
+    });
+    fake = installFakeChrome({ backend: page.backend });
+    const lines = [];
+    const res = await publishVcItem(vcItem(), settings({ action: 'publish' }), (l) => lines.push(l), { imageMakers: makers, landTimeoutMs: 500 });
+    assert.equal(res.status, 'published', res.message);
+    assert.equal(res.productId, productId);
+    assert.deepEqual(res.skuIds, []);
+    assert.match(res.message, /没拿到 SKU/);
+  }
 });

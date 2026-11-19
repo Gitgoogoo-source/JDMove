@@ -8,7 +8,7 @@ const round2 = (v) => Math.round((v + Number.EPSILON) * 100) / 100;
 const positive = (v) => (Number(v) > 0 ? Number(v) : null);
 
 /**
- * 店铺售价：发布（保存草稿）时记下的 VC 京东价优先，没有记录时用「编辑 → VC 自营」里填的京东价
+ * 店铺售价：发布商品时记下的 VC 京东价优先，没有记录时用「编辑 → VC 自营」里填的京东价
  * @param {object} item
  * @returns {number|null}
  */

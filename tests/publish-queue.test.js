@@ -61,7 +61,7 @@ test('发布队列：限流的商品回到“已采集”留在任务列表，�
 });
 
 test('发布队列：之后保存成功时清除冷却记录，并记下 VC 京东价', async () => {
-  const { fake, runner } = setup({ status: 'published', message: '已保存草稿', price: 69.9 }, { publishThrottle: { at: 1, until: 2, message: '京麦提交接口限流' } });
+  const { fake, runner } = setup({ status: 'published', message: '商品已发布', price: 69.9 }, { publishThrottle: { at: 1, until: 2, message: '京麦提交接口限流' } });
   await runner.publish(['1']);
   assert.equal(fake.localStore.items[0].status, 'published');
   assert.equal(fake.localStore.items[0].salePrice, 69.9);

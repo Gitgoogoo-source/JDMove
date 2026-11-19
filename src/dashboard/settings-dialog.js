@@ -78,7 +78,7 @@ export async function editSettings(settings) {
           field('删除词（逗号分隔）', f.removeWords)),
         h('fieldset', {}, h('legend', {}, '发布（VC 自营，供应商后台 vcp.jd.com）'),
           h('small', { class: 'muted' }, '直接打开 vcProductPublish 发布页（用采集到的类目和品牌ID）；市场价/京东价/采购价/采购员/销售员在「编辑」中填写，商品多时用“表格导入价格/ERP”批量填写。'),
-          h('div', { class: 'row2' }, field('填写完成后', f.action, '只点“保存草稿”（不点“发布商品”），请到 VC 后台草稿箱检查后再提交；选“只填写，不保存”时不点按钮'), field('每条发布间隔（秒）', f.pubDelay)),
+          h('div', { class: 'row2' }, field('填写完成后', f.action, '点“发布商品”（发布后京东才分配 SKU，插件记下并显示在“已发布”页）；选“只填写，不发布”时不点按钮，停在页面'), field('每条发布间隔（秒）', f.pubDelay)),
           h('div', { class: 'row2' }, field('主图最多', f.maxMain), field('详情图最多', f.maxDetail)),
           f.reupload.node, f.skuAttrs.node,
           field('限流后冷却（分钟）', f.throttleCooldown, '保存时返回“操作过于频繁”会暂停发布；这段时间内再点“发布选中”会先提醒。0 = 不提醒')),

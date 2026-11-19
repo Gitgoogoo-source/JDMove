@@ -138,7 +138,7 @@ export function createBatchFlow({ runner, storage, onLog, reload, confirmCooldow
   function bookNotes(book, pub, items) {
     const notes = book.lost.length ? [`找不到这些附表（改了名字或删掉了）：${book.lost.join('、')}，里面的商品没有导入`] : [];
     const retried = pub.ready.filter((id) => ['need_action', 'failed'].includes(items.find((i) => i.id === id)?.status)).length;
-    if (retried) notes.push(`将发布的商品里有 ${retried} 个以前发布过但没成功或停在发布页（需处理/失败），会再填写、保存一次草稿；如果已经在 VC 后台手动保存过它们的草稿，请先取消，避免重复草稿`);
+    if (retried) notes.push(`将发布的商品里有 ${retried} 个以前发布过但没成功或停在发布页（需处理/失败），会再填写、发布一次；如果已经在 VC 后台手动发布过它们，请先取消，避免重复商品`);
     const batch = book.meta?.batchId ? batches.find((b) => b.id === book.meta.batchId) : null;
     const exportedAt = Date.parse(book.meta?.exportedAt ?? '');
     if (batch?.exportedAt && exportedAt && batch.exportedAt - exportedAt > STALE_MS) {

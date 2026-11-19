@@ -36,7 +36,7 @@ test('mergeSettings fills defaults without mutating input', () => {
   const merged = mergeSettings(saved);
   assert.equal(merged.title.prefix, '新品');
   assert.equal(merged.title.maxLength, DEFAULT_SETTINGS.title.maxLength);
-  assert.equal(merged.publish.action, 'draft');
+  assert.equal(merged.publish.action, 'publish');
   assert.deepEqual(saved, { title: { prefix: '新品' } });
 });
 
@@ -55,9 +55,9 @@ test('validateSettings clamps and reports errors', () => {
   assert.equal(value.publish.delaySec, DEFAULT_SETTINGS.publish.delaySec);
 });
 
-test('mergeSettings: 发布动作只有“保存草稿”和“只填写”；旧版本的“提交并上架/提交暂不上架”读取时改为保存草稿', () => {
+test('mergeSettings: 发布动作只有“发布商品”和“只填写”；旧版本的“保存草稿/提交并上架”等读取时改为发布商品', () => {
   for (const action of ['submit_on', 'submit_off', 'draft', 'hack', undefined]) {
-    assert.equal(mergeSettings({ publish: { action } }).publish.action, 'draft', String(action));
+    assert.equal(mergeSettings({ publish: { action } }).publish.action, 'publish', String(action));
   }
   assert.equal(mergeSettings({ publish: { action: 'none' } }).publish.action, 'none');
   assert.equal(validateSettings({ publish: { action: 'submit_on' } }).ok, true, '旧设置不报错');
@@ -158,7 +158,7 @@ test('settings repository merges with defaults', async () => {
   const repo = createSettingsRepository(storage);
   const s = await repo.get();
   assert.equal(s.publish.delaySec, 7);
-  assert.equal(s.publish.action, 'draft');
+  assert.equal(s.publish.action, 'publish');
   const saved = await repo.save({ ...s, publish: { ...s.publish, delaySec: 9 } });
   assert.equal(saved.publish.delaySec, 9);
   assert.equal(storage.dump().settings.publish.delaySec, 9);
@@ -214,6 +214,7 @@ test('publishResultPatch stamps publishedAt only on a successful publish', () =>
     message: '完成',
     target: { id: 't1' },
     publishedAt: 50,
+    shopSkuIds: [],
   });
   assert.deepEqual(publishResultPatch(item, { status: 'filled', message: '已填写完成' }, 50), {
     status: 'need_action',
@@ -232,6 +233,14 @@ test('publishResultPatch records the VC 京东价 of a successful publish', () =
   assert.equal(publishResultPatch(item, { status: 'published', message: '完成', price: 59.9 }, 50).salePrice, 59.9);
   const failed = publishResultPatch(item, { status: 'failed', message: 'x', price: 59.9 }, 50);
   assert.equal('salePrice' in failed, false);
+});
+
+test('publishResultPatch: 记下发布接口带回的店铺 SKU（去重、只留数字）；重新发布没拿到 SKU 时清掉旧的', () => {
+  const item = { ...newItem('100001', 1), shopSkuIds: ['100200300999'] };
+  const res = { status: 'published', message: '完成', skuIds: ['100200300401', 100200300402, '100200300401', 'abc', ''] };
+  assert.deepEqual(publishResultPatch(item, res, 50).shopSkuIds, ['100200300401', '100200300402']);
+  assert.deepEqual(publishResultPatch(item, { status: 'published', message: '完成' }, 50).shopSkuIds, []);
+  assert.equal('shopSkuIds' in publishResultPatch(item, { status: 'failed', message: 'x', skuIds: ['100200300401'] }, 50), false);
 });
 
 test('editsEqual ignores key order, undefined values and empty overrides', () => {
@@ -329,6 +338,7 @@ async function publishedRepo() {
     message: '保存成功',
     publishedAt: 1000,
     salePrice: 30,
+    shopSkuIds: ['100200300401'],
     shopWareId: '10088812345',
     priceCheck: { price: 35, checkedAt: 2000 },
     reprice: { status: 'ok' },
@@ -345,7 +355,7 @@ test('returnToTasks: 已发布商品退回任务列表的“已采集”，保�
   assert.equal(item.status, 'collected');
   assert.equal(item.message, RETURNED_NOTE);
   assert.equal(isArchived(item), false, '应回到任务列表');
-  for (const key of ['publishedAt', 'salePrice', 'shopWareId', 'priceCheck', 'reprice']) assert.ok(!(key in item), `应清掉 ${key}`);
+  for (const key of ['publishedAt', 'salePrice', 'shopSkuIds', 'shopWareId', 'priceCheck', 'reprice']) assert.ok(!(key in item), `应清掉 ${key}`);
   assert.equal(item.product.title, 'a');
   assert.deepEqual(item.edits, { price: 30 });
   assert.equal(item.target.name, '巧克力');
