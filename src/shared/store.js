@@ -4,7 +4,8 @@ import { mergeSettings } from './settings.js';
 
 const ITEMS_KEY = 'items';
 const SETTINGS_KEY = 'settings';
-// 发布成功过的 SKU（skuId → 发布时间）：发布成功的商品移出任务列表后，重新添加链接/抓取店铺时据此去重
+// 发布成功过的 SKU（skuId → 发布时间）：只用来在上架表批次进度里数“已发布”；不拿来去重——
+// 同一个参考链接会上架多次（常规价、促销价各一个），重新添加/上传总是加入任务列表（用户 2026-11-20 要求）
 const PUBLISHED_KEY = 'publishedSkus';
 // 最近一次保存接口限流（被拒时间、建议冷却到的时间）
 export const THROTTLE_KEY = 'publishThrottle';
@@ -140,20 +141,17 @@ export const publishedSkuSet = (registry = {}) => new Set(Object.keys(registry ?
 const isLegacyPublished = (item) => item.status === 'published' || item.publishedAt > 0;
 
 /**
- * 新链接分组：新增 / 已发布过（跳过）/ 已在列表里
+ * 新链接分组：新增 / 已在列表里。以前发布过的商品也算新增（同一商品会以不同售价多次上架）
  * @param {string[]} skuIds
  * @param {object[]} items
- * @param {Set<string>} published
- * @param {{includePublished?: boolean}} [opts] includePublished=true 时已发布过的也重新加入任务
+ * @returns {{fresh: string[], existing: string[]}}
  */
-export function planNewSkus(skuIds, items, published, { includePublished = false } = {}) {
+export function planNewSkus(skuIds, items) {
   const known = new Set(items.map((i) => i.id));
   const unique = [...new Set(skuIds.map(String))];
-  const isPublished = (id) => !includePublished && published.has(id);
   return {
-    fresh: unique.filter((id) => !known.has(id) && !isPublished(id)),
-    published: unique.filter((id) => isPublished(id)),
-    existing: unique.filter((id) => known.has(id) && !isPublished(id)),
+    fresh: unique.filter((id) => !known.has(id)),
+    existing: unique.filter((id) => known.has(id)),
   };
 }
 
@@ -171,7 +169,7 @@ export function createItemRepository(storage) {
   const load = async () => (await storage.get(ITEMS_KEY)) ?? [];
   const persist = (items) => storage.set(ITEMS_KEY, items);
   const loadPublished = async () => (await storage.get(PUBLISHED_KEY)) ?? {};
-  // 记进已发布记录（已有的保留原来的时间）：发布成功的商品移出任务列表后，重新添加同一商品仍会被跳过
+  // 记进已发布记录（已有的保留原来的时间）：上架表批次进度按它数“已发布”
   const rememberPublished = async (skuIds) => {
     if (!skuIds.length) return;
     const registry = await loadPublished();
@@ -181,24 +179,23 @@ export function createItemRepository(storage) {
   };
 
   /**
-   * 批量加入任务：已在列表里的不重复添加，已发布过的商品默认跳过。
+   * 批量加入任务：已在列表里的不重复添加；以前发布过的商品照样加入（不去重）。
    * opts.urls（SKU → 链接）指定采集用的链接（京东万商），已在列表里的商品也改用这个链接
-   * @returns {Promise<{added: Item[], published: string[], existing: string[]}>}
+   * @returns {Promise<{added: Item[], existing: string[]}>}
    */
-  const addTasks = (skuIds, opts = {}) =>
+  const addTasks = (skuIds, { urls = {} } = {}) =>
     serial(async () => {
-      const [items, registry] = await Promise.all([load(), loadPublished()]);
-      const plan = planNewSkus(skuIds, items, publishedSkuSet(registry), opts);
-      const { urls = {} } = opts;
+      const items = await load();
+      const plan = planNewSkus(skuIds, items);
       const added = plan.fresh.map((id) => newItem(id, Date.now(), urls[id]));
       const retargeted = items.map((i) => (plan.existing.includes(i.id) && urls[i.id] ? { ...i, url: urls[i.id] } : i));
       if (added.length || plan.existing.some((id) => urls[id])) await persist([...retargeted, ...added]);
-      return { added, published: plan.published, existing: plan.existing };
+      return { added, existing: plan.existing };
     });
 
   return {
     findAll: () => load(),
-    /** 发布成功过的 SKU（重新添加时跳过的那些） */
+    /** 发布成功过的 SKU（上架表批次进度里数“已发布”用） */
     publishedSkus: async () => publishedSkuSet(await loadPublished()),
     findById: async (id) => (await load()).find((i) => i.id === String(id)) ?? null,
 
@@ -298,7 +295,7 @@ export function createItemRepository(storage) {
       }),
 
     /**
-     * 发布成功：记进已发布记录（之后重新添加同一商品会跳过），移出任务列表（商品已写进上架总表）
+     * 发布成功：记进已发布记录（批次进度用），移出任务列表（商品已写进上架总表）；之后可以再次添加同一商品重新上架
      * @returns {Promise<Item|null>} 移出的条目
      */
     finishPublished: (id) =>

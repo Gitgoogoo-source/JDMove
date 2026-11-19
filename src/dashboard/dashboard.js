@@ -176,23 +176,12 @@ function targetIds(predicate) {
   return pool.filter(predicate).map((i) => i.id);
 }
 
-// 已发布过的商品默认不再加入任务列表；勾选后才会重新采集（例如店铺里的商品已被删掉需要重新铺货）
-function includePublishedBox() {
-  const box = h('input', { type: 'checkbox' });
-  return { box, node: h('label', { class: 'check' }, box, '包含已发布过的商品（默认跳过，不再重复采集）') };
-}
-
-/** 添加结果日志：识别数量、新增数量，以及跳过的已发布/已在列表的数量 */
-function addSummary(total, { added, published, existing }) {
-  const notes = [
-    published.length ? `${published.length} 个已发布过，已跳过（在上架总表里）` : '',
-    existing.length ? `${existing.length} 个已在任务列表` : '',
-  ].filter(Boolean);
-  return `识别到 ${total} 个 SKU，新增 ${added.length} 个${notes.length ? `（${notes.join('；')}）` : ''}`;
+/** 添加结果日志：识别数量、新增数量、已在列表的数量（以前发布过的也会加入） */
+function addSummary(total, { added, existing }) {
+  return `识别到 ${total} 个 SKU，新增 ${added.length} 个${existing.length ? `（${existing.length} 个已在任务列表）` : ''}`;
 }
 
 async function handleAdd() {
-  const include = includePublishedBox();
   const area = h('textarea', { rows: 10, placeholder: '粘贴京东商品链接或 SKU，每行一个；也可以直接粘贴整段文本' });
   const dialog = h(
     'dialog',
@@ -201,19 +190,18 @@ async function handleAdd() {
       'form',
       { method: 'dialog' },
       h('div', { class: 'dlg-head' }, '添加商品链接'),
-      h('div', { class: 'dlg-body' }, h('label', { class: 'field' }, area), include.node),
+      h('div', { class: 'dlg-body' }, h('label', { class: 'field' }, area)),
       h('div', { class: 'dlg-foot' }, h('button', { value: 'cancel' }, '取消'), h('button', { value: 'ok', class: 'primary' }, '添加')),
     ),
   );
   if ((await openDialog(dialog)) !== 'ok') return;
   const skus = extractSkuIds(area.value);
-  const res = await itemRepo.addTasks(skus, { includePublished: include.box.checked, urls: b2bItemUrls(area.value) });
+  const res = await itemRepo.addTasks(skus, { urls: b2bItemUrls(area.value) });
   appendLog(addSummary(skus.length, res));
   await reload();
 }
 
 async function handleShop() {
-  const include = includePublishedBox();
   const input = h('input', {
     type: 'text',
     value: lastShopUrl,
@@ -231,8 +219,7 @@ async function handleShop() {
         'div',
         { class: 'dlg-body' },
         h('label', { class: 'field' }, h('span', {}, '店铺链接'), input),
-        h('p', { class: 'muted' }, '填写店铺“全部商品”页或店铺首页的链接；“全部商品”页里选了分类时，只抓这个分类。抓到的商品会直接加入任务列表（已有的不会重复，已发布过的会跳过）。'),
-        include.node,
+        h('p', { class: 'muted' }, '填写店铺“全部商品”页或店铺首页的链接；“全部商品”页里选了分类时，只抓这个分类。抓到的商品会直接加入任务列表（已在列表里的不会重复）。'),
       ),
       h('div', { class: 'dlg-foot' }, h('button', { value: 'cancel', formnovalidate: true }, '取消'), h('button', { value: 'ok', class: 'primary' }, '开始抓取')),
     ),
@@ -242,7 +229,7 @@ async function handleShop() {
   if (!parseShopInput(url)) return appendLog('不是京东店铺链接，请填写店铺首页或“全部商品”页的链接');
   lastShopUrl = url;
   appendLog(`开始抓取店铺：${url}`);
-  await runner.crawlShop(url, { includePublished: include.box.checked });
+  await runner.crawlShop(url);
 }
 
 async function handleEdit(id) {

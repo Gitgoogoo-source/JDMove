@@ -7,7 +7,7 @@ const WAITING = new Set(['pending', 'collecting']);
 /**
  * @typedef {{id: string, fileName: string, createdAt: number, links: import('./listing-sheet.js').ListingLink[], skuIds: string[],
  *   exportedAt?: number, exportName?: string, dismissed?: boolean}} Batch
- *   skuIds：这批要跟进的商品（加入任务列表的，已发布过被跳过的不算）；exportedAt/exportName：最近一次生成发布前检查表；
+ *   skuIds：这批要跟进的商品（上架表里加入任务列表的商品）；exportedAt/exportName：最近一次生成发布前检查表；
  *   dismissed：在任务面板上关掉了进度条
  */
 

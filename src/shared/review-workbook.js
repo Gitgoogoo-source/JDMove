@@ -126,7 +126,7 @@ function refText(refs, multiSheet) {
 
 /** 没进到附表的商品，采集结果写什么 */
 function collectText(item, inBatch) {
-  if (!item) return inBatch ? '已发布（写进了上架总表）或已从任务列表删除' : '已发布过，没有加入任务列表';
+  if (!item) return inBatch ? '已发布（写进了上架总表）或已从任务列表删除' : '没有加入任务列表';
   if (['pending', 'collecting'].includes(item.status)) return '待采集';
   if (!item.product) return `采集失败：${item.message || '原因未知'}`;
   return item.message || '已采集';

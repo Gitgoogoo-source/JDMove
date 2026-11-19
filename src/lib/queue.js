@@ -197,34 +197,28 @@ export function createQueueRunner({ onChange, onLog, saveLocal = async () => nul
       ? `SKU ${s.spu} ${s.found ? `共 ${s.found} 个规格` : '没读到规格（已用列表上显示的规格）'}，新找到 ${s.added.length} 个商品`
       : `新找到 ${s.added.length} 个商品`;
 
-  /** 每抓完一页/展开一个 SPU 就加入任务列表；已发布过的商品默认跳过，返回本次跳过的数量 */
-  async function addShopPage(s, includePublished) {
-    const { added, published } = await itemRepo.addTasks(s.added, { includePublished });
+  /** 每抓完一页/展开一个 SPU 就加入任务列表（以前发布过的也加入） */
+  async function addShopPage(s) {
+    const { added } = await itemRepo.addTasks(s.added);
     setState({ currentId: pageLabel(s) });
     const listTotal = s.total != null ? `，本列表共 ${s.total} 件` : '';
-    const skip = published.length ? `，跳过已发布 ${published.length} 个` : '';
-    onLog(`店铺${pageLabel(s)}：${foundNote(s)}，新增任务 ${added.length} 个${skip}（累计 ${s.skus.length}${listTotal}）`);
-    return published.length;
+    onLog(`店铺${pageLabel(s)}：${foundNote(s)}，新增任务 ${added.length} 个（累计 ${s.skus.length}${listTotal}）`);
   }
 
   // 抓取店铺全部商品链接：每抓完一页就加入任务列表，中途暂停/停止也不会丢失已抓到的商品
-  async function runShop(input, { includePublished = false } = {}) {
+  async function runShop(input) {
     if (state.running) return;
     const { value: settings } = validateSettings(await settingsRepo.get());
     setState({ running: true, mode: 'shop', currentId: null, stopRequested: false, pauseReason: '', pausedMode: null });
     let paused = false;
-    let skipped = 0;
     try {
       const res = await crawlShop(input, {
         useIncognito: settings.collect.useIncognito,
         shouldStop: () => state.stopRequested,
-        onPage: async (s) => {
-          skipped += await addShopPage(s, includePublished);
-        },
+        onPage: (s) => addShopPage(s),
       });
       const found = res.state.skus.length;
-      const kept = skipped ? `已加入任务列表，其中 ${skipped} 个已发布过，已跳过` : '已加入任务列表';
-      const skipNote = skipped ? `，其中 ${skipped} 个已发布过，未加入任务列表` : '';
+      const kept = '已加入任务列表';
       if (PAUSE_STATUSES.includes(res.status)) {
         paused = true;
         setState({ pauseReason: res.message, pausedMode: 'shop' });
@@ -232,7 +226,7 @@ export function createQueueRunner({ onChange, onLog, saveLocal = async () => nul
       } else if (res.status === 'error') {
         onLog(`抓取店铺失败：${res.message}${found ? `（已抓到的 ${found} 个商品${kept}）` : ''}`);
       } else {
-        onLog(res.status === 'stopped' ? `抓取店铺已停止：共找到 ${found} 个商品${skipNote}` : `抓取店铺完成：${res.message}${skipNote}`);
+        onLog(res.status === 'stopped' ? `抓取店铺已停止：共找到 ${found} 个商品` : `抓取店铺完成：${res.message}`);
       }
     } catch (e) {
       onLog(`抓取店铺异常中止：${e.message}`);

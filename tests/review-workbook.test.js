@@ -104,7 +104,7 @@ test('reviewWorkbook：汇总按上架表的链接列出：上架表行号、说
   assert.equal(summary.cellStyles[1][8], 'error');
   assert.equal(fail[5], '采集失败：页面打不开');
   assert.equal(fail[8], '没有检查');
-  assert.equal(skipped[5], '已发布过，没有加入任务列表');
+  assert.equal(skipped[5], '没有加入任务列表');
   assert.equal(reviewFileName(batch, new Date(2026, 10, 19, 9, 5)), '发布前检查-乐事上架表-20261119-0905.xlsx');
 });
 

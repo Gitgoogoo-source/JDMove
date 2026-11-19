@@ -122,16 +122,14 @@ export function createBatchFlow({ runner, storage, onLog, reload, confirmCooldow
     const local = await storage.prepare();
     const urls = Object.fromEntries(parsed.links.filter((l) => isB2bItemUrl(l.url)).map((l) => [l.skuId, l.url]));
     const res = await itemRepo.addTasks(parsed.links.map((l) => l.skuId), { urls });
-    // 这批要跟进的：现在在任务列表里的（已发布过的 addTasks 跳过了，不在列表里）
+    // 这批要跟进的：上架表里的全部商品（以前发布过的也重新加入，不去重）
     const inList = new Set((await itemRepo.findAll()).map((i) => i.id));
     const tracked = [...new Set(parsed.links.map((l) => l.skuId))].filter((id) => inList.has(id));
     const wanted = new Set(tracked);
-    const skipped = res.published.filter((id) => !inList.has(id));
     const changed = await itemRepo.saveEditsMany(parsed.values.filter((v) => wanted.has(v.skuId)).map((v) => ({ id: v.skuId, edit: listingEdit(v.values) })));
     const batch = newBatch({ fileName, links: parsed.links, skuIds: tracked });
     await batchRepo.add(batch);
-    const skip = skipped.length ? `，${skipped.length} 个已发布过（跳过）` : '';
-    onLog(`上架表 ${fileName}：${parsed.links.length} 个商品链接，新加入 ${res.added.length} 个，已在任务列表 ${tracked.length - res.added.length} 个${skip}`);
+    onLog(`上架表 ${fileName}：${parsed.links.length} 个商品链接，新加入 ${res.added.length} 个，已在任务列表 ${tracked.length - res.added.length} 个`);
     if (changed.length) onLog(`上架表：${changed.length} 个商品的价格 / 协议价 / ERP / 条形码 / 型号已写进「编辑」`);
     parsed.problems.slice(0, LOG_PROBLEMS).forEach((p) => onLog(`上架表${whereText(p)}：${p.text}`));
     await refresh();

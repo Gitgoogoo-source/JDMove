@@ -44,7 +44,7 @@ export async function confirmListingUpload({ fileName, parsed, items }) {
   const recollect = h('input', { type: 'checkbox' });
   const noLinkRows = parsed.noLink.slice(0, ROWS_SHOWN).map(whereText).join('、');
   const lines = [
-    `新加入任务列表：${st.fresh} 个（以前发布过的会跳过）`,
+    `新加入任务列表：${st.fresh} 个（以前发布过的也会加入，可以再次上架）`,
     st.existing ? `已在任务列表：${st.existing} 个，其中已采集 ${st.collected} 个（直接用已有的数据，不重新采集）` : '',
     parsed.values.length ? `${parsed.values.length} 个商品带了价格 / 协议价 / ERP / 条形码 / 型号，会写进它们的「编辑」` : '',
     parsed.noLink.length ? `参考链接为空的行：${parsed.noLink.length} 行（${noLinkRows}${parsed.noLink.length > ROWS_SHOWN ? '…' : ''}），不加入` : '',

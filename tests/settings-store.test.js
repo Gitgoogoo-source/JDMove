@@ -216,7 +216,7 @@ test('editsEqual ignores key order, undefined values and empty overrides', () =>
   assert.equal(editsEqual(undefined, { attrOverrides: { 产地: '中国' } }), false);
 });
 
-test('finishPublished：发布成功的商品移出任务列表，SKU 和一起发布的规格 SKU 记下，重新添加时跳过', async () => {
+test('finishPublished：发布成功的商品移出任务列表，SKU 和一起发布的规格 SKU 记下；重新添加时照样加入（同一商品可以多次上架）', async () => {
   const storage = memoryStorage();
   const repo = createItemRepository(storage);
   await repo.saveCollected({ skuId: '100001', title: 'A', variants: [{ skuId: '100001' }, { skuId: '100009' }] });
@@ -227,8 +227,8 @@ test('finishPublished：发布成功的商品移出任务列表，SKU 和一起�
   assert.deepEqual(Object.keys(storage.dump().publishedSkus).sort(), ['100001', '100009']);
   assert.deepEqual([...(await repo.publishedSkus())].sort(), ['100001', '100009']);
   const res = await repo.addTasks(['100001', '100009', '100002', '100003']);
-  assert.deepEqual(res.added.map((i) => i.id), ['100003']);
-  assert.deepEqual(res.published, ['100001', '100009']);
+  assert.deepEqual(res.added.map((i) => i.id), ['100001', '100009', '100003']);
+  assert.equal(res.published, undefined);
   assert.deepEqual(res.existing, ['100002']);
   assert.equal(await repo.finishPublished('nope'), null);
 });
@@ -244,11 +244,11 @@ test('dropLegacyPublished：删掉旧版本“已发布”页里的条目（状�
   assert.deepEqual(await repo.dropLegacyPublished(), []);
 });
 
-test('addTasks re-adds deleted published SKUs when includePublished is set', async () => {
+test('addTasks：以前发布过的商品不去重，照样作为新任务加入（常规价、促销价各上架一次）', async () => {
   const repo = createItemRepository(memoryStorage({ publishedSkus: { 100001: 1 } }));
-  const res = await repo.addTasks(['100001'], { includePublished: true });
+  const res = await repo.addTasks(['100001']);
   assert.deepEqual(res.added.map((i) => i.id), ['100001']);
-  assert.deepEqual(res.published, []);
+  assert.deepEqual(res.existing, []);
   assert.equal(res.added[0].status, 'pending');
 });
 
@@ -267,10 +267,9 @@ test('publishedSkuSet：已发布记录表里的 SKU', () => {
   assert.deepEqual([...publishedSkuSet(undefined)], []);
 });
 
-test('planNewSkus: includePublished 时已发布过的也重新加入', () => {
-  const plan = planNewSkus(['1', '2', '3'], [{ id: '3' }], new Set(['1']), { includePublished: true });
-  assert.deepEqual(plan, { fresh: ['1', '2'], published: [], existing: ['3'] });
-  assert.deepEqual(planNewSkus(['1', '2'], [], new Set(['1'])), { fresh: ['2'], published: ['1'], existing: [] });
+test('planNewSkus: 只分新增 / 已在任务列表，重复的只算一次', () => {
+  assert.deepEqual(planNewSkus(['1', '2', '3', '1'], [{ id: '3' }]), { fresh: ['1', '2'], existing: ['3'] });
+  assert.deepEqual(planNewSkus(['1', '2'], []), { fresh: ['1', '2'], existing: [] });
 });
 
 test('saveCollected writes to the task SKU even if the page reports another SKU', async () => {
