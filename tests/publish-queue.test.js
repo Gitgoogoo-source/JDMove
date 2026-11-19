@@ -107,3 +107,35 @@ test('发布队列：每轮结束后调用 onRunEnd，带上模式、商品和�
   assert.equal(ends[0].paused, false);
   assert.equal(runner.getState().running, false, '回调时任务已经结束，可以接着开始新任务');
 });
+
+test('发布队列：onRunEnd 带上每个商品的发布结果（成功的带京东 SKU 和上架名称，失败的带原因）', async () => {
+  const fake = installFakeChrome();
+  Object.assign(fake.localStore, { items: [task('1'), task('2')], settings: {} });
+  const ends = [];
+  const answers = {
+    1: { status: 'published', message: '商品已发布', skuIds: ['100200300401'], listing: { title: '维达抽纸 3层', brandTitle: '维达' } },
+    2: { status: 'failed', message: '页面校验没通过：缺少型号' },
+  };
+  const runner = createQueueRunner({ onChange: () => {}, onLog: () => {}, onRunEnd: (info) => ends.push(info) }, { publish: async (item) => answers[item.id] });
+  await runner.publish(['1', '2']);
+  const [first, second] = ends[0].results;
+  assert.equal(first.id, '1');
+  assert.equal(first.status, 'published');
+  assert.deepEqual(first.skus, ['100200300401']);
+  assert.equal(first.name, '维达抽纸 3层');
+  assert.equal(first.refUrl, 'https://item.jd.com/1.html');
+  assert.equal(second.id, '2');
+  assert.equal(second.status, 'failed');
+  assert.equal(second.message, '页面校验没通过：缺少型号');
+  assert.equal(second.title, '维达抽纸');
+  assert.equal(ends[0].pauseReason, '');
+});
+
+test('发布队列：没有商品时 results 为空', async () => {
+  const fake = installFakeChrome();
+  Object.assign(fake.localStore, { items: [], settings: {} });
+  const ends = [];
+  const runner = createQueueRunner({ onChange: () => {}, onLog: () => {}, onRunEnd: (info) => ends.push(info) }, { publish: async () => ({}) });
+  await runner.publish([]);
+  assert.deepEqual(ends[0].results, []);
+});

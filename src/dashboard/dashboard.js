@@ -8,6 +8,7 @@ import { openVcImportDialog } from './vc-import-dialog.js';
 import { openPublishReview } from './publish-review-dialog.js';
 import { createBatchFlow } from './batch-flow.js';
 import { createMasterController } from './master-ui.js';
+import { createPublishResult } from './publish-result.js';
 import { downloadBytes } from './download.js';
 import { rebaseEdits } from '../shared/vc-review.js';
 import { importEdit } from '../shared/vc-import.js';
@@ -56,13 +57,15 @@ const runner = createQueueRunner({
   onChange: renderState,
   onLog: appendLog,
   saveLocal: (item, opts) => storage.save(item, opts),
-  // 上架表的商品采集完后自动生成发布前检查表；每轮发布结束后把发布成功的商品写进上架总表
+  // 上架表的商品采集完后自动生成发布前检查表；每轮发布结束后把发布成功的商品写进上架总表，
+  // 再弹出发布结果（成功/失败），有失败的商品时下载失败表格
   onRunEnd: (info) => {
     batchFlow.onRunEnd(info);
-    master.onRunEnd(info);
+    publishResult.onRunEnd(info, master.onRunEnd(info));
   },
 });
 const batchFlow = createBatchFlow({ runner, storage, onLog: appendLog, reload: () => reload(), confirmCooldown: () => confirmPublishDuringCooldown() });
+const publishResult = createPublishResult({ storage, onLog: appendLog, exportReview: (ids, label) => batchFlow.exportReviewFor(ids, label) });
 
 const TASKS_EMPTY_TEXT = $('#empty').textContent;
 const TASKS_DONE_NOTE = '发布成功的商品会写进上架总表（点上方“上架总表”设置位置）并移出任务列表。';

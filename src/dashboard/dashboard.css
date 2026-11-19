@@ -161,6 +161,7 @@ dialog.wide { width: min(1000px, 94vw); }
 .import-problems { margin: 4px 0 0; padding-left: 18px; max-height: 240px; overflow: auto; }
 .import-problems li.error { color: var(--red); }
 .import-problems li.warn { color: #8a4b00; }
+.result-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 table.plan caption { caption-side: bottom; padding-top: 4px; text-align: left; }
 
 /* 发布前检查弹窗 */

@@ -98,6 +98,17 @@ export function createBatchFlow({ runner, storage, onLog, reload, confirmCooldow
     }
   }
 
+  /** 给指定商品（如这轮发布失败的）生成并下载发布前检查表，改好后可以“上传表格”再发布 */
+  async function exportReviewFor(ids, label) {
+    const [{ catalog, errors }, items, settings] = await Promise.all([loadVcCatalog(), itemRepo.findAll(), settingsRepo.get()]);
+    errors.forEach(onLog);
+    const rows = reviewRows(ids, items, catalog, settings);
+    if (!rows.length) return onLog('这些商品已经不在任务列表里（或还没采集），没有生成发布前检查表');
+    const name = reviewFileName({ fileName: label }, new Date());
+    const saved = await deliver(reviewWorkbook({ rows, catalog, items }), name);
+    onLog(`已下载${label}商品的发布前检查表 ${name}：${rows.length} 个商品${saved ? `（另存到 ${saved}）` : ''}`);
+  }
+
   /** 每轮采集结束：采集完了、还没生成过检查表的批次自动生成 */
   async function checkBatches() {
     await refresh();
@@ -223,6 +234,7 @@ export function createBatchFlow({ runner, storage, onLog, reload, confirmCooldow
     refresh,
     render,
     handleUpload,
+    exportReviewFor,
     onRunEnd: (info) => {
       if (info.mode === 'collect') checkBatches().catch((e) => onLog(`检查上架表批次失败：${e.message}`));
     },

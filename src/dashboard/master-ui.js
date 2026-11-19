@@ -6,6 +6,11 @@ import { MASTER_FILE_NAME } from '../shared/master-sheet.js';
 const UNSET_HINT = `还没有设置上架总表的位置：点“上架总表”选择项目根目录，发布成功的商品会写进 ${MASTER_FILE_NAME}`;
 
 /**
+ * @typedef {{state: 'written'|'waiting'|'error'|'busy'|'none', text: string}} FlushResult
+ *   waiting：没设置位置或没授权，记录留着等用户点“上架总表”
+ */
+
+/**
  * @param {{masterRepo: ReturnType<typeof import('../shared/master-store.js').createMasterRepository>,
  *   onLog: (line: string) => void, onChange: () => void}} deps
  */
@@ -26,23 +31,35 @@ export function createMasterController({ masterRepo, onLog, onChange }) {
     return current.state;
   }
 
-  /** 把待写入的记录写进文件；没有权限时只提示（任务结束时不能弹授权窗口，要等用户点击） */
+  /**
+   * 把待写入的记录写进文件；没有权限时只提示（任务结束时不能弹授权窗口，要等用户点击）
+   * @returns {Promise<FlushResult>}
+   */
   async function flush() {
     const records = await masterRepo.pending();
     pending = records.length;
-    if (!records.length || writing) return onChange();
+    if (!records.length || writing) {
+      onChange();
+      return { state: writing ? 'busy' : 'none', text: writing ? '正在写入上架总表' : '' };
+    }
     if (current.state !== 'granted') {
-      onLog(current.state === 'unset' ? `${records.length} 个商品待写入上架总表。${UNSET_HINT}` : `${records.length} 个商品待写入上架总表：请点“上架总表”授权写入 ${current.handle?.name ?? ''}/${MASTER_FILE_NAME}`);
-      return onChange();
+      const text = current.state === 'unset' ? `${records.length} 个商品待写入上架总表。${UNSET_HINT}` : `${records.length} 个商品待写入上架总表：请点“上架总表”授权写入 ${current.handle?.name ?? ''}/${MASTER_FILE_NAME}`;
+      onLog(text);
+      onChange();
+      return { state: 'waiting', text };
     }
     writing = true;
     try {
       const res = await appendMasterFile(current.handle, records);
       await masterRepo.markWritten([...res.added, ...res.duplicate]);
       const dup = res.duplicate.length ? `，${res.duplicate.length} 个商品编码已在总表里（没有重复写）` : '';
-      onLog(`已写入上架总表 ${res.file}：新增 ${res.added.length} 行${dup}，总表共 ${res.rows} 行`);
+      const text = `已写入上架总表 ${res.file}：新增 ${res.added.length} 行${dup}，总表共 ${res.rows} 行`;
+      onLog(text);
+      return { state: 'written', text };
     } catch (e) {
-      onLog(`写入上架总表失败（记录还在，下次任务结束或点“上架总表”时再写）：${e.message}`);
+      const text = `写入上架总表失败（记录还在，下次任务结束或点“上架总表”时再写）：${e.message}`;
+      onLog(text);
+      return { state: 'error', text };
     } finally {
       writing = false;
       pending = (await masterRepo.pending()).length;
@@ -80,9 +97,17 @@ export function createMasterController({ masterRepo, onLog, onChange }) {
       await flush();
     },
 
-    /** 每轮发布结束后写文件 */
+    /**
+     * 每轮发布结束后写文件；返回写入结果（发布结果弹窗里显示）
+     * @returns {Promise<FlushResult|null>}
+     */
     onRunEnd(info) {
-      if (info.mode === 'publish') flush().catch((e) => onLog(`写入上架总表失败：${e.message}`));
+      if (info.mode !== 'publish') return Promise.resolve(null);
+      return flush().catch((e) => {
+        const text = `写入上架总表失败：${e.message}`;
+        onLog(text);
+        return { state: 'error', text };
+      });
     },
 
     /** 有新记录时更新按钮上的待写入数量 */

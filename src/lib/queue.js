@@ -14,9 +14,15 @@ const PAUSE_STATUSES = ['throttle', 'login', 'setup'];
 const COLLECT_TAB_MODES = new Set(['collect']);
 
 /**
+ * @typedef {{mode: string, ids: string[], tally: Record<string, number>, paused: boolean, stopped: boolean, aborted: boolean,
+ *   pauseReason: string, results: import('../shared/publish-report.js').PublishResult[]}} RunEndInfo
+ *   results：发布任务里每个处理过的商品的结果（其他任务为空）
+ */
+
+/**
  * @param {{onChange: () => void, onLog: (line: string) => void,
  *   saveLocal?: (item: object, opts?: {raw?: object}) => Promise<{dir: string, saved: number, failed: string[]}|null>,
- *   onRunEnd?: (info: {mode: string, ids: string[], tally: Record<string, number>, paused: boolean, stopped: boolean, aborted: boolean}) => void}} hooks
+ *   onRunEnd?: (info: RunEndInfo) => void}} hooks
  *   saveLocal 把商品写到本地存储位置（刚采集时带上页面原始数据 raw）；未设置存储位置时返回 null；
  *   onRunEnd 每轮批量任务（采集/发布/保存）结束后调用（上架表批次据此判断采集完了没有；发布结束后写上架总表文件）
  * @param {{publish?: (item: object, settings: object, log: (msg: string) => void) => Promise<object>}} [deps]
@@ -82,23 +88,40 @@ export function createQueueRunner({ onChange, onLog, saveLocal = async () => nul
     return 'fail';
   }
 
-  /** 发布成功：记进上架总表（任务结束后写进文件），移出任务列表 */
+  // 这一轮发布里每个商品的结果（随 onRunEnd 带出，任务面板据此弹出发布结果、生成失败表格）
+  let publishResults = [];
+
+  /** 发布成功：记进上架总表（任务结束后写进文件），移出任务列表；返回上架总表记录 */
   async function finishPublished(item, res, log) {
     const records = masterRecords({ item, res });
     await masterRepo.add(records);
     const skus = records.map((r) => r.sku).filter(Boolean);
     log(`结果：${res.message}；已记入上架总表（商品编码sku ${skus.length ? skus.join('、') : '没拿到，留空'}），已移出任务列表`);
     await itemRepo.finishPublished(item.id);
+    return records;
   }
+
+  /** @returns {import('../shared/publish-report.js').PublishResult} */
+  const publishResult = (item, res, records = []) => ({
+    id: item.id,
+    status: res.status,
+    message: res.message ?? '',
+    title: item.edits?.title || item.product?.title || '',
+    refUrl: item.url ?? '',
+    skus: records.map((r) => r.sku).filter(Boolean),
+    name: records[0]?.name ?? '',
+  });
 
   async function publishOne(item, settings) {
     await itemRepo.update(item.id, { status: 'publishing', message: '' });
     const { log } = itemLogger(item.id);
     const res = await publish(item, settings, log);
     if (res.status === 'published') {
-      await finishPublished(item, res, log);
+      const records = await finishPublished(item, res, log);
+      publishResults = [...publishResults, publishResult(item, res, records)];
     } else {
       await itemRepo.update(item.id, publishResultPatch(item, res));
+      publishResults = [...publishResults, publishResult(item, res)];
       log(`结果：${res.message}`);
     }
     // 限流时店铺暂时不能保存任何新商品：整批暂停，记下建议的冷却时间
@@ -127,6 +150,7 @@ export function createQueueRunner({ onChange, onLog, saveLocal = async () => nul
     const { value: settings } = validateSettings(await settingsRepo.get());
     const { handle, delay } = modeRunner(mode, settings);
     setState({ running: true, mode, stopRequested: false, pauseReason: '', pausedMode: null });
+    publishResults = [];
     let paused = false;
     let aborted = false;
     let tally = {};
@@ -154,7 +178,7 @@ export function createQueueRunner({ onChange, onLog, saveLocal = async () => nul
       if (COLLECT_TAB_MODES.has(mode) && !paused) await closeCollectTab().catch((e) => onLog(`关闭采集标签页失败：${e.message}`));
       const stopped = state.stopRequested;
       setState({ running: false, currentId: null, mode: null });
-      notifyEnd({ mode, ids, tally, paused, stopped, aborted });
+      notifyEnd({ mode, ids, tally, paused, stopped, aborted, pauseReason: paused ? state.pauseReason : '', results: publishResults });
     }
   }
 
