@@ -1,22 +1,24 @@
-// 发布前检查的表格批量填写（纯函数）：把弹窗里的商品导出成一张表（每个商品一行：上架模板、基本信息、价格、物流、
-// 模板里的属性），填好后导回弹窗。属性列是这批商品所有模板属性的并集，商品的模板里没有的属性填“—”。
-// 规则和「表格导入价格/ERP」一致：按商品链接对应、空格子不修改、一行里有一个值不对整行不导入（写明第几行、为什么）
+// 发布前检查表的读回（纯函数）：表格的生成见 review-workbook.js（按上架模板分附表，格子里是发布时会用的值）。
+// 每个工作表里的商品行 → 按商品的模板校验 → 写进编辑内容。规则和「表格导入价格/ERP」一致：按商品链接对应、
+// 空格子不修改、一行里有一个值不对整行不导入（写明哪张表第几行、为什么）；格子和发布时会用的值一样不算修改
+// （导出时写的是采集值，原样导回不会变成“手动填写”）。旧的单表格式、「表格导入价格/ERP」的表也能导
 import { extractSkuIds } from './url-utils.js';
 import { normalizeHeader, parsePrice, skuFromCell } from './vc-import.js';
 import { VC_PRICE_LABELS } from './vc-plan.js';
-import { applyReviewValue, applyTemplateChoice, currentChoice, reviewOwnValue, reviewTemplate, reviewValueError, REVIEW_FIELDS, templateChoices } from './vc-review.js';
+import { applyReviewValue, applyTemplateChoice, buildReview, currentChoice, reviewOwnValue, reviewTemplate, reviewValueError, REVIEW_FIELDS, templateChoices } from './vc-review.js';
 import { attrKey, pickOption } from './vc-review-attrs.js';
-import { vcTemplateAttrs, vcTemplateLabel, vcTemplateLeafLabel, vcTemplateSkuAttrs } from './vc-templates.js';
+import { normalizeUpc } from './sku-attrs.js';
+import { vcTemplateAttrs, vcTemplateLabel, vcTemplateSkuAttrs } from './vc-templates.js';
 
 export const NOT_APPLICABLE = '—';
-const ATTR_HEADER_RE = /^\s*属性\s*[:：]\s*(.+?)\s*$/;
+// 属性列的表头：“商品属性:层数”“SKU属性:纸张尺寸”（必填的前面带 *），旧表是“属性:层数”
+const ATTR_HEADER_RE = /^\s*[*＊]?\s*(?:商品属性|sku属性|属性)\s*[:：]\s*(.+?)\s*$/i;
 const HEADER_SCAN_ROWS = 10;
 const AUTO_WORDS = new Set(['自动', '自动匹配']);
-const HEAD = { link: '商品链接', sku: 'SKU', sourceTitle: '源商品标题（核对用，不导入）', missing: '还缺（核对用，不导入）', template: '上架模板' };
+export const HEAD = { link: '商品链接', sku: 'SKU', sourceTitle: '源商品标题（核对用，不导入）', missing: '还缺（核对用，不导入）', template: '上架模板' };
 // 发布标题单独起名：「表格导入价格/ERP」那张表的“商品标题”列是源标题（仅供核对），不能当发布标题导入
 const SHEET_LABELS = { title: '发布标题（留空=按源标题生成）' };
-const sheetLabel = (f) => SHEET_LABELS[f.key] ?? f.label;
-const FIXED_COLUMNS = 5;
+export const sheetLabel = (f) => SHEET_LABELS[f.key] ?? f.label;
 // 和「表格导入价格/ERP」的表头通用：那张表填好的也能直接导进来
 const ALIASES = {
   link: ['商品链接', '链接', '样品链接', '样品商品链接', '源商品链接', '商品地址', '网址', 'url'],
@@ -34,18 +36,8 @@ const fieldKeyOf = (name) =>
   REVIEW_FIELDS.find((f) => !SHEET_LABELS[f.key] && normalizeHeader(f.label) === name)?.key ??
   null;
 
-/** 表格里的格子：数字字段写成数字（Excel 里能直接算），其余写文字 */
-const cellOf = (f, edits) => {
-  const v = reviewOwnValue(edits, f.key);
-  return f.input === 'number' && v ? Number(v) : v;
-};
-
-const templateAttrs = (template) => [...vcTemplateAttrs(template).map((a) => ({ ...a, where: '商品属性' })), ...vcTemplateSkuAttrs(template).map((a) => ({ ...a, where: 'SKU属性' }))];
-
-/** 一批商品模板属性的并集（按标题去重，先出现的在前） */
-function attrTitles(templates) {
-  return [...new Set(templates.filter(Boolean).flatMap((t) => templateAttrs(t).map((a) => a.title)))];
-}
+/** 模板里的属性（商品属性在前、SKU属性在后），where 标明在哪 */
+export const templateAttrs = (template) => [...vcTemplateAttrs(template).map((a) => ({ ...a, where: '商品属性' })), ...vcTemplateSkuAttrs(template).map((a) => ({ ...a, where: 'SKU属性' }))];
 
 /** 模板下拉的选项文字（表格里填这个） */
 function choiceLabel(catalog, value) {
@@ -53,13 +45,14 @@ function choiceLabel(catalog, value) {
 }
 
 /** 商品现在的模板在表格里怎么写：手动选的写选项文字，自动匹配的写模板名 */
-function templateCell(catalog, match) {
+export function templateCell(catalog, match) {
   if (!match.template) return '';
   const choice = currentChoice(match);
   return choice ? choiceLabel(catalog, choice) : match.template.categoryName;
 }
 
-const attrFormat = (a) => {
+/** “可选值”表里属性的填写格式 */
+export const attrFormat = (a) => {
   if (/MultiInputUnit/i.test(a.type)) {
     const parts = (a.options ?? []).map((o) => o.label).filter(Boolean);
     return parts.length > 1 ? `${parts.join('×')}，${parts.length} 个数字，如 195×133` : `数字${a.suffix ? `（单位 ${a.suffix}）` : ''}`;
@@ -67,52 +60,6 @@ const attrFormat = (a) => {
   if (a.kind === 'select' || a.kind === 'multi') return (a.options ?? []).map((o) => o.label).filter(Boolean).join('、');
   return a.suffix ? `数字（单位 ${a.suffix}）` : '文字';
 };
-
-/**
- * 导出的表格：商品、可选值、填写说明
- * @param {{rows: {item: object, edits: object, match: object, review: object}[], catalog: object}} input
- *   rows：弹窗里的商品（edits 为弹窗里正在改的编辑内容，match 为 reviewTemplate 的结果，review 为 buildReview 的结果）
- * @returns {import('./xlsx-write.js').SheetSpec[]}
- */
-export function reviewSheets({ rows, catalog }) {
-  const titles = attrTitles(rows.map((r) => r.match.template));
-  const header = [HEAD.link, HEAD.sku, HEAD.sourceTitle, HEAD.missing, HEAD.template, ...REVIEW_FIELDS.map(sheetLabel), ...titles.map((t) => `属性:${t}`)];
-  const body = rows.map(({ item, edits, match, review }) => {
-    const own = new Set(templateAttrs(match.template).map((a) => a.title));
-    return [
-      item.url,
-      item.skuId,
-      item.product?.title ?? '',
-      review.problems.join('、'),
-      templateCell(catalog, match),
-      ...REVIEW_FIELDS.map((f) => cellOf(f, edits)),
-      ...titles.map((t) => (own.has(t) ? reviewOwnValue(edits, attrKey(t)) : NOT_APPLICABLE)),
-    ];
-  });
-  // 同一个三级类目下不同的四级类目，发布页可能不同，各列一份
-  const used = [...new Map(rows.filter((r) => r.match.template).map((r) => [`${r.match.template.categoryId}:${r.match.template.publishCategoryId}`, r.match.template])).values()];
-  const options = used.flatMap((t) => templateAttrs(t).map((a) => [vcTemplateLeafLabel(t), a.title, a.where, a.required ? '必填' : '', attrFormat(a)]));
-  const choices = templateChoices(catalog).flatMap((g) => g.options.map((o) => o.label));
-  const attrStart = FIXED_COLUMNS + REVIEW_FIELDS.length;
-  const textColumns = [1, ...REVIEW_FIELDS.map((f, i) => (f.input === 'text' ? FIXED_COLUMNS + i : -1)).filter((i) => i >= 0), ...titles.map((_, i) => attrStart + i)];
-  return [
-    { name: '商品', rows: [header, ...body], widths: [40, 16, 40, 28, 22, ...REVIEW_FIELDS.map(() => 14), ...titles.map(() => 14)], textColumns },
-    { name: '可选值', rows: [['上架模板', '属性', '位置', '必填', '可选值 / 填写格式'], ...options], widths: [22, 20, 12, 8, 90] },
-    {
-      name: '填写说明',
-      rows: [
-        '发布前检查：表格批量填写。按“商品链接”对应发布前检查弹窗里的商品',
-        '1. “还缺”列是现在缺的项（只用来核对，导入时不读）；不改的格子留空，已经填过的值会保留。',
-        `2. “上架模板”填模板名，可选：${choices.join('、')}；填“自动”改回按源商品类目自动匹配。换了模板时属性按新模板检查。`,
-        '3. 属性列是这批商品所有模板的属性，商品的模板里没有的属性显示“—”，不用填。下拉类属性要填“可选值”表里的值。',
-        '4. 价格：市场价、京东价最多 2 位小数，采购价最多 4 位；京东价不能高于市场价。长宽高、毛重按模板里该类目的范围。',
-        '5. ERP 填账号（字母、数字、点、下划线、横线），不是姓名。',
-        '6. 一行里有一个值不对，这一行都不导入；导入只改插件里的数据，点“保存并发布”后才会保存。',
-      ].map((line) => [line]),
-      widths: [120],
-    },
-  ];
-}
 
 /** 找表头：有商品列（链接/SKU）和至少一个可导入的列 */
 function findReviewHeader(rows) {
@@ -153,10 +100,11 @@ function rowSku(cells, columns) {
 /**
  * 表格行 → 每个商品填了什么（还没校验值，校验要按商品的模板，见 planReviewImport）
  * @param {string[][]} rows
- * @returns {{entries: {row: number, skuId: string, template: string, values: Record<string, string>, attrs: Record<string, string>}[],
- *   errors: {row: number, message: string}[], blank: number, error?: string}}
+ * @param {{sheet?: string}} [opts] sheet：工作表名（多张附表一起导入时写进问题里）
+ * @returns {{entries: {sheet: string, row: number, skuId: string, template: string, values: Record<string, string>, attrs: Record<string, string>}[],
+ *   errors: {sheet: string, row: number, message: string}[], blank: number, error?: string}}
  */
-export function parseReviewSheet(rows) {
+export function parseReviewSheet(rows, { sheet = '' } = {}) {
   const header = findReviewHeader(rows ?? []);
   if (!header) return { entries: [], errors: [], blank: 0, error: REVIEW_HEADER_MISSING };
   const { columns } = header;
@@ -175,8 +123,8 @@ export function parseReviewSheet(rows) {
       continue;
     }
     const key = rowSku(cells, columns);
-    if (key.error) errors.push({ row: r + 1, message: key.error });
-    else entries.push({ row: r + 1, skuId: key.skuId, template, values, attrs });
+    if (key.error) errors.push({ sheet, row: r + 1, message: key.error });
+    else entries.push({ sheet, row: r + 1, skuId: key.skuId, template, values, attrs });
   }
   return { entries, errors, blank };
 }
@@ -240,11 +188,47 @@ function readAttr(attr, raw) {
   return { value: raw };
 }
 
+const NUMBER_KEYS = new Set(REVIEW_FIELDS.filter((f) => f.input === 'number').map((f) => f.key));
+
+/** 表格里的值和发布时会用的值是不是同一个（数字按数值比，条形码按规范化后比） */
+function sameValue(key, a, b) {
+  const x = String(a ?? '').trim();
+  const y = String(b ?? '').trim();
+  if (x === y) return true;
+  if (!x || !y) return false;
+  if (NUMBER_KEYS.has(key)) return Number(x) === Number(y);
+  return key === 'upc' && normalizeUpc(x) !== '' && normalizeUpc(x) === normalizeUpc(y);
+}
+
+/** 发布时会用的值：自己填的 > 采集到的/自动值（同名属性取第一个有值的） */
+function effectiveValues(item, edits, template, settings) {
+  const review = buildReview({ product: item.product, edits, settings, template });
+  const attrs = new Map();
+  for (const a of [...review.props, ...review.skuAttrs]) if (!attrs.get(a.title)) attrs.set(a.title, a.value ?? '');
+  return { fields: new Map(review.fields.map((f) => [f.key, f.value])), attrs };
+}
+
+/**
+ * 一个格子没改过就不动（不校验：导出时写的就是它，填不上的在检查里标红）：有导出时的值（_base）时和它比——
+ * 导出之后在插件里改的、重新采集到的值不会被旧表冲掉；没有时（旧表）和发布时会用的值比。
+ * 改过的校验，合规就存成自己填的
+ */
+function applyCell({ key, raw, current, exported, read, errors }, next) {
+  if (sameValue(key, raw, exported !== undefined ? exported : current)) return next;
+  const res = read();
+  if (res.error) {
+    errors.push(res.error);
+    return next;
+  }
+  return sameValue(key, res.value, current) ? next : applyReviewValue(next, key, res.value);
+}
+
 function applyRow(entry, item, edits, ctx) {
   const errors = [];
   const ignored = [];
+  const base = ctx.base?.get(item.id);
   let next = edits;
-  if (entry.template) {
+  if (entry.template && !(base && entry.template === base.template)) {
     const choice = resolveTemplateCell(ctx.catalog, entry.template);
     if (choice == null) errors.push(`上架模板“${entry.template}”找不到或有重名（可以写成“抽纸 > 常规抽纸”这样，见“填写说明”）`);
     else if (templateChanged(ctx.catalog, reviewTemplate({ product: item.product, edits, settings: ctx.settings, catalog: ctx.catalog }), entry.template, choice)) {
@@ -252,10 +236,9 @@ function applyRow(entry, item, edits, ctx) {
     }
   }
   const { template } = reviewTemplate({ product: item.product, edits: next, settings: ctx.settings, catalog: ctx.catalog });
+  const current = effectiveValues(item, next, template, ctx.settings);
   for (const [key, raw] of Object.entries(entry.values)) {
-    const res = readValue(key, raw, template);
-    if (res.error) errors.push(res.error);
-    else next = applyReviewValue(next, key, res.value);
+    next = applyCell({ key, raw, current: current.fields.get(key), exported: base?.values.get(key), read: () => readValue(key, raw, template), errors }, next);
   }
   const attrs = new Map(templateAttrs(template).map((a) => [a.title, a]));
   for (const [title, raw] of Object.entries(entry.attrs)) {
@@ -264,9 +247,7 @@ function applyRow(entry, item, edits, ctx) {
       ignored.push(title);
       continue;
     }
-    const res = readAttr(attr, raw);
-    if (res.error) errors.push(res.error);
-    else next = applyReviewValue(next, attrKey(title), res.value);
+    next = applyCell({ key: attrKey(title), raw, current: current.attrs.get(title), exported: base?.values.get(attrKey(title)), read: () => readAttr(attr, raw), errors }, next);
   }
   return { edits: next, errors, ignored, template };
 }
@@ -276,44 +257,47 @@ const changedKeys = (before, after) =>
     .filter(([key]) => reviewOwnValue(before, key) !== reviewOwnValue(after, key))
     .map(([, label]) => label);
 
+/** 另一行的位置：同一张表写“第 n 行”，不同表写“表名 第 n 行” */
+const rowRef = (at, entry) => `${at.sheet && at.sheet !== entry.sheet ? `「${at.sheet}」` : ''}第 ${at.row} 行`;
+
 /**
- * 表格内容对照弹窗里的商品：每个商品改成什么、哪些行有问题
- * @param {ReturnType<typeof parseReviewSheet>['entries']} entries
- * @param {{items: object[], drafts: Map<string, object>, catalog: object, settings: object}} ctx drafts：弹窗里正在改的编辑内容
- * @returns {{updates: {id: string, row: number, edits: object, changes: string[]}[], problems: {row: number, level: 'error'|'warn', text: string}[], unchanged: number}}
+ * 表格内容对照要发布的商品：每个商品改成什么、哪些行有问题
+ * @param {ReturnType<typeof parseReviewSheet>['entries']} entries 可以来自多张工作表（按表、行的顺序）
+ * @param {{items: object[], drafts: Map<string, object>, catalog: object, settings: object, missingText?: string,
+ *   base?: Map<string, {template: string, values: Map<string, string>}>}} ctx
+ *   drafts：正在改的编辑内容（弹窗里的；没有时用商品的）；missingText：表格里的商品不在 items 里时怎么说；
+ *   base：导出时写的值（readBookBase），和它一样的格子不算修改
+ * @returns {{updates: {id: string, sheet: string, row: number, edits: object, changes: string[]}[],
+ *   problems: {sheet: string, row: number, level: 'error'|'warn', text: string}[], unchanged: number, matched: string[]}}
+ *   matched：表格里有、这一行导入了（有修改或没修改）的商品
  */
 export function planReviewImport(entries, ctx) {
   const byId = new Map(ctx.items.flatMap((i) => [[i.id, i], ...(i.product?.skuId ? [[String(i.product.skuId), i]] : [])]));
   const updates = [];
   const problems = [];
   const seen = new Map();
+  const matched = [];
   let unchanged = 0;
-  for (const entry of entries) {
+  entries.forEach((entry, order) => {
+    const at = { sheet: entry.sheet ?? '', row: entry.row, order };
     const item = byId.get(entry.skuId);
-    const err = (text) => problems.push({ row: entry.row, level: 'error', text: `${text}（SKU ${entry.skuId}）` });
-    if (!item) {
-      err('这个商品不在这次发布的商品里');
-      continue;
-    }
-    if (seen.has(item.id)) {
-      err(`和第 ${seen.get(item.id)} 行是同一个商品，这一行没有导入`);
-      continue;
-    }
-    seen.set(item.id, entry.row);
+    const err = (text) => problems.push({ ...at, level: 'error', text: `${text}（SKU ${entry.skuId}）` });
+    if (!item) return err(ctx.missingText ?? '这个商品不在这次发布的商品里');
+    if (seen.has(item.id)) return err(`和${rowRef(seen.get(item.id), at)}是同一个商品，这一行没有导入`);
+    seen.set(item.id, at);
     const before = ctx.drafts.get(item.id) ?? item.edits ?? {};
     const res = applyRow(entry, item, before, ctx);
-    if (res.errors.length) {
-      err(`${res.errors.join('；')}，这一行没有导入`);
-      continue;
-    }
+    if (res.errors.length) return err(`${res.errors.join('；')}，这一行没有导入`);
+    matched.push(item.id);
     if (res.ignored.length) {
       const name = res.template?.categoryName ?? '（没有模板）';
-      problems.push({ row: entry.row, level: 'warn', text: `模板「${name}」没有这些属性，已忽略：${res.ignored.join('、')}（SKU ${entry.skuId}）` });
+      problems.push({ ...at, level: 'warn', text: `模板「${name}」没有这些属性，已忽略：${res.ignored.join('、')}（SKU ${entry.skuId}）` });
     }
     const templateChanged = JSON.stringify(before.cateList ?? null) !== JSON.stringify(res.edits.cateList ?? null);
     const changes = [...(templateChanged ? ['上架模板'] : []), ...changedKeys(before, res.edits)];
-    if (changes.length) updates.push({ id: item.id, row: entry.row, edits: res.edits, changes });
+    if (changes.length) updates.push({ id: item.id, sheet: at.sheet, row: entry.row, edits: res.edits, changes });
     else unchanged++;
-  }
-  return { updates, problems: problems.sort((a, b) => a.row - b.row), unchanged };
+  });
+  const sorted = problems.sort((a, b) => a.order - b.order).map(({ order, ...p }) => p);
+  return { updates, problems: sorted, unchanged, matched };
 }

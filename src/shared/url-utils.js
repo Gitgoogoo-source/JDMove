@@ -75,6 +75,25 @@ export function extractSkuIds(text) {
 }
 
 /**
+ * 文本里的商品链接（按出现顺序、按 SKU 去重）。只认链接，不认链接以外的纯数字：上架表的格子里常有条形码等数字。
+ * 京东商品统一成 item.jd.com 链接，万商链接原样保留（buId 等参数决定业务线）
+ * @param {string} text
+ * @returns {{skuId: string, url: string, at: number, end: number}[]} at/end：链接在文本里的位置
+ */
+export function extractItemLinks(text) {
+  const seen = new Set();
+  const out = [];
+  for (const m of String(text ?? '').matchAll(JD_LINK_RE)) {
+    const skuId = skuFromLink(m[0]);
+    if (!skuId || seen.has(skuId)) continue;
+    seen.add(skuId);
+    const url = withScheme(m[0]);
+    out.push({ skuId, url: isB2bItemUrl(url) ? url : buildItemUrl(skuId), at: m.index, end: m.index + m[0].length });
+  }
+  return out;
+}
+
+/**
  * 文本里的京东万商商品链接（SKU → 链接）：万商的商品只能在万商页采集，链接原样保留（buId 等参数决定业务线）
  * @param {string} text
  * @returns {Record<string, string>}

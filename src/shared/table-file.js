@@ -1,6 +1,6 @@
 // 读用户导入的表格文件 → 二维字符串数组（纯函数）：.xlsx（Excel / WPS）、.csv / .tsv / .txt。
 // 中文 Windows 的 Excel 另存的 CSV 是 GBK 编码，这里按 UTF-8 → GBK 依次尝试；“Unicode 文本”是带 BOM 的 UTF-16
-import { readXlsxRows, MAX_SHEET_ROWS, TOO_MANY_ROWS } from './xlsx-read.js';
+import { readXlsxRows, readXlsxSheets, MAX_SHEET_ROWS, TOO_MANY_ROWS } from './xlsx-read.js';
 
 export const MAX_TABLE_FILE_BYTES = 20 * 1024 * 1024;
 const DELIMITERS = [',', '\t', ';'];
@@ -88,17 +88,32 @@ function limitRows(rows) {
   return rows.slice(0, MAX_SHEET_ROWS);
 }
 
+function checkBytes(bytes) {
+  if (!bytes?.length) throw new Error('文件是空的');
+  if (bytes.length > MAX_TABLE_FILE_BYTES) throw new Error('文件太大（超过 20MB），请只保留需要导入的行');
+  if (startsWith(bytes, OLE_SIG)) {
+    throw new Error('不支持 .xls（Excel 97-2003）/ .et 格式，请在 Excel 或 WPS 里“另存为” .xlsx 或 CSV 后再导入');
+  }
+}
+
 /**
- * 按文件内容（不看扩展名）识别格式并读出行
+ * 按文件内容（不看扩展名）识别格式并读出行（.xlsx 只读第一个工作表）
  * @param {Uint8Array} bytes
  * @returns {Promise<{rows: string[][], format: 'xlsx'|'csv'}>}
  */
 export async function readTableFile(bytes) {
-  if (!bytes?.length) throw new Error('文件是空的');
-  if (bytes.length > MAX_TABLE_FILE_BYTES) throw new Error('文件太大（超过 20MB），请只保留需要导入的行');
+  checkBytes(bytes);
   if (startsWith(bytes, ZIP_SIG)) return { rows: await readXlsxRows(bytes), format: 'xlsx' };
-  if (startsWith(bytes, OLE_SIG)) {
-    throw new Error('不支持 .xls（Excel 97-2003）/ .et 格式，请在 Excel 或 WPS 里“另存为” .xlsx 或 CSV 后再导入');
-  }
   return { rows: limitRows(parseDelimited(decodeTableText(bytes))), format: 'csv' };
+}
+
+/**
+ * 读出全部工作表：.xlsx 按工作簿顺序；CSV / TSV 当成一个名为“CSV”的工作表
+ * @param {Uint8Array} bytes
+ * @returns {Promise<{sheets: {name: string, rows: string[][], hidden: boolean}[], format: 'xlsx'|'csv'}>}
+ */
+export async function readTableBook(bytes) {
+  checkBytes(bytes);
+  if (startsWith(bytes, ZIP_SIG)) return { sheets: await readXlsxSheets(bytes), format: 'xlsx' };
+  return { sheets: [{ name: 'CSV', rows: limitRows(parseDelimited(decodeTableText(bytes))), hidden: false }], format: 'csv' };
 }

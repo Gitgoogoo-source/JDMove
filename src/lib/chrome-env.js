@@ -1,5 +1,6 @@
 // chrome.* 封装：存储适配器、工作窗口与标签页、页面脚本执行
 import { createItemRepository, createSettingsRepository, createThrottleRepository } from '../shared/store.js';
+import { createBatchRepository } from '../shared/batch.js';
 
 export const chromeStorage = {
   async get(key) {
@@ -14,6 +15,7 @@ export const chromeStorage = {
 export const itemRepo = createItemRepository(chromeStorage);
 export const settingsRepo = createSettingsRepository(chromeStorage);
 export const throttleRepo = createThrottleRepository(chromeStorage);
+export const batchRepo = createBatchRepository(chromeStorage);
 
 const SW_SLEEP_MAX_MS = 20000;
 const timerSleep = (ms) => new Promise((r) => setTimeout(r, ms));

@@ -1,12 +1,14 @@
-// 发布前检查的表格批量填写：导出（属性列是各模板属性的并集）、读回、按商品的模板校验、整行不导入的规则
+// 发布前检查表的读回：按商品的模板校验、整行不导入的规则、模板名的写法（表格生成见 review-workbook.test.js）
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { buildReview, reviewTemplate } from '../src/shared/vc-review.js';
-import { NOT_APPLICABLE, parseReviewSheet, planReviewImport, resolveTemplateCell, reviewSheets, REVIEW_HEADER_MISSING } from '../src/shared/vc-review-sheet.js';
+import { parseReviewSheet, planReviewImport, resolveTemplateCell, REVIEW_HEADER_MISSING } from '../src/shared/vc-review-sheet.js';
+import { reviewWorkbook } from '../src/shared/review-workbook.js';
+import { parseReviewBook } from '../src/shared/review-workbook-import.js';
 import { TEMPLATE_HEADER } from '../src/shared/vc-import.js';
 import { buildXlsx } from '../src/shared/xlsx-write.js';
-import { readXlsxRows } from '../src/shared/xlsx-read.js';
+import { readXlsxSheets } from '../src/shared/xlsx-read.js';
 import { mergeSettings } from '../src/shared/settings.js';
 
 const read = (f) => JSON.parse(fs.readFileSync(new URL(`../templates/vc/${f}`, import.meta.url), 'utf8'));
@@ -43,56 +45,39 @@ const rowsOf = (items) =>
   });
 const ctx = (drafts = new Map()) => ({ items: ITEMS, drafts, catalog, settings });
 
-test('reviewSheets：同一个三级类目下不同的四级类目，可选值表各列一份', () => {
-  const hanging = item('100000000004', ['15901', '15902', '15908', '44478']);
-  const [, options] = reviewSheets({ rows: rowsOf([TISSUE, hanging]), catalog });
-  const names = new Set(options.rows.slice(1).map((r) => r[0]));
-  assert.deepEqual([...names].sort(), ['抽纸 > 常规抽纸', '抽纸 > 悬挂式抽纸'].sort());
-});
-
-test('reviewSheets：每个商品一行，属性列是各模板属性的并集，模板里没有的属性写“—”；已填的值预先填好', () => {
-  const [sheet, options, notes] = reviewSheets({ rows: rowsOf(ITEMS), catalog });
-  const [header, tissue, bare, wipes] = sheet.rows;
-  const col = (name) => header.indexOf(name);
-  assert.deepEqual(header.slice(0, 5), ['商品链接', 'SKU', '源商品标题（核对用，不导入）', '还缺（核对用，不导入）', '上架模板']);
-  assert.ok(header.includes('属性:层数') && header.includes('属性:是否消字号商品'));
-  assert.equal(tissue[col('上架模板')], '抽纸');
-  assert.equal(tissue[col('市场价(元)')], 99, '数字字段写成数字');
-  assert.equal(tissue[col('属性:层数')], '3层');
-  assert.equal(tissue[col('属性:是否消字号商品')], NOT_APPLICABLE);
-  assert.equal(wipes[col('属性:层数')], NOT_APPLICABLE);
-  assert.equal(bare[col('上架模板')], '');
-  assert.match(bare[col('还缺（核对用，不导入）')], /上架模板（类目）/);
-  assert.ok(sheet.textColumns.includes(1) && sheet.textColumns.includes(col('属性:层数')));
-  assert.ok(options.rows.some((r) => r[0] === '湿巾' && r[1] === '香型' && r[3] === '必填' && r[4].includes('无香型')));
-  assert.ok(options.rows.some((r) => r[0] === '抽纸 > 常规抽纸' && r[1] === '纸张尺寸' && r[4].includes('2 个数字')));
-  assert.match(notes.rows[2][0], /抽纸 > 常规抽纸/);
-});
-
 test('导出 → Excel → 读回 → 导入：没改的不算修改，填了的按商品的模板写进编辑内容', async () => {
-  const rows = await readXlsxRows(buildXlsx(reviewSheets({ rows: rowsOf(ITEMS), catalog })));
-  const header = rows[0];
-  const set = (r, name, v) => {
-    rows[r][header.indexOf(name)] = v;
+  const sheets = await readXlsxSheets(buildXlsx(reviewWorkbook({ rows: rowsOf(ITEMS), catalog })));
+  const set = (name, header, v) => {
+    const sheet = sheets.find((s) => s.name === name);
+    sheet.rows[1][sheet.rows[0].indexOf(header)] = v;
   };
-  set(1, '采购价(元)', '50.5');
-  set(1, '属性:纸张尺寸', '195*133');
-  set(2, '上架模板', '湿巾');
-  set(2, '京东价(元)', '¥1,299');
-  set(2, '属性:香型', '无香');
-  const sheet = parseReviewSheet(rows);
-  assert.equal(sheet.error, undefined);
-  const plan = planReviewImport(sheet.entries, ctx());
+  set('附表1-抽纸-常规抽纸', '*采购价(元)', '50.5');
+  set('附表1-抽纸-常规抽纸', '*SKU属性:纸张尺寸', '195*133');
+  set('未匹配模板', '*上架模板', '湿巾');
+  set('未匹配模板', '*京东价(元)', '¥1,299');
+  set('附表2-湿巾', '*商品属性:是否消字号商品', '非消字号');
+  const book = parseReviewBook(sheets);
+  assert.equal(book.error, undefined);
+  const plan = planReviewImport(book.entries, ctx());
   assert.deepEqual(plan.problems, []);
-  assert.equal(plan.unchanged, 1, '第三个商品没填（只有导出时的模板名和“—”），不修改');
-  const [tissue, bare] = plan.updates;
+  assert.equal(plan.unchanged, 0);
+  const [tissue, wipes, bare] = plan.updates;
   assert.deepEqual(tissue.changes, ['采购价(元)', '纸张尺寸']);
   assert.equal(tissue.edits.cateList, undefined, '导出时写的模板名原样导回，不变成手动指定类目');
   assert.deepEqual(tissue.edits.attrOverrides, { 层数: '3层', 纸张尺寸: '195*133' });
-  assert.deepEqual(bare.changes, ['上架模板', '京东价(元)', '香型']);
+  assert.deepEqual(wipes.changes, ['是否消字号商品']);
+  assert.deepEqual(bare.changes, ['上架模板', '京东价(元)']);
   assert.deepEqual(bare.edits.cateList, ['15901', '15902', '15911']);
   assert.equal(bare.edits.vc.jdPrice, 1299);
-  assert.equal(bare.edits.attrOverrides.香型, '无香型', '存成选项原文');
+});
+
+test('导入：属性的下拉值存成选项原文；旧表的“属性:xx”列也认', () => {
+  const rows = [
+    ['商品链接', '属性:香型'],
+    [link('100000000003'), '无香'],
+  ];
+  const plan = planReviewImport(parseReviewSheet(rows).entries, ctx());
+  assert.equal(plan.updates[0].edits.attrOverrides.香型, '无香型');
 });
 
 test('planReviewImport：一行里有一个值不对整行不导入；模板里没有的属性忽略并提醒；不在弹窗里的商品、重复行报错', () => {

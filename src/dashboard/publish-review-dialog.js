@@ -5,23 +5,17 @@ import { h, openDialog } from './dom.js';
 import { createReviewCard } from './review-card.js';
 import { loadVcCatalog } from '../lib/vc-templates.js';
 import { applyTemplateChoice, templateChoices } from '../shared/vc-review.js';
-import { parseReviewSheet, planReviewImport, reviewSheets } from '../shared/vc-review-sheet.js';
-import { readTableFile } from '../shared/table-file.js';
+import { planReviewImport } from '../shared/vc-review-sheet.js';
+import { reviewFileName, reviewWorkbook } from '../shared/review-workbook.js';
+import { parseReviewBook } from '../shared/review-workbook-import.js';
+import { readTableBook } from '../shared/table-file.js';
 import { buildXlsx } from '../shared/xlsx-write.js';
 import { editsEqual } from '../shared/store.js';
+import { downloadBytes, TABLE_ACCEPT } from './download.js';
+import { whereText } from './upload-dialogs.js';
 
-const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-const ACCEPT = '.xlsx,.csv,.tsv,.txt,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv';
 const PROBLEMS_MAX = 200;
 const DISCARD_CONFIRM = '弹窗里的修改还没保存，确定关闭吗？';
-
-const dateStamp = (d = new Date()) => `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
-
-function download(bytes, name) {
-  const url = URL.createObjectURL(new Blob([bytes], { type: XLSX_MIME }));
-  h('a', { href: url, download: name }).click();
-  setTimeout(() => URL.revokeObjectURL(url), 5000);
-}
 
 /** 弹窗顶部的汇总：齐全 / 缺项 / 没有模板，以及勾选了几个 */
 function summaryText(states) {
@@ -35,12 +29,12 @@ function importReport(box, fileName, res) {
   const { plan } = res;
   const filled = plan.updates.reduce((n, u) => n + u.changes.length, 0);
   const notes = [res.sheet.blank ? `${res.sheet.blank} 行没填值` : '', plan.unchanged ? `${plan.unchanged} 个和现在一样` : ''].filter(Boolean);
-  const problems = [...res.sheet.errors.map((p) => ({ ...p, level: 'error', text: p.message })), ...plan.problems].sort((a, b) => a.row - b.row);
+  const problems = [...res.sheet.errors.map((p) => ({ ...p, level: 'error', text: p.message })), ...plan.problems];
   box.replaceChildren(
     ...[
       h('p', { class: 'import-summary' }, `${fileName}：填入 ${plan.updates.length} 个商品共 ${filled} 项${notes.length ? `（${notes.join('，')}）` : ''}。还没保存，核对后点“保存并发布”或“只保存修改”。`),
       problems.length
-        ? h('ul', { class: 'import-problems' }, ...problems.slice(0, PROBLEMS_MAX).map((p) => h('li', { class: p.level }, `第 ${p.row} 行：${p.text}`)))
+        ? h('ul', { class: 'import-problems' }, ...problems.slice(0, PROBLEMS_MAX).map((p) => h('li', { class: p.level }, `${whereText(p)}：${p.text}`)))
         : null,
       problems.length > PROBLEMS_MAX ? h('small', { class: 'muted' }, `只显示前 ${PROBLEMS_MAX} 条，还有 ${problems.length - PROBLEMS_MAX} 条没显示：请分批导入，或先改好前面的行`) : null,
     ].filter(Boolean),
@@ -51,21 +45,21 @@ function importReport(box, fileName, res) {
 /** 表格：下载这批商品的填写表 / 选择填好的表导回弹窗（只改弹窗里的内容，保存时才写进插件） */
 function sheetTools({ items, drafts, cards, catalog, settings, onLog, onImported }) {
   const report = h('div', { class: 'rv-report', hidden: true });
-  const file = h('input', { type: 'file', accept: ACCEPT, hidden: true });
+  const file = h('input', { type: 'file', accept: TABLE_ACCEPT, hidden: true });
   const rows = () => items.map((item, i) => ({ item, edits: drafts.get(item.id), ...cards[i].state() }));
   const downloadBtn = h('button', { type: 'button' }, '下载填写表格');
   downloadBtn.addEventListener('click', () => {
-    download(buildXlsx(reviewSheets({ rows: rows(), catalog })), `发布前检查填写表-${dateStamp()}.xlsx`);
-    onLog(`发布前检查：已下载填写表格（${items.length} 个商品）`);
+    downloadBytes(buildXlsx(reviewWorkbook({ rows: rows(), catalog, items })), reviewFileName(null));
+    onLog(`发布前检查：已下载填写表格（${items.length} 个商品，按上架模板分附表）`);
   });
   file.addEventListener('change', async () => {
     const f = file.files?.[0];
     file.value = '';
     if (!f) return;
     try {
-      const sheet = parseReviewSheet((await readTableFile(new Uint8Array(await f.arrayBuffer()))).rows);
+      const sheet = parseReviewBook((await readTableBook(new Uint8Array(await f.arrayBuffer()))).sheets);
       if (sheet.error) throw new Error(sheet.error);
-      const plan = planReviewImport(sheet.entries, { items, drafts, catalog, settings });
+      const plan = planReviewImport(sheet.entries, { items, drafts, catalog, settings, base: sheet.base });
       plan.updates.forEach((u) => drafts.set(u.id, u.edits));
       onImported(new Set(plan.updates.map((u) => u.id)));
       importReport(report, f.name, { sheet, plan });

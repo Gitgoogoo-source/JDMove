@@ -1,6 +1,6 @@
 // 任务面板里的“存储位置”：选择文件夹、申请权限、把商品写到本地
 import { chooseStorageRoot, accessStorageRoot } from '../lib/storage-location.js';
-import { saveItemToFolder, removeItemFolder } from '../lib/local-store.js';
+import { saveItemToFolder, removeItemFolder, saveFileToFolder } from '../lib/local-store.js';
 
 const UNSET_HINT = '还没有设置存储位置，采集结果只保存在插件里。点击“存储位置”选择一个文件夹后，采集时会自动按“品牌/SKU”保存图片和商品信息。';
 
@@ -77,6 +77,10 @@ export function createStorageController({ onLog, onChange }) {
 
     /** 删除商品的本地文件夹；没有权限时返回 null */
     removeFolder: (item) => (current.state === 'granted' ? removeItemFolder(current.handle, item) : Promise.resolve(null)),
+
+    /** 把一个文件存到 存储位置/<文件夹>/ 下；没有权限时返回 null（不弹授权窗口） */
+    saveFile: async (dirName, fileName, data) =>
+      current.state === 'granted' ? `${current.handle.name}/${await saveFileToFolder(current.handle, dirName, fileName, data)}` : null,
 
     /** 交给任务执行器使用；没有权限时返回 null（跳过本地保存） */
     save: (item, opts) => (current.state === 'granted' ? saveItemToFolder(current.handle, item, opts) : Promise.resolve(null)),

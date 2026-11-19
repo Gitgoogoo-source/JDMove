@@ -20,6 +20,21 @@ async function writeFile(dir, name, data) {
   }
 }
 
+/**
+ * 把一个文件写到存储位置下的某个文件夹里（如 发布前检查/xxx.xlsx），文件夹没有时新建
+ * @param {FileSystemDirectoryHandle} root
+ * @param {string} dirName
+ * @param {string} fileName
+ * @param {Uint8Array|Blob} data
+ * @returns {Promise<string>} 相对存储位置的路径
+ */
+export async function saveFileToFolder(root, dirName, fileName, data) {
+  const dir = await root.getDirectoryHandle(safeName(dirName), { create: true });
+  const name = safeName(fileName);
+  await writeFile(dir, name, data);
+  return `${dir.name}/${name}`;
+}
+
 async function removeIfExists(dir, name) {
   try {
     await dir.removeEntry(name, { recursive: true });

@@ -29,12 +29,14 @@ const SUMMARIES = {
 
 /**
  * @param {{onChange: () => void, onLog: (line: string) => void,
- *   saveLocal?: (item: object, opts?: {raw?: object}) => Promise<{dir: string, saved: number, failed: string[]}|null>}} hooks
- *   saveLocal 把商品写到本地存储位置（刚采集时带上页面原始数据 raw）；未设置存储位置时返回 null
+ *   saveLocal?: (item: object, opts?: {raw?: object}) => Promise<{dir: string, saved: number, failed: string[]}|null>,
+ *   onRunEnd?: (info: {mode: string, ids: string[], tally: Record<string, number>, paused: boolean, stopped: boolean, aborted: boolean}) => void}} hooks
+ *   saveLocal 把商品写到本地存储位置（刚采集时带上页面原始数据 raw）；未设置存储位置时返回 null；
+ *   onRunEnd 每轮批量任务（采集/发布/保存/价格检查）结束后调用（上架表批次据此判断采集完了没有）
  * @param {{publish?: (item: object, settings: object, log: (msg: string) => void) => Promise<object>}} [deps]
  *   publish：发布单个商品，默认 VC 自营发布流程（测试时替换）
  */
-export function createQueueRunner({ onChange, onLog, saveLocal = async () => null }, { publish = publishVcItem } = {}) {
+export function createQueueRunner({ onChange, onLog, saveLocal = async () => null, onRunEnd = () => {} }, { publish = publishVcItem } = {}) {
   let state = { running: false, mode: null, currentId: null, stopRequested: false, pauseReason: '', pausedMode: null };
   const setState = (patch) => {
     state = { ...state, ...patch };
@@ -174,7 +176,17 @@ export function createQueueRunner({ onChange, onLog, saveLocal = async () => nul
       // 暂停时保留采集页：频控/验证需要用户在该页面手动处理
       if (COLLECT_TAB_MODES.has(mode) && !paused) await closeCollectTab().catch((e) => onLog(`关闭采集标签页失败：${e.message}`));
       if (SUMMARIES[mode] && !aborted) onLog(SUMMARIES[mode](tally));
+      const stopped = state.stopRequested;
       setState({ running: false, currentId: null, mode: null });
+      notifyEnd({ mode, ids, tally, paused, stopped, aborted });
+    }
+  }
+
+  function notifyEnd(info) {
+    try {
+      onRunEnd(info);
+    } catch (e) {
+      onLog(`任务结束后的处理出错：${e.message}`);
     }
   }
 

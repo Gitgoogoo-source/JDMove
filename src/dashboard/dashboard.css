@@ -63,6 +63,9 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   color: #8a4b00;
 }
 
+.batch-bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; background: #eef4ff; color: #1f3d7a; }
+.batch-bar span { flex: 1 1 auto; }
+
 main { padding: 0 20px; }
 table.items {
   width: 100%;

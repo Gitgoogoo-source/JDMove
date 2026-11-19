@@ -67,3 +67,20 @@ test('发布队列：之后保存成功时清除冷却记录，并记下 VC 京�
   assert.equal(fake.localStore.items[0].salePrice, 69.9);
   assert.equal(fake.localStore.publishThrottle, null);
 });
+
+test('发布队列：每轮结束后调用 onRunEnd，带上模式、商品和结果统计', async () => {
+  const fake = installFakeChrome();
+  Object.assign(fake.localStore, { items: [task('1'), task('2')], settings: {} });
+  const ends = [];
+  const runner = createQueueRunner(
+    { onChange: () => {}, onLog: () => {}, onRunEnd: (info) => ends.push(info) },
+    { publish: async () => ({ status: 'published', message: '草稿已保存' }) },
+  );
+  await runner.publish(['1']);
+  assert.equal(ends.length, 1);
+  assert.equal(ends[0].mode, 'publish');
+  assert.deepEqual(ends[0].ids, ['1']);
+  assert.equal(ends[0].tally.ok, 1);
+  assert.equal(ends[0].paused, false);
+  assert.equal(runner.getState().running, false, '回调时任务已经结束，可以接着开始新任务');
+});

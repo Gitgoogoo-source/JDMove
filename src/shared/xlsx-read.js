@@ -1,4 +1,4 @@
-// 读 .xlsx 的第一个工作表 → 二维字符串数组（纯函数，不依赖 DOM，方便在 Node 里测试）。
+// 读 .xlsx 的工作表 → 二维字符串数组（纯函数，不依赖 DOM，方便在 Node 里测试）：第一个工作表，或全部工作表。
 // 只取单元格的值：共享字符串、内联字符串、公式结果、数字（原样文本，不按单元格格式显示）；
 // 行号与 Excel 一致（第 n 行 = rows[n-1]），中间的空行留空数组
 import { readZipEntries, unzipEntry } from './zip.js';
@@ -96,24 +96,52 @@ export function parseSheetRows(xml, shared = []) {
   return rows;
 }
 
+const SHEET_FILE_RE = /^xl\/worksheets\/sheet\d*\.xml$/;
+const byFileName = (names) => names.filter((n) => SHEET_FILE_RE.test(n)).sort((a, b) => a.localeCompare(b, 'en', { numeric: true }));
+
+/**
+ * 工作簿里的全部工作表（按工作簿里的顺序，不按文件名）；工作簿里对不上时按文件名排序
+ * @returns {{name: string, path: string, hidden: boolean}[]}
+ */
+export function sheetList(workbookXml, relsXml, names) {
+  const rels = [...String(relsXml ?? '').matchAll(REL_RE)].map((m) => ({ id: attr(m[1], 'Id'), target: attr(m[1], 'Target') }));
+  const listed = [...String(workbookXml ?? '').matchAll(SHEET_RE)].flatMap((m) => {
+    const relId = m[1].match(/(?:^|\s)[\w-]+:id\s*=\s*"([^"]*)"/)?.[1];
+    const target = rels.find((r) => r.id === relId)?.target;
+    if (!target) return [];
+    const path = target.startsWith('/') ? target.slice(1) : `xl/${target.replace(/^\.\//, '')}`;
+    if (!names.includes(path)) return [];
+    const state = attr(m[1], 'state');
+    return [{ name: decodeXmlText(attr(m[1], 'name') ?? ''), path, hidden: state === 'hidden' || state === 'veryHidden' }];
+  });
+  if (listed.length) return listed;
+  return byFileName(names).map((path, i) => ({ name: `Sheet${i + 1}`, path, hidden: false }));
+}
+
 /** 工作簿里第一个工作表的文件路径（按工作簿里的顺序，不按文件名） */
 export function firstSheetPath(workbookXml, relsXml, names) {
-  const firstSheet = [...String(workbookXml ?? '').matchAll(SHEET_RE)][0];
-  const relId = firstSheet?.[1].match(/(?:^|\s)[\w-]+:id\s*=\s*"([^"]*)"/)?.[1];
-  const rel = [...String(relsXml ?? '').matchAll(REL_RE)].find((m) => attr(m[1], 'Id') === relId);
-  const target = rel ? attr(rel[1], 'Target') : null;
-  if (target) {
-    const path = target.startsWith('/') ? target.slice(1) : `xl/${target.replace(/^\.\//, '')}`;
-    if (names.includes(path)) return path;
-  }
-  const sheets = names.filter((n) => /^xl\/worksheets\/sheet\d*\.xml$/.test(n)).sort((a, b) => a.localeCompare(b, 'en', { numeric: true }));
-  return sheets[0] ?? null;
+  return sheetList(workbookXml, relsXml, names)[0]?.path ?? null;
 }
 
 const textOf = async (entries, name, inflate) => {
   const entry = entries.get(name);
   return entry ? new TextDecoder().decode(await unzipEntry(entry, inflate)) : '';
 };
+
+async function openWorkbook(bytes, inflate) {
+  const entries = readZipEntries(bytes);
+  const names = [...entries.keys()];
+  if (!names.some((n) => n.startsWith('xl/'))) throw new Error('压缩包里没有 Excel 工作表，请确认选的是 .xlsx 表格');
+  const sheets = sheetList(await textOf(entries, 'xl/workbook.xml', inflate), await textOf(entries, 'xl/_rels/workbook.xml.rels', inflate), names);
+  if (!sheets.length) throw new Error('表格里没有工作表');
+  let shared = null;
+  const readSheet = async (path) => {
+    if (entries.get(path).size > MAX_SHEET_BYTES) throw new Error('工作表太大，请只保留需要导入的行');
+    shared ??= parseSharedStrings(await textOf(entries, 'xl/sharedStrings.xml', inflate));
+    return parseSheetRows(await textOf(entries, path, inflate), shared);
+  };
+  return { sheets, readSheet };
+}
 
 /**
  * .xlsx 文件内容 → 第一个工作表的行
@@ -122,12 +150,26 @@ const textOf = async (entries, name, inflate) => {
  * @returns {Promise<string[][]>}
  */
 export async function readXlsxRows(bytes, { inflate } = {}) {
-  const entries = readZipEntries(bytes);
-  const names = [...entries.keys()];
-  if (!names.some((n) => n.startsWith('xl/'))) throw new Error('压缩包里没有 Excel 工作表，请确认选的是 .xlsx 表格');
-  const sheetPath = firstSheetPath(await textOf(entries, 'xl/workbook.xml', inflate), await textOf(entries, 'xl/_rels/workbook.xml.rels', inflate), names);
-  if (!sheetPath) throw new Error('表格里没有工作表');
-  if (entries.get(sheetPath).size > MAX_SHEET_BYTES) throw new Error('工作表太大，请只保留需要导入的行');
-  const shared = parseSharedStrings(await textOf(entries, 'xl/sharedStrings.xml', inflate));
-  return parseSheetRows(await textOf(entries, sheetPath, inflate), shared);
+  const { sheets, readSheet } = await openWorkbook(bytes, inflate);
+  return readSheet(sheets[0].path);
+}
+
+/**
+ * .xlsx 文件内容 → 全部工作表（按工作簿里的顺序）。某个工作表太大读不了时只跳过它（rows 为空、写明 error），
+ * 不影响其他工作表：上架表的工作簿里常夹着很大的对照表
+ * @param {Uint8Array} bytes
+ * @param {{inflate?: (data: Uint8Array) => Promise<Uint8Array>}} [opts]
+ * @returns {Promise<{name: string, rows: string[][], hidden: boolean, error?: string}[]>}
+ */
+export async function readXlsxSheets(bytes, { inflate } = {}) {
+  const { sheets, readSheet } = await openWorkbook(bytes, inflate);
+  const out = [];
+  for (const s of sheets) {
+    try {
+      out.push({ name: s.name, rows: await readSheet(s.path), hidden: s.hidden });
+    } catch (e) {
+      out.push({ name: s.name, rows: [], hidden: s.hidden, error: e.message });
+    }
+  }
+  return out;
 }

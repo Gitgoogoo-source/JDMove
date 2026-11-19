@@ -14,6 +14,7 @@ import {
   canRecollect,
   pickRecollect,
   collectFailurePatch,
+  INTERRUPTED_NOTE,
 } from '../src/shared/store.js';
 import { isArchived } from '../src/shared/brand-folders.js';
 
@@ -450,4 +451,19 @@ test('saveCollected: 万商任务改从京东商品页采集时，任务链接�
   await repo.addTasks(['100289450311'], { urls: { 100289450311: B2B_URL } });
   const saved = await repo.saveCollected({ skuId: '100289450311', url: 'https://item.jd.com/100289450311.html', title: 'x' });
   assert.equal(saved.url, 'https://item.jd.com/100289450311.html');
+});
+
+test('recoverInterrupted：停在“采集中”的条目改回已采集/待采集，其他不动', async () => {
+  const items = [
+    { ...newItem('1001', 1), status: 'collecting', product: { title: 'a' } },
+    { ...newItem('1002', 1), status: 'collecting' },
+    { ...newItem('1003', 1), status: 'publishing', product: { title: 'c' } },
+  ];
+  const storage = memoryStorage({ items });
+  const repo = createItemRepository(storage);
+  assert.deepEqual(await repo.recoverInterrupted(), ['1001', '1002']);
+  const after = storage.dump().items;
+  assert.deepEqual(after.map((i) => i.status), ['collected', 'pending', 'publishing']);
+  assert.equal(after[0].message, INTERRUPTED_NOTE);
+  assert.deepEqual(await repo.recoverInterrupted(), []);
 });

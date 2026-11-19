@@ -43,6 +43,7 @@ function sourceUrlPatch(skuId, product) {
 }
 
 export const EDITED_NOTE = '已修改，尚未重新发布';
+export const INTERRUPTED_NOTE = '上次采集没有完成（任务面板被关闭或浏览器重启），请重新采集';
 const LAST_RESULT_SEP = '｜上次结果：';
 // 这些状态说明发布流程已经跑过：编辑后必须重新发布才会作用到店铺
 const PUBLISH_TRIED = new Set(['need_action', 'failed', 'published']);
@@ -280,6 +281,21 @@ export function createItemRepository(storage) {
         const next = { ...(existing ?? newItem(id)), ...sourceUrlPatch(id, product), product, status: 'collected', message: '', updatedAt: Date.now() };
         await persist(existing ? items.map((i) => (i.id === id ? next : i)) : [...items, next]);
         return next;
+      }),
+
+    /**
+     * 任务在任务面板里执行：面板被关掉、浏览器重启时正在采集的条目会一直停在“采集中”（之后的采集、上架表批次都会跳过/等着它）。
+     * 打开面板时（这时没有任务在执行）改回：有数据的回到“已采集”，没有的回到“待采集”
+     * @returns {Promise<string[]>} 改回的条目
+     */
+    recoverInterrupted: () =>
+      serial(async () => {
+        const items = await load();
+        const stuck = items.filter((i) => i.status === 'collecting').map((i) => i.id);
+        if (stuck.length) {
+          await persist(items.map((i) => (i.status === 'collecting' ? { ...i, status: i.product ? 'collected' : 'pending', message: INTERRUPTED_NOTE } : i)));
+        }
+        return stuck;
       }),
 
     // 导入其他浏览器/用户导出的采集结果：只接受带商品数据的条目，状态统一回到“已采集”

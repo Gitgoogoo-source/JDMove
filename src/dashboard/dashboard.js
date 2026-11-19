@@ -7,6 +7,7 @@ import { editSettings } from './settings-dialog.js';
 import { createStorageController } from './storage-ui.js';
 import { openVcImportDialog } from './vc-import-dialog.js';
 import { openPublishReview } from './publish-review-dialog.js';
+import { createBatchFlow } from './batch-flow.js';
 import { rebaseEdits } from '../shared/vc-review.js';
 import { importEdit } from '../shared/vc-import.js';
 import { extractSkuIds, b2bItemUrls } from '../shared/url-utils.js';
@@ -19,6 +20,7 @@ import { ALERT_FOLDER_KEY, alertItems, priceStatus, checkedToday } from '../shar
 import { groupPublishedByBrand, filterFolders, isArchived, taskItems } from '../shared/brand-folders.js';
 import { createQueueRunner } from '../lib/queue.js';
 import { cooldownNotice } from '../shared/publish-throttle.js';
+import { BATCHES_KEY } from '../shared/batch.js';
 
 const MAX_LOG = 400;
 let items = [];
@@ -55,7 +57,14 @@ function appendLog(line) {
 }
 
 const storage = createStorageController({ onLog: appendLog, onChange: () => renderState() });
-const runner = createQueueRunner({ onChange: renderState, onLog: appendLog, saveLocal: (item, opts) => storage.save(item, opts) });
+const runner = createQueueRunner({
+  onChange: renderState,
+  onLog: appendLog,
+  saveLocal: (item, opts) => storage.save(item, opts),
+  // 上架表的商品采集完后自动生成发布前检查表
+  onRunEnd: (info) => batchFlow.onRunEnd(info),
+});
+const batchFlow = createBatchFlow({ runner, storage, onLog: appendLog, reload: () => reload(), confirmCooldown: () => confirmPublishDuringCooldown() });
 
 const TASKS_EMPTY_TEXT = $('#empty').textContent;
 const TASKS_DONE_TEXT = '没有待处理的任务。发布成功的商品已移到“已发布”页，点击上方“已发布”查看。';
@@ -99,7 +108,7 @@ function renderState() {
   const el = $('#runState');
   el.textContent = st.running ? `${MODE_LABELS[st.mode] ?? ''}中：${st.currentId ?? ''}${st.stopRequested ? '（正在停止）' : ''}` : '空闲';
   el.classList.toggle('busy', st.running);
-  for (const id of ['btnCollect', 'btnRecollect', 'btnPublish', 'btnDelete', 'btnAdd', 'btnShop', 'btnSettings', 'btnImport', 'btnSaveLocal', 'btnStorage', 'btnPriceCheck', 'btnReturn', 'btnVcImport']) {
+  for (const id of ['btnCollect', 'btnRecollect', 'btnPublish', 'btnDelete', 'btnAdd', 'btnShop', 'btnUpload', 'btnSettings', 'btnImport', 'btnSaveLocal', 'btnStorage', 'btnPriceCheck', 'btnReturn', 'btnVcImport']) {
     $(`#${id}`).disabled = st.running;
   }
   $('#btnStorage').textContent = storage.label();
@@ -189,6 +198,7 @@ function render() {
     (inverted ? `（价格倒挂 ${inverted}）` : '');
   $('#btnArchive').textContent = archived ? `已发布（${archived}）` : '已发布';
   $('#checkAll').checked = list.length > 0 && list.every((i) => selected.has(i.id));
+  batchFlow.render($('#batchBar'), items, busy);
   renderState();
 }
 
@@ -218,7 +228,7 @@ async function handleRecollectSelected() {
 }
 
 async function reload() {
-  [items, settings, throttle] = await Promise.all([itemRepo.findAll(), settingsRepo.get(), throttleRepo.get()]);
+  [items, settings, throttle] = await Promise.all([itemRepo.findAll(), settingsRepo.get(), throttleRepo.get(), batchFlow.refresh()]);
   // 发布成功的商品会移出任务列表：同时取消它的勾选，避免“删除选中”等操作作用到看不见的条目
   const visible = new Set(visibleItems().map((i) => i.id));
   selected = new Set([...selected].filter((id) => visible.has(id)));
@@ -490,6 +500,7 @@ function bind() {
   });
   $('#btnAdd').addEventListener('click', handleAdd);
   $('#btnShop').addEventListener('click', handleShop);
+  $('#btnUpload').addEventListener('click', () => batchFlow.handleUpload());
   $('#btnSettings').addEventListener('click', handleSettings);
   $('#btnStop').addEventListener('click', () => runner.stop());
   $('#btnClearLog').addEventListener('click', () => {
@@ -529,7 +540,7 @@ function bind() {
     await deleteItems([...selected]);
   });
   chrome.storage.onChanged.addListener((changes, area) => {
-    if (area === 'local' && (changes.items || changes.settings || changes[THROTTLE_KEY])) reload();
+    if (area === 'local' && (changes.items || changes.settings || changes[THROTTLE_KEY] || changes[BATCHES_KEY])) reload();
   });
   window.addEventListener('beforeunload', (e) => {
     if (runner.getState().running) e.preventDefault();
@@ -537,6 +548,11 @@ function bind() {
 }
 
 bind();
-reload();
+// 面板刚打开时没有任务在执行：上次被打断、停在“采集中”的条目改回来（否则上架表批次一直等它们）
+itemRepo
+  .recoverInterrupted()
+  .then((ids) => ids.length && appendLog(`${ids.length} 个商品上次采集没有完成（任务面板被关闭或浏览器重启），已改回待采集/已采集`))
+  .catch((e) => appendLog(`恢复中断的采集状态失败：${e.message}`))
+  .finally(reload);
 storage.init();
 setInterval(renderState, COOLDOWN_REFRESH_MS);
