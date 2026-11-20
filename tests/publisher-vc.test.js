@@ -73,6 +73,20 @@ function vcPage(overrides = {}) {
   return { calls, methods: () => calls.map((c) => c.method), backend };
 }
 
+/**
+ * 商品审核列表 / 落地页的假页面：按注入的函数分别返回。
+ * records：组件数据（null = 读不到组件，退回读文字）；texts：每行文字；mark：sessionStorage 里发布页存下的结果
+ */
+function listPage({ records = null, texts = [], mark = null } = {}) {
+  const at = (v) => (typeof v === 'function' ? v() : v);
+  return ({ func, args }) => {
+    if (func.name === 'readApplyRecordsInPage') return at(records);
+    if (func.name === 'readApplyRowsInPage') return at(texts);
+    if (func.name === 'readPublishMarkInPage') return mark && mark.nonce === undefined ? { ...mark, nonce: args[0] } : mark;
+    return undefined;
+  };
+}
+
 const settings = (publish = {}) => mergeSettings({ publish: { reuploadDetailImages: false, action: 'none', ...publish } });
 
 test('publishVcItem: 3 个价格没填时不打开发布页，标为需处理', async () => {
@@ -160,7 +174,9 @@ test('publishVcItem: 旧设置里的“提交并上架”也点“发布商品�
   const res = await publishVcItem(item, settings({ action: 'submit_on' }), (l) => lines.push(l), { imageMakers: makers });
   assert.equal(res.status, 'published', res.message);
   assert.deepEqual(res.listing, { title: '棉韧抽纸 3层100抽*36包', brandTitle: '维达', prices: PRICES, upc: '6901236326411' });
-  assert.deepEqual(page.calls.find((c) => c.method === 'runAction').args, ['vc_publish']);
+  const [action, opts] = page.calls.find((c) => c.method === 'runAction').args;
+  assert.equal(action, 'vc_publish');
+  assert.match(opts.nonce, /\S/, '带上这次发布的 nonce');
   assert.ok(lines.some((l) => /已发布/.test(l)));
 });
 
@@ -211,13 +227,13 @@ test('publishVcItem: 发布成功时带回京东分配的 SKU 并写进日志', 
 
 test('publishVcItem: 发布 → 点“发布商品”；接口没返回 SKU、商品审核列表里也找不到时仍算发布成功并提醒', async () => {
   const page = vcPage();
-  const fake = installFakeChrome({ backend: page.backend, page: () => [] });
+  const fake = installFakeChrome({ backend: page.backend, page: listPage({ records: [] }) });
   const lines = [];
   const res = await publishVcItem(vcItem(), settings({ action: 'publish' }), (l) => lines.push(l), { imageMakers: makers, applyRetryMs: 1 });
-  assert.deepEqual(page.calls.find((c) => c.method === 'runAction').args, ['vc_publish']);
+  assert.equal(page.calls.find((c) => c.method === 'runAction').args[0], 'vc_publish');
   assert.equal(res.status, 'published');
   assert.deepEqual(res.skuIds, []);
-  assert.ok(lines.some((l) => /没拿到京东分配的 SKU/.test(l)));
+  assert.ok(lines.some((l) => /发布接口不返回 SKU，没拿到申请单号/.test(l)), lines.join('\n'));
   assert.ok(lines.some((l) => /商品审核列表里没找到/.test(l)), lines.join('\n'));
   assert.ok(fake.calls.some((c) => c.op === 'tabs.update' && /activeTab=ApplyWare/.test(c.url)), '打开了商品审核列表');
   assert.equal(lines.filter((l) => /秒后刷新再找/.test(l)).length, 2, '没找到时刷新列表重找');
@@ -234,7 +250,7 @@ test('publishVcItem: 接口没返回 SKU 时到商品审核列表按名称和提
     '维达棉韧抽纸 3层100抽*36包\n商品编码: 100400000001\n提交: 2026-11-09 17:21:58\n审核通过',
     `别的商品\n商品编码: 100400000002\n提交: ${stamp}`,
   ];
-  installFakeChrome({ backend: page.backend, page: () => rows });
+  installFakeChrome({ backend: page.backend, page: listPage({ texts: rows }) });
   const lines = [];
   const item = vcItem({ title: '棉韧抽纸 3层100抽*36包', vc: { ...PRICES, erpCode: 'xudezhi.6' } });
   const res = await publishVcItem(item, settings({ action: 'publish' }), (l) => lines.push(l), { imageMakers: makers });
@@ -252,7 +268,7 @@ test('publishVcItem: 同名商品连发时，商品审核列表里已经记进�
   const fresh = `维达棉韧抽纸 3层100抽*36包\n商品编码: 100448634999\n提交: ${stamp}\n审核中`;
   let reads = 0;
   // 第一次读列表：新提交的还没出来，只有上一次发布的；刷新后才有新的
-  installFakeChrome({ backend: page.backend, page: () => (++reads === 1 ? [earlier] : [fresh, earlier]) });
+  installFakeChrome({ backend: page.backend, page: listPage({ texts: () => (++reads === 1 ? [earlier] : [fresh, earlier]) }) });
   await chrome.storage.local.set({ masterRecords: [{ id: '100448634314-1', sku: '100448634314', name: '维达棉韧抽纸 3层100抽*36包' }] });
   const lines = [];
   const item = vcItem({ title: '棉韧抽纸 3层100抽*36包', vc: { ...PRICES, erpCode: 'xudezhi.6' } });
@@ -518,6 +534,71 @@ test('publishVcItem: 发布后页面整页跳走、脚本没来得及返回时�
     assert.equal(res.status, 'published', res.message);
     assert.equal(res.productId, productId);
     assert.deepEqual(res.skuIds, []);
-    assert.match(res.message, /没拿到 SKU/);
+    assert.match(res.message, productId ? /申请单 5566778，SKU 待从商品审核列表取回/ : /没拿到申请单号/);
   }
+});
+
+// ---- 按申请单号找 SKU（2026-11-20 实测：发布接口只返回 applyId，SKU 要到商品审核列表按 applyId 对） ----
+const SAME_NAME = '维达棉韧抽纸 3层100抽*36包';
+const applyRecord = (applyId, productId, created = Date.now()) => ({ applyId, productId, productName: SAME_NAME, created });
+const namedItem = () => vcItem({ title: '棉韧抽纸 3层100抽*36包', vc: { ...PRICES, erpCode: 'xudezhi.6' } });
+const namedPage = (runAction) => vcPage({ vcPayloadCheck: { ok: true, problems: [], floats: [], brandTitle: '维达' }, runAction });
+const APPLY_OK = { ok: true, messages: ['商品已发布（申请单 new-apply，SKU 待从商品审核列表取回）'], errors: [], skuIds: [], applyId: 'new-apply', serverTime: Date.now() };
+
+test('publishVcItem: 同名商品连发、新提交的还没进列表时，不拿上一次的 SKU；刷新后按申请单号对上新的', async () => {
+  const page = namedPage(APPLY_OK);
+  const earlier = applyRecord('old-apply', 100448634314, Date.now() - 30e3);
+  let reads = 0;
+  installFakeChrome({ backend: page.backend, page: listPage({ records: () => (++reads === 1 ? [earlier] : [applyRecord('new-apply', 100448634999), earlier]) }) });
+  const lines = [];
+  const res = await publishVcItem(namedItem(), settings({ action: 'publish' }), (l) => lines.push(l), { imageMakers: makers, applyRetryMs: 1 });
+  assert.equal(res.status, 'published');
+  assert.deepEqual(res.skuIds, ['100448634999']);
+  assert.equal(res.applyId, 'new-apply');
+  assert.ok(lines.some((l) => /找到了 SKU 100448634999（按申请单 new-apply）/.test(l)), lines.join('\n'));
+  assert.equal(res.message, '商品已发布（申请单 new-apply，SKU 100448634999）');
+  assert.ok(lines.some((l) => /秒后刷新再找/.test(l)));
+});
+
+test('publishVcItem: 有申请单号但列表里一直没有它时留空，不按同名商品去猜', async () => {
+  const page = namedPage(APPLY_OK);
+  installFakeChrome({ backend: page.backend, page: listPage({ records: [applyRecord('old-apply', 100448634314)] }) });
+  const lines = [];
+  const res = await publishVcItem(namedItem(), settings({ action: 'publish' }), (l) => lines.push(l), { imageMakers: makers, applyRetryMs: 1 });
+  assert.equal(res.status, 'published');
+  assert.deepEqual(res.skuIds, []);
+  assert.ok(lines.some((l) => /申请单 new-apply 不在列表里/.test(l)), lines.join('\n'));
+});
+
+test('publishVcItem: 页面跳走、脚本没返回时，到落地页读回发布页存下的申请单号，再按它找 SKU', async () => {
+  let fake;
+  const landing = 'https://wares-jdm.jd.com/ware/wareList?businessModel=1&activeTab=ApplyWare';
+  const page = namedPage(() => {
+    for (const [id, tab] of fake.tabs) fake.tabs.set(id, { ...tab, url: landing });
+    return {};
+  });
+  const records = [applyRecord('new-apply', 100448634999), applyRecord('old-apply', 100448634314)];
+  fake = installFakeChrome({ backend: page.backend, page: listPage({ records, mark: { applyId: 'new-apply', serverTime: Date.now(), skuIds: [], text: '{"code":200}' } }) });
+  const res = await publishVcItem(namedItem(), settings({ action: 'publish' }), () => {}, { imageMakers: makers, landTimeoutMs: 500, applyRetryMs: 1 });
+  assert.equal(res.status, 'published', res.message);
+  assert.equal(res.applyId, 'new-apply');
+  assert.deepEqual(res.skuIds, ['100448634999']);
+  assert.match(res.message, /申请单 new-apply/);
+  const markCall = fake.calls.find((c) => c.name === 'readPublishMarkInPage');
+  const runCall = page.calls.find((c) => c.method === 'runAction');
+  assert.equal(markCall.args[0], runCall.args[1].nonce, '按这次发布的 nonce 读');
+});
+
+test('publishVcItem: 读不到列表组件数据时退回读文字，按服务器时间 15 秒内的同名商品对；上一次的同名商品不算', async () => {
+  const pad = (n) => String(n).padStart(2, '0');
+  const stamp = (t) => {
+    const d = new Date(t);
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+  };
+  const serverTime = Date.now();
+  const page = namedPage({ ...APPLY_OK, serverTime });
+  const texts = [`${SAME_NAME}\n商品编码: 100448634999\n提交: ${stamp(serverTime)}`, `${SAME_NAME}\n商品编码: 100448634314\n提交: ${stamp(serverTime - 75e3)}`];
+  installFakeChrome({ backend: page.backend, page: listPage({ records: null, texts }) });
+  const res = await publishVcItem(namedItem(), settings({ action: 'publish' }), () => {}, { imageMakers: makers, applyRetryMs: 1 });
+  assert.deepEqual(res.skuIds, ['100448634999']);
 });

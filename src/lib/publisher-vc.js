@@ -2,14 +2,23 @@
 import { buildVcPublishPlan, vcPreflight, vcTarget, vcActionLabel } from '../shared/vc-plan.js';
 import { descriptionHtml } from '../shared/publish-plan.js';
 import { buildVcPublishUrl, imgzoneUrl } from '../shared/url-utils.js';
-import { callVcBackend, openWorkTab, navigateTab, closeTab, sleep, waitForTabUrl, runInPage } from './chrome-env.js';
+import { callVcBackend, openWorkTab, navigateTab, closeTab, sleep, waitForTabUrl, runInPage, masterRepo } from './chrome-env.js';
 import { landedPageKind } from './category-search.js';
 import { forgetLeaf, resolveLeafTarget, sharedLeafCache } from './vc-leaf.js';
 import { startImagePrep } from './image-prep.js';
 import { createStopwatch } from '../shared/stopwatch.js';
 import { detectSaveThrottle } from '../shared/publish-throttle.js';
 import { loadVcTemplate } from './vc-templates.js';
-import { APPLY_LIST_URL, parseApplyRows, pickPublishedSku, readApplyRowsInPage } from '../shared/apply-list.js';
+import {
+  APPLY_LIST_URL,
+  parseApplyRecords,
+  parseApplyRows,
+  pickPublishedSku,
+  readApplyRecordsInPage,
+  readApplyRowsInPage,
+  readPublishMarkInPage,
+  skuByApplyId,
+} from '../shared/apply-list.js';
 import { listingBrandTitle, listingName } from '../shared/master-sheet.js';
 import { itemBrand } from '../shared/brand-folders.js';
 
@@ -196,27 +205,47 @@ async function checkPayload(tabId, plan, log) {
 }
 
 /**
- * 发布接口的返回没抓到 SKU 时：到“商品管理 → 商品审核”列表按商品名称和提交时间找回商品编码（单 SKU 商品就是 SKU）
+ * 商品审核列表的一次读取：优先读组件数据（带 applyId）；读不到组件（页面结构变了）时退回读每行文字（没有 applyId）
+ * @returns {Promise<{rows: import('../shared/apply-list.js').ApplyRow[], byApplyId: boolean}>}
+ */
+async function readApplyList(tabId) {
+  const records = await runInPage(tabId, [], readApplyRecordsInPage, [APPLY_LIST_WAIT_MS]);
+  if (records !== null) return { rows: parseApplyRecords(records), byApplyId: true };
+  return { rows: parseApplyRows(await runInPage(tabId, [], readApplyRowsInPage, [APPLY_LIST_WAIT_MS])), byApplyId: false };
+}
+
+/** 一次读取里找 SKU：有申请单号且读到了组件数据就只按申请单号对；否则按名称和提交时间兜底（对不准返回 ''） */
+function skuFromRows({ rows, byApplyId }, want) {
+  if (want.applyId && byApplyId) return { sku: skuByApplyId(rows, want.applyId), how: `申请单 ${want.applyId}` };
+  return { sku: pickPublishedSku(rows, want), how: '商品名称和提交时间' };
+}
+
+/**
+ * 发布接口的返回里没有 SKU（实测一直没有，只有申请单号 applyId）：到“商品管理 → 商品审核”列表找回商品编码（单 SKU 商品就是 SKU）。
+ * 按 applyId 精确对；没有 applyId 时才按名称 + 提交时间兜底，跳过已经记给别的商品的 SKU（taken），对不准就留空
+ * @param {{applyId?: string, name: string, since: number, serverTime?: number, taken?: Set<string>}} want
  * @returns {Promise<string>} 找不到时为 ''
  */
-async function skuFromApplyList(tabId, name, since, log, retryMs = APPLY_LIST_RETRY_MS) {
+async function skuFromApplyList(tabId, want, log, retryMs = APPLY_LIST_RETRY_MS) {
   try {
     const url = await waitForTabUrl(tabId, APPLY_LIST_RE, 0);
+    let last = { rows: [], byApplyId: false };
     for (let attempt = 1; attempt <= APPLY_LIST_TRIES; attempt += 1) {
       // 第一次：页面自己跳到列表了就直接读；没找到时刷新列表再读（新提交的商品可能还没进列表）
       if (attempt > 1 || !url) await navigateTab(tabId, APPLY_LIST_URL);
-      const rows = parseApplyRows(await runInPage(tabId, [], readApplyRowsInPage, [APPLY_LIST_WAIT_MS]));
-      const sku = pickPublishedSku(rows, { name, since });
+      last = await readApplyList(tabId);
+      const { sku, how } = skuFromRows(last, want);
       if (sku) {
-        log(`在商品审核列表里找到了 SKU ${sku}（按商品名称和提交时间）`);
+        log(`在商品审核列表里找到了 SKU ${sku}（按${how}）`);
         return sku;
       }
       if (attempt < APPLY_LIST_TRIES) {
-        log(`商品审核列表里暂时没找到这个商品（读到 ${rows.length} 行），${retryMs / 1000} 秒后刷新再找`);
+        log(`商品审核列表里暂时没找到这个商品（读到 ${last.rows.length} 行），${retryMs / 1000} 秒后刷新再找`);
         await sleep(retryMs);
       }
     }
-    log('商品审核列表里没找到这个商品，上架总表里商品编码sku 留空，请到 VC 后台核对');
+    const why = want.applyId && last.byApplyId ? `申请单 ${want.applyId} 不在列表里` : '按商品名称和提交时间对不准（没有或有多个同名商品）';
+    log(`商品审核列表里没找到这个商品（${why}），上架总表里商品编码sku 留空，请到 VC 后台核对`);
     return '';
   } catch (e) {
     log(`到商品审核列表找 SKU 失败：${e.message}`);
@@ -224,21 +253,51 @@ async function skuFromApplyList(tabId, name, since, log, retryMs = APPLY_LIST_RE
   }
 }
 
-/** 点“发布商品”；页面整页跳走、脚本来不及返回时按落地地址判断（这时拿不到 SKU） */
+/** 已经记给别的商品的 SKU：上架总表记录里的 + 调用方给的（按名称兜底时不再选，同一商品连发防串号） */
+async function takenSkusFor(extra) {
+  const records = await masterRepo.list().catch(() => []);
+  return new Set([...extra, ...records.map((r) => r.sku).filter(Boolean)]);
+}
+
+/** 页面跳走、脚本没把结果带回来时：到跳转后的页面读回发布页存下的发布结果（同域名 sessionStorage） */
+async function publishMark(tabId, nonce) {
+  try {
+    return await runInPage(tabId, [], readPublishMarkInPage, [nonce]);
+  } catch {
+    return null;
+  }
+}
+
+/** 点“发布商品”；页面整页跳走、脚本来不及返回时按落地地址判断，并读回发布页存下的申请单号 */
 async function submitVc(tabId, landTimeoutMs) {
+  const nonce = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
   let result;
   let error;
   try {
-    result = await callVcBackend(tabId, 'runAction', 'vc_publish');
+    result = await callVcBackend(tabId, 'runAction', 'vc_publish', { nonce });
   } catch (e) {
     error = e;
   }
   if (result && !result.unconfirmed && (result.ok || result.confirmText || result.errors?.length || result.messages?.length)) return result;
   const landed = await waitForTabUrl(tabId, PUBLISHED_LANDING_RE, landTimeoutMs);
   if (landed) {
-    const productId = new URL(landed).searchParams.get('wareId') || '';
-    const note = productId ? `商品编号 ${productId}，没拿到 SKU` : '页面已跳到申请中列表，没拿到 SKU';
-    return { ...result, ok: true, url: landed, messages: [`商品已发布（${note}）`], errors: [], confirmText: '', skuIds: [], productId };
+    const mark = await publishMark(tabId, nonce);
+    const productId = new URL(landed).searchParams.get('wareId') || mark?.productId || '';
+    const applyId = mark?.applyId || new URL(landed).searchParams.get('applyId') || '';
+    const note = applyId ? `申请单 ${applyId}，SKU 待从商品审核列表取回` : productId ? `商品编号 ${productId}，没拿到 SKU` : '页面已跳到商品审核列表，没拿到申请单号';
+    return {
+      ...result,
+      ok: true,
+      url: landed,
+      messages: [`商品已发布（${note}）`],
+      errors: [],
+      confirmText: '',
+      skuIds: Array.isArray(mark?.skuIds) ? mark.skuIds.map(String) : [],
+      productId,
+      applyId,
+      serverTime: mark?.serverTime || 0,
+      saveResponses: mark?.text ? [mark.text] : result?.saveResponses ?? [],
+    };
   }
   if (error) throw error;
   return result;
@@ -259,7 +318,8 @@ function submitOutcome(result, plan, target, tabId, log) {
     return { status: 'failed', message: detail || '提交未成功', target, tabId };
   }
   const skuIds = result.skuIds ?? [];
-  log(skuIds.length ? `已发布，京东分配的 SKU：${skuIds.join('、')}` : '已发布，但发布接口的返回里没拿到京东分配的 SKU，到商品审核列表里找');
+  const where = result.applyId ? `按申请单 ${result.applyId} 到商品审核列表里找` : '没拿到申请单号，到商品审核列表里按商品名称和提交时间找';
+  log(skuIds.length ? `已发布，京东分配的 SKU：${skuIds.join('、')}` : `已发布，发布接口不返回 SKU，${where}`);
   return {
     status: 'published',
     message: (result.messages ?? []).join('；') || '商品已发布',
@@ -267,6 +327,7 @@ function submitOutcome(result, plan, target, tabId, log) {
     skuIds,
     productId: result.productId || '',
     applyId: result.applyId || '',
+    serverTime: result.serverTime || 0,
   };
 }
 
@@ -308,8 +369,12 @@ async function publishInVcTab(tab, item, settings, log, target, ctx) {
     const listing = listingOf(plan, listingBrandTitle(payload.brandTitle, itemBrand(item)));
     const outcome = { ...submitOutcome(result, plan, target, tab.id, log), listing };
     if (outcome.status !== 'published' || outcome.skuIds.length) return outcome;
-    const sku = await skuFromApplyList(tab.id, listingName(listing.brandTitle, listing.title), since, log, ctx.applyRetryMs);
-    return sku ? { ...outcome, skuIds: [sku] } : outcome;
+    const taken = outcome.applyId ? new Set() : await takenSkusFor(ctx.takenSkus);
+    const want = { applyId: outcome.applyId, name: listingName(listing.brandTitle, listing.title), since, serverTime: outcome.serverTime, taken };
+    const sku = await skuFromApplyList(tab.id, want, log, ctx.applyRetryMs);
+    if (!sku) return outcome;
+    const ids = [outcome.applyId && `申请单 ${outcome.applyId}`, `SKU ${sku}`].filter(Boolean).join('，');
+    return { ...outcome, skuIds: [sku], message: `商品已发布（${ids}）` };
   } catch (e) {
     return { status: 'failed', message: e.message, target, tabId: tab.id };
   }
@@ -354,8 +419,9 @@ async function templateFor(target, log, loadTemplate) {
 /**
  * 发布单个条目到 VC 自营店铺
  * @param {{imageMakers?: {main?: Function, detail?: Function, transparent?: Function}, landTimeoutMs?: number, applyRetryMs?: number,
- *   leafCache?: Map<string, object[]>, loadTemplate?: (cateList: string[]) => Promise<object|null>}} [deps]
+ *   leafCache?: Map<string, object[]>, loadTemplate?: (cateList: string[]) => Promise<object|null>, takenSkus?: Set<string>}} [deps]
  *   leafCache：读到的子类目（类目ID → 子类目），默认整个运行期共用一份；loadTemplate：读上架模板（测试时替换）
+ *   takenSkus：已经记给别的商品的 SKU（上架总表记录里的自动加上），按商品名称兜底找 SKU 时不再选它们
  * @returns {Promise<{status: 'published'|'filled'|'need_action'|'failed'|'throttle', message: string, target?: object, tabId?: number,
  *   skuIds?: string[], listing?: import('../shared/master-sheet.js').PublishListing}>}
  *   skuIds：京东分配的 SKU；listing：发布时填进页面的标题/价格/条形码（写进上架总表）；tabId：需要人工检查时保留的发布页
@@ -364,7 +430,14 @@ export async function publishVcItem(
   item,
   settings,
   log,
-  { imageMakers, landTimeoutMs = LAND_TIMEOUT_MS, applyRetryMs = APPLY_LIST_RETRY_MS, leafCache = sharedLeafCache, loadTemplate = loadVcTemplate } = {},
+  {
+    imageMakers,
+    landTimeoutMs = LAND_TIMEOUT_MS,
+    applyRetryMs = APPLY_LIST_RETRY_MS,
+    leafCache = sharedLeafCache,
+    loadTemplate = loadVcTemplate,
+    takenSkus = new Set(),
+  } = {},
 ) {
   if (!item.product) return { status: 'need_action', message: '尚未采集' };
   const picked = vcTarget({ product: item.product, edits: item.edits, settings });
@@ -394,7 +467,7 @@ export async function publishVcItem(
     throw e;
   }
   timer.lap('打开页面');
-  const ctx = { timer, images, landTimeoutMs, applyRetryMs, template };
+  const ctx = { timer, images, landTimeoutMs, applyRetryMs, template, takenSkus };
   const first = await publishInVcTab(tab, item, settings, log, target, ctx);
   // 用记下的子类目打开后仍报不是末级类目：清掉记录，从源类目重新选
   if (first.notLeaf && known.changed) forgetLeaf(leafCache, target.cateList);

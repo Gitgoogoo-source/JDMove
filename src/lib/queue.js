@@ -94,6 +94,12 @@ export function createQueueRunner({ onChange, onLog, saveLocal = async () => nul
   /** 发布成功：记进上架总表（任务结束后写进文件），移出任务列表；返回上架总表记录 */
   async function finishPublished(item, res, log) {
     const records = masterRecords({ item, res });
+    const known = new Map((await masterRepo.list()).filter((r) => r.sku).map((r) => [r.sku, r]));
+    for (const r of records.filter((x) => known.has(x.sku))) {
+      const prev = known.get(r.sku);
+      const when = prev.publishedAt ? `，${new Date(prev.publishedAt).toLocaleString()} 发布` : '';
+      log(`注意：商品编码sku ${r.sku} 已经记给过 ${prev.name || prev.sourceSku || '别的商品'}${when}，可能串号，请到 VC 后台核对`);
+    }
     await masterRepo.add(records);
     const skus = records.map((r) => r.sku).filter(Boolean);
     log(`结果：${res.message}；已记入上架总表（商品编码sku ${skus.length ? skus.join('、') : '没拿到，留空'}），已移出任务列表`);

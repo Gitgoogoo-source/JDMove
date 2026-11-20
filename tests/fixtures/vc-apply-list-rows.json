@@ -1,0 +1,42 @@
+[
+ {
+  "applyId": "0f0a48ac54454bbe96361b7b0e291030",
+  "productId": 100454553496,
+  "productName": "维达抽纸 超韧3层110抽*24包S码 湿水不易破 卫生纸面巾纸 新旧随机发",
+  "created": 1795149004000,
+  "modified": 1795149036000,
+  "state": 2,
+  "keeperState": 30,
+  "productApplyType": 1
+ },
+ {
+  "applyId": "65cce8fadc6f45688bd2067bb4a668ec",
+  "productId": 100343280819,
+  "productName": "维达湿厕纸 80片*6包 山茶花精华 湿纸巾厕纸新旧随机",
+  "created": 1795145492000,
+  "modified": 1795145524000,
+  "state": 2,
+  "keeperState": 30,
+  "productApplyType": 1
+ },
+ {
+  "applyId": "00c50e1bce4347959aa122cd44ece960",
+  "productId": 100454499906,
+  "productName": "维达无芯卷纸 棉韧4层150克*12卷 卫生纸厕纸 卷筒纸纸巾",
+  "created": 1795144798000,
+  "modified": 1795144830000,
+  "state": 2,
+  "keeperState": 30,
+  "productApplyType": 1
+ },
+ {
+  "applyId": "b27db901a3574d9caaf7918c36d21179",
+  "productId": 100343266561,
+  "productName": "维达抽纸 超韧3层110抽*24包S码 湿水不易破 卫生纸面巾纸 新旧随机发",
+  "created": 1795144726000,
+  "modified": 1795144758000,
+  "state": 2,
+  "keeperState": 30,
+  "productApplyType": 1
+ }
+]

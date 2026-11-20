@@ -179,43 +179,54 @@
   // 保存草稿的接口（地址里 api=dsm.productbff.product.draft.saveDraftNew）：成功返回 {code:200, data:{draftId}}，
   // 网关拒收时 {code:455/456, msg:"无效的数字/字符串，请核对后再试 [456]"}
   const VC_DRAFT_API_RE = /saveDraftNew/i;
-  // “发布商品”按钮调用的接口（2026-11-19 从发布页代码核实）：页面 POST /dsm/<接口名>，实际请求是
-  // sff.jd.com/api?…&api=dsm.productbff.product.warePublishPageSaveProductService.saveProductNew（页面里还有个 saveProductNewV2，按钮不用它）。
-  // 成功返回的 data 里有 productId（商品编号/SPU）、applyId（申请单号）、skuList:[{uuid, skuId}]（京东分配的 SKU）；
-  // 页面拿到后 100ms 整页跳到“商品管理 → 申请中”（ware/wareList?…activeTab=ApplyWare）。失败时请求被拒，页面按错误码提示
+  // “发布商品”按钮调用的接口：sff.jd.com/api?…&api=dsm.productbff.product.warePublishPageSaveProductService.saveProductNew
+  // （页面里还有个 saveProductNewV2，按钮不用它）。2026-11-20 实测成功返回：
+  // {"code":200,"data":{"skuList":null,"productId":null,"skuIdList":null,"applyId":"0f0a48ac54454bbe96361b7b0e291030","version":1795149004157,…}}
+  // ——没有 SKU，只有申请单号 applyId（32 位字母数字）和服务器时间 version（毫秒）；SKU 要到“商品审核”列表按 applyId 找回。
+  // 页面拿到返回后约 100~250ms 整页跳到“商品管理 → 商品审核”（ware/wareList?…activeTab=ApplyWare，同一个域名）。失败时请求被拒，页面按错误码提示
   const VC_PUBLISH_API_RE = /[?&]api=dsm\.productbff\.product\.warePublishPageSaveProductService\.saveProductNew(?:&|$)/;
+  // 发布结果另存一份到 sessionStorage：页面跳走、脚本来不及把结果带回扩展时，扩展到跳转后的页面（同域名，sessionStorage 还在）读回来；
+  // 读取见 src/shared/apply-list.js 的 readPublishMarkInPage，键名两边要一致
+  const PUBLISH_MARK_KEY = '__jdmove_publish__';
   const idField = (text, name) => (String(text || '').match(new RegExp(`"${name}"\\s*:\\s*"?(\\d{6,20})`)) || [])[1] || '';
   const idText = (v) => (v != null && /^\d{1,20}$/.test(String(v).trim()) ? String(v).trim() : '');
+  // 申请单号：字母数字（实测 32 位十六进制），也兼容纯数字
+  const applyIdText = (v) => (v != null && /^[\w-]{4,64}$/.test(String(v).trim()) ? String(v).trim() : '');
   /** 在返回里按键名深搜所有编号（最多 6 层） */
-  function deepIds(node, key, depth = 0, out = []) {
+  function deepIds(node, key, depth = 0, out = [], pick = idText) {
     if (!node || typeof node !== 'object' || depth > 6) return out;
     for (const [k, v] of Object.entries(node)) {
-      if (k === key && idText(v)) out.push(idText(v));
-      else if (v && typeof v === 'object') deepIds(v, key, depth + 1, out);
+      if (k === key && pick(v)) out.push(pick(v));
+      else if (v && typeof v === 'object') deepIds(v, key, depth + 1, out, pick);
     }
     return [...new Set(out)];
   }
-  const deepId = (node, key) => deepIds(node, key)[0] || '';
-  /** 发布接口返回里的编号：{data:{productId, applyId, skuList:[{uuid, skuId}]}}（兼容没有外层 data 的写法） */
+  const deepId = (node, key, pick = idText) => deepIds(node, key, 0, [], pick)[0] || '';
+  /** 发布接口返回里的编号：applyId、服务器时间 version；SKU（skuList[].skuId / skuIdList）和 productId 实测为 null，京东以后补上时直接用 */
   function publishIdsOf(text) {
+    const none = { skuIds: [], productId: '', applyId: '', serverTime: 0 };
     let body = null;
     try {
       body = JSON.parse(text);
     } catch {
-      return { skuIds: [], productId: '', applyId: '' };
+      return none;
     }
+    if (!body || typeof body !== 'object') return none;
     // 先按已知结构取；取不到再在整个返回里按键名深搜（接口外层可能多包一层 data/result）
-    const data = body && typeof body.data === 'object' && body.data ? body.data : body || {};
+    const data = typeof body.data === 'object' && body.data ? body.data : body;
     const skuList = Array.isArray(data.skuList) ? data.skuList : [];
-    let skuIds = [...new Set(skuList.map((s) => idText(s && s.skuId)).filter(Boolean))];
+    const skuIdList = Array.isArray(data.skuIdList) ? data.skuIdList : [];
+    let skuIds = [...new Set([...skuList.map((s) => idText(s && s.skuId)), ...skuIdList.map(idText)].filter(Boolean))];
     let productId = idText(data.productId);
-    let applyId = idText(data.applyId);
+    // 申请单号只认业务码 200（或没有业务码）的返回：出错的返回里就算带了类似的字段也不当成发布成功
+    const codeOk = body.code == null || String(body.code) === '200';
+    const applyId = codeOk ? applyIdText(data.applyId) || deepId(body, 'applyId', applyIdText) : '';
     if (!productId && !skuIds.length) {
       productId = deepId(body, 'productId') || deepId(body, 'wareId') || deepId(body, 'spuId');
-      applyId = applyId || deepId(body, 'applyId');
       skuIds = deepIds(body, 'skuId');
     }
-    return { skuIds, productId, applyId };
+    const version = Number(data.version);
+    return { skuIds, productId, applyId, serverTime: Number.isFinite(version) && version > 1e12 ? version : 0 };
   }
   // 返回了编号但同时标着失败（success:false、4xx/5xx 错误码）不算成功
   const FAILED_BODY_RE = /"success"\s*:\s*false|"code"\s*:\s*"?[45]\d\d\b/;
@@ -243,7 +254,7 @@
 
   // 点击期间临时拦截 XHR/fetch 的返回，记下保存草稿/发布商品接口的结果；结束后 restore() 恢复原来的 XHR/fetch，不长期改动页面
   // 发布成功后页面 100ms 就整页跳走：记下接口返回时立刻叫醒等待的 clickAndWatch（不等下一次 100ms 轮询），赶在跳转前把结果带回扩展
-  function installSaveCapture() {
+  function installSaveCapture(nonce = '') {
     const saves = [];
     const restores = [];
     let wake = null;
@@ -252,7 +263,9 @@
       if (!kind) return;
       const t = String(text);
       const ids = kind === 'vc_publish' ? publishIdsOf(t) : { draftId: idField(t, 'draftId') };
-      saves.push({ kind, at: Date.now(), ...ids, failure: saveFailure(t), text: t.slice(0, SAVE_RESPONSE_MAX) });
+      const save = { kind, at: Date.now(), ...ids, failure: saveFailure(t), text: t.slice(0, SAVE_RESPONSE_MAX) };
+      saves.push(save);
+      if (kind === 'vc_publish') markPublish(save, nonce);
       if (wake) wake();
     };
     /** 等到下一次记下接口返回，最多等 ms */
@@ -287,6 +300,16 @@
     return { saves, waitSave, restore: () => [...restores].reverse().forEach((fn) => fn()) };
   }
 
+  /** 发布接口的返回另存到 sessionStorage（带这次点击的 nonce，扩展只认自己这次的） */
+  function markPublish(save, nonce) {
+    try {
+      const { skuIds, productId, applyId, serverTime, failure, at } = save;
+      sessionStorage.setItem(PUBLISH_MARK_KEY, JSON.stringify({ nonce, at, skuIds, productId, applyId, serverTime, failure, text: save.text }));
+    } catch {
+      /* sessionStorage 不可用时只靠脚本返回 */
+    }
+  }
+
   /** 保存草稿接口的返回 → runAction 的结果 */
   function vcDraftResult(draft, url) {
     const ok = draft.failure == null && !!draft.draftId;
@@ -302,14 +325,14 @@
     };
   }
 
-  /** 发布商品接口的返回 → runAction 的结果：没有失败标记且返回了商品编号或 SKU 才算发布成功 */
+  /** 发布商品接口的返回 → runAction 的结果：没有失败标记且返回了申请单号、商品编号或 SKU 才算发布成功 */
   function vcPublishResult(save, url) {
-    const hasIds = Boolean(save.productId || save.skuIds.length);
+    const hasIds = Boolean(save.applyId || save.productId || save.skuIds.length);
     const ok = save.failure == null && hasIds;
     // 接口没标失败、也没返回编号：京东可能已受理（页面会跳到“申请中”），交给调用方按落地页确认
     const unconfirmed = save.failure == null && !hasIds;
     const why = save.failure || '发布接口没有返回商品编号';
-    const skuNote = save.skuIds.length ? `SKU ${save.skuIds.join('、')}` : '发布接口没有返回 SKU';
+    const skuNote = save.skuIds.length ? `SKU ${save.skuIds.join('、')}` : 'SKU 待从商品审核列表取回';
     const ids = [save.productId && `商品编号 ${save.productId}`, save.applyId && `申请单 ${save.applyId}`, skuNote].filter(Boolean);
     return {
       ok,
@@ -321,12 +344,22 @@
       skuIds: ok ? save.skuIds : [],
       productId: ok ? save.productId : '',
       applyId: ok ? save.applyId : '',
+      serverTime: ok ? save.serverTime || 0 : 0,
       saveResponses: [save.text],
     };
   }
 
-  async function runAction(action, opts) {
-    const capture = installSaveCapture();
+  /**
+   * @param {string} action vc_publish | vc_draft
+   * @param {{timeoutMs?: number, nonce?: string}} [opts] nonce：这次发布的标记，页面跳走后扩展凭它读回 sessionStorage 里的结果
+   */
+  async function runAction(action, opts = {}) {
+    try {
+      sessionStorage.removeItem(PUBLISH_MARK_KEY);
+    } catch {
+      /* 忽略 */
+    }
+    const capture = installSaveCapture(String(opts.nonce || ''));
     try {
       return await clickAndWatch(action, opts, capture);
     } finally {

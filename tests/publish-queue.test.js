@@ -84,6 +84,16 @@ test('发布队列：发布成功的商品记进上架总表（每个 SKU 一条
   assert.ok(logs.some((l) => /已记入上架总表/.test(l)), logs.join('\n'));
 });
 
+test('发布队列：拿到的 SKU 在上架总表里已经记给过别的商品时，日志里提醒可能串号（记录照样保留）', async () => {
+  const listing = { title: '维达抽纸 3层', brandTitle: '维达', prices: { marketPrice: 89.9, jdPrice: 69.9, costPrice: 50 }, upc: '' };
+  const earlier = { id: '100200300401-1', sku: '100200300401', name: '维达抽纸 3层（常规价）', sourceSku: '1', publishedAt: 1795144726000 };
+  const { fake, runner, logs } = setup({ status: 'published', message: '商品已发布', skuIds: ['100200300401'], listing }, { masterRecords: [earlier] });
+  await runner.publish(['1']);
+  assert.ok(logs.some((l) => /商品编码sku 100200300401 已经记给过 维达抽纸 3层（常规价）.*可能串号/.test(l)), logs.join('\n'));
+  assert.ok(!logs.some((l) => /Invalid Date/.test(l)));
+  assert.equal(fake.localStore.masterRecords.length, 2);
+});
+
 test('发布队列：没发布成功的商品留在任务列表，不记进上架总表', async () => {
   const { fake, runner } = setup({ status: 'failed', message: '提交未成功' });
   await runner.publish(['1']);
