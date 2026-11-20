@@ -180,7 +180,7 @@ async function onExtensionsPage(context, fn, arg) {
 }
 
 // 开发者模式必须打开：否则命令行加载的插件一重载就被禁用（unsupportedDeveloperExtension）
-// 同时打开“在无痕模式下启用”（采集京东商品要用无痕工作窗口），被禁用时重新启用
+// 插件被禁用时重新启用
 export function prepareProfile(context) {
   return onExtensionsPage(
     context,
@@ -188,8 +188,7 @@ export function prepareProfile(context) {
       const dp = chrome.developerPrivate;
       await dp.updateProfileConfiguration({ inDeveloperMode: true });
       let info = await dp.getExtensionInfo(id);
-      if (!info.incognitoAccess?.isActive) await dp.updateExtensionConfiguration({ extensionId: id, incognitoAccess: true });
-      // 切换无痕权限会让插件重载一次，等它恢复；仍是禁用状态才手动启用
+      // 切换开发者模式可能让插件重载一次，等它恢复；仍是禁用状态才手动启用
       const settle = async () => {
         for (let i = 0; i < 20; i += 1) {
           info = await dp.getExtensionInfo(id);
@@ -203,7 +202,7 @@ export function prepareProfile(context) {
         await settle();
       }
       const disableReasons = Object.entries(info.disableReasons ?? {}).filter(([, v]) => v).map(([k]) => k);
-      return { id, state: info.state, incognito: Boolean(info.incognitoAccess?.isActive), disableReasons, version: info.version };
+      return { id, state: info.state, disableReasons, version: info.version };
     },
     EXT_ID,
   );

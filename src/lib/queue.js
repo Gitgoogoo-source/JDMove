@@ -9,7 +9,7 @@ import { publishVcItem } from './publisher-vc.js';
 import { crawlShop } from './shop-crawler.js';
 
 const MAX_LOG_LINES = 60;
-const PAUSE_STATUSES = ['throttle', 'login', 'setup'];
+const PAUSE_STATUSES = ['throttle', 'login'];
 // 这些模式在采集窗口里打开京东商品页：结束时关闭采集标签页
 const COLLECT_TAB_MODES = new Set(['collect']);
 
@@ -213,7 +213,6 @@ export function createQueueRunner({ onChange, onLog, saveLocal = async () => nul
     let paused = false;
     try {
       const res = await crawlShop(input, {
-        useIncognito: settings.collect.useIncognito,
         shouldStop: () => state.stopRequested,
         onPage: (s) => addShopPage(s),
       });

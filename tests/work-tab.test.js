@@ -18,13 +18,6 @@ test('openWorkTab: 普通标签页直接开在当前窗口，不新建窗口', a
   assert.equal(created.active, true);
 });
 
-test('openWorkTab: 无痕采集仍使用独立的无痕窗口', async () => {
-  const fake = installFakeChrome();
-  await openWorkTab('https://item.jd.com/1.html', { incognito: true });
-  const win = fake.calls.find((c) => c.op === 'windows.create');
-  assert.equal(win.opts.incognito, true);
-});
-
 test('navigateTab: 跳转前先屏蔽页面的“离开此网站？”', async () => {
   const fake = installFakeChrome();
   fake.seedTab({ id: 1, url: PUBLISH_URL });
@@ -97,14 +90,6 @@ test('closeCollectTab: 采集结束后关闭留在当前窗口的商品页', asy
   await closeCollectTab();
   assert.ok(fake.calls.some((c) => c.op === 'tabs.remove' && c.tabId === 5));
   assert.deepEqual(await chrome.storage.session.get('collectTabId'), {});
-});
-
-test('closeCollectTab: 无痕采集标签页保留（关闭后消费者账号登录会丢失）', async () => {
-  const fake = installFakeChrome();
-  fake.seedTab({ id: 6, url: 'https://item.jd.com/1.html', incognito: true });
-  await chrome.storage.session.set({ collectTabId: 6 });
-  await closeCollectTab();
-  assert.ok(!fake.ops().includes('tabs.remove'));
 });
 
 test('sleep: 任务面板在后台时改由 Service Worker 计时，避免被 Chrome 限流成每分钟一次', async () => {

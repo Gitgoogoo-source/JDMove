@@ -4,13 +4,11 @@ import { classifyPageUrl, isB2bItemUrl } from '../shared/url-utils.js';
 import { ITEM_FILES, B2B_ITEM_FILES, runInPage, openWorkTab, navigateTab, closeTab, bringTabToFront, sleep } from './chrome-env.js';
 
 const COLLECT_TAB_KEY = 'collectTabId';
-// 无痕窗口单独记一个：一批里京东和万商商品交替时，两个窗口各复用自己的标签页
-const INCOGNITO_TAB_KEY = 'collectTabIdIncognito';
 // 与 jd-detail.js 的 DETAIL_STATE.notLoaded 一致
 const DETAIL_NOT_LOADED = 'not_loaded';
 const DETAIL_RETRY_DELAY_MS = 1500;
 export const MERCHANT_BLOCK_MSG =
-  '当前浏览器登录的是商家账号，京东不允许查看其他店铺商品。请开启“无痕窗口采集”并在无痕窗口登录消费者账号，或在另一个 Chrome 用户中采集后导出/导入';
+  '京东拦截了当前账号查看其他店铺商品（商家账号限制），请在浏览器中换用消费者账号登录后再继续';
 
 /** 频控/验证、登录拦截等需要整体暂停的页面；正常页面返回 null */
 function blockedResult(kind) {
@@ -42,7 +40,7 @@ const extractRaw = (tabId, files, scrollDetail) =>
  * 把标签页切到前台再取一次；第二次不整页滚动，只等详情区。
  * @param {number} tabId
  * @param {{scrollDetail?: boolean, allVariants?: boolean, retryDelayMs?: number}} [opts]
- * @returns {Promise<{status: 'ok'|'throttle'|'login'|'setup'|'error', product?: object, warnings?: string[], raw?: object, message?: string}>}
+ * @returns {Promise<{status: 'ok'|'throttle'|'login'|'error', product?: object, warnings?: string[], raw?: object, message?: string}>}
  *   raw：页面返回的原始数据（保存到本地时写进 原始数据.json）
  */
 export async function collectFromTab(tabId, { scrollDetail = true, allVariants = false, retryDelayMs = DETAIL_RETRY_DELAY_MS } = {}) {
@@ -63,8 +61,8 @@ export async function collectFromTab(tabId, { scrollDetail = true, allVariants =
   return { status: 'ok', product, warnings, raw };
 }
 
-async function collectTab(key = COLLECT_TAB_KEY) {
-  const { [key]: id } = await chrome.storage.session.get(key);
+async function collectTab() {
+  const { [COLLECT_TAB_KEY]: id } = await chrome.storage.session.get(COLLECT_TAB_KEY);
   if (!id) return null;
   try {
     return await chrome.tabs.get(id);
@@ -73,32 +71,23 @@ async function collectTab(key = COLLECT_TAB_KEY) {
   }
 }
 
-/** 打开工作标签页失败时的状态：无痕权限未开启等环境问题需要整体暂停，而不是逐条失败 */
-export const openErrorStatus = (e) => (/无痕/.test(e?.message ?? '') ? 'setup' : 'error');
-
-/**
- * 在复用的采集标签页（可选无痕窗口）中打开链接，返回加载完成的标签页。
- * 京东万商的商品固定在普通窗口打开：万商账号登录在这里，也不会被商家账号拦截
- */
-export async function openInCollectTab(url, { useIncognito = false } = {}) {
-  const incognito = Boolean(useIncognito) && !isB2bItemUrl(url);
-  const key = incognito ? INCOGNITO_TAB_KEY : COLLECT_TAB_KEY;
-  let tab = await collectTab(key);
-  if (tab && tab.incognito !== incognito) tab = null;
-  tab = tab ? await navigateTab(tab.id, url) : await openWorkTab(url, { incognito });
-  await chrome.storage.session.set({ [key]: tab.id });
-  return tab;
+/** 在复用的采集标签页（当前窗口）中打开链接，返回加载完成的标签页 */
+export async function openInCollectTab(url) {
+  const tab = await collectTab();
+  const opened = tab ? await navigateTab(tab.id, url) : await openWorkTab(url);
+  await chrome.storage.session.set({ [COLLECT_TAB_KEY]: opened.id });
+  return opened;
 }
 
-/** 在采集窗口（可选无痕）的标签页中打开链接并采集 */
+/** 在采集标签页中打开链接并采集 */
 export async function collectUrl(url, opts = {}) {
   let tab;
   try {
-    tab = await openInCollectTab(url, opts);
+    tab = await openInCollectTab(url);
   } catch (e) {
-    return { status: openErrorStatus(e), message: e.message };
+    return { status: 'error', message: e.message };
   }
-  // 采集窗口在后台（无痕窗口创建时不抢焦点、之后被其他窗口挡住）时页面不渲染，详情区不会加载
+  // 采集窗口在后台（被其他窗口挡住）时页面不渲染，详情区不会加载
   await bringTabToFront(tab.id);
   await sleep(1500);
   return collectFromTab(tab.id, opts);
@@ -107,11 +96,10 @@ export async function collectUrl(url, opts = {}) {
 /**
  * 采集结束后关闭复用的采集标签页：它开在当前窗口里，切换到商家账号后
  * 京东会把这个商品页拦成“商家账号只允许查看本店商品详情”。
- * 无痕标签页保留：关掉最后一个无痕窗口后消费者账号需要重新登录。
  */
 export async function closeCollectTab() {
   const tab = await collectTab();
-  if (!tab || tab.incognito) return;
+  if (!tab) return;
   await chrome.storage.session.remove(COLLECT_TAB_KEY);
   await closeTab(tab.id);
 }

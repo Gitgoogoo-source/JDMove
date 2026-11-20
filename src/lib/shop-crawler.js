@@ -19,7 +19,7 @@ import { createCrawlState, applyPage, finishCrawl, DEFAULT_MAX_PAGES } from '../
 import { normalizeSpus, spuListSkus, needsItemPage, normalizeItemSkus } from '../shared/shop-spu.js';
 import { classifyPageUrl, buildItemUrl } from '../shared/url-utils.js';
 import { SHOP_FILES, ITEM_FILES, runInPage, sleep, randomBetween } from './chrome-env.js';
-import { openInCollectTab, openErrorStatus, MERCHANT_BLOCK_MSG } from './collector.js';
+import { openInCollectTab, MERCHANT_BLOCK_MSG } from './collector.js';
 
 /** 翻页间隔（秒）：每页只打开一次列表，比逐个采集商品的间隔短 */
 export const SHOP_PAGE_DELAY_SEC = Object.freeze({ min: 3, max: 6 });
@@ -67,11 +67,11 @@ function extractSkuIdsInTab(o) {
 }
 
 /** 复用的采集标签页：打开地址、在页面里执行脚本（被频控/登录/商家账号拦截时抛出 CrawlHalt） */
-function createTab(tabOpts) {
+function createTab() {
   let tabId = null;
   return {
     async open(url) {
-      tabId = (await openInCollectTab(url, tabOpts)).id;
+      tabId = (await openInCollectTab(url)).id;
     },
     async run(func, arg = {}, files = SHOP_FILES) {
       const tab = await chrome.tabs.get(tabId);
@@ -203,7 +203,6 @@ async function readSpuSkus(tab, sku) {
     return normalizeItemSkus(await tab.run(extractSkuIdsInTab, {}, ITEM_FILES), sku);
   } catch (e) {
     if (e instanceof CrawlStopped || (e instanceof CrawlHalt && e.status !== 'error')) throw e;
-    if (!(e instanceof CrawlHalt) && openErrorStatus(e) !== 'error') throw e;
     return [];
   }
 }
@@ -253,16 +252,16 @@ function summarize(results, spuCount) {
 
 /**
  * @param {string} input 店铺首页、“全部商品”页或店内搜索页链接
- * @param {{useIncognito?: boolean, maxPages?: number, delaySec?: {min: number, max: number},
+ * @param {{maxPages?: number, delaySec?: {min: number, max: number},
  *   shouldStop?: () => boolean,
  *   onPage?: (p: {kind: 'list'|'spu', label: string, pageNo: number, pageCount: number|null, total: number|null,
  *     added: string[], skus: string[], spu?: string, found?: number}) => any}} [opts]
  *   kind 'list'：列表的一页；kind 'spu'：展开第 pageNo/pageCount 个 SPU（主 SKU 为 spu，读到 found 个规格）
- * @returns {Promise<{status: 'ok'|'stopped'|'throttle'|'login'|'setup'|'error', state: {skus: string[]}, message: string, partial?: boolean}>}
+ * @returns {Promise<{status: 'ok'|'stopped'|'throttle'|'login'|'error', state: {skus: string[]}, message: string, partial?: boolean}>}
  */
 export async function crawlShop(input, opts = {}) {
   const ctl = createControl(opts);
-  const tab = createTab({ useIncognito: Boolean(opts.useIncognito) });
+  const tab = createTab();
   try {
     const { shop, info } = await resolveShop(input, tab);
     await tab.open(buildShopSearchUrl(shop, 1));
@@ -275,7 +274,7 @@ export async function crawlShop(input, opts = {}) {
     return partial ? { status: 'ok', state: ctl.result(), message, partial } : { status: 'ok', state: ctl.result(), message };
   } catch (e) {
     if (e instanceof CrawlStopped) return { status: 'stopped', state: ctl.result(), message: e.message };
-    const status = e instanceof CrawlHalt ? e.status : openErrorStatus(e);
+    const status = e instanceof CrawlHalt ? e.status : 'error';
     return { status, state: ctl.result(), message: e.message };
   }
 }

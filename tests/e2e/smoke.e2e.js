@@ -39,10 +39,9 @@ async function openWatched(url) {
   return { page, problems };
 }
 
-test('插件已启用，开发者模式与无痕权限已打开', async () => {
+test('插件已启用，开发者模式已打开', async () => {
   const info = await b.prepareProfile(context);
   assert.equal(info.state, 'ENABLED', `禁用原因：${info.disableReasons.join(',')}`);
-  assert.equal(info.incognito, true);
 });
 
 test('后台 service worker 在运行且能执行代码', async () => {

@@ -13,7 +13,7 @@ export const ERP_RE = /^[\w.-]{1,50}$/;
 const MAX_UNIT_LENGTH = 10;
 
 export const DEFAULT_SETTINGS = Object.freeze({
-  collect: { minDelaySec: 8, maxDelaySec: 15, scrollDetail: true, useIncognito: true, allVariants: false },
+  collect: { minDelaySec: 8, maxDelaySec: 15, scrollDetail: true, allVariants: false },
   title: { prefix: '', suffix: '', removeWords: ['京东自营', '自营', '京东超市'], maxLength: 60 },
   publish: {
     action: DEFAULT_PUBLISH_ACTION,
@@ -80,14 +80,15 @@ export function validateSettings(input) {
     maxDelay = minDelay;
   }
 
+  // 旧版本存过 useIncognito（无痕窗口采集，已删除），不再带回去
+  const { useIncognito: _legacyIncognito, ...collect } = v.collect;
   const value = {
     ...v,
     collect: {
-      ...v.collect,
+      ...collect,
       minDelaySec: minDelay,
       maxDelaySec: maxDelay,
       scrollDetail: Boolean(v.collect.scrollDetail),
-      useIncognito: Boolean(v.collect.useIncognito),
       allVariants: Boolean(v.collect.allVariants),
     },
     title: {

@@ -40,22 +40,15 @@ export async function sleep(ms) {
 }
 export const randomBetween = (min, max) => min + Math.random() * Math.max(0, max - min);
 
-const INCOGNITO_WINDOW_KEY = 'collectIncognitoWindowId';
 const NAV_START_TIMEOUT_MS = 8000;
 const NAV_LOAD_TIMEOUT_MS = 45000;
 export const NAV_BLOCKED_MSG = '页面没有跳转（可能被“离开此网站？”拦截），请关闭该提示后重试';
 
-async function existingWindow(id) {
-  if (!id) return null;
-  try {
-    return await chrome.windows.get(id);
-  } catch {
-    return null;
-  }
-}
-
-/** 任务面板所在的浏览器窗口；取不到时退回最近使用的普通窗口 */
-async function currentNormalWindow() {
+/**
+ * 工作窗口：发布和采集都直接用任务面板所在的浏览器窗口（新开标签页）；
+ * 取不到时退回最近使用的普通窗口
+ */
+export async function getWorkWindow() {
   try {
     const win = await chrome.windows.getCurrent();
     if (win && win.type === 'normal' && !win.incognito) return win;
@@ -63,23 +56,6 @@ async function currentNormalWindow() {
     /* 非页面环境没有“当前窗口” */
   }
   return chrome.windows.getLastFocused({ windowTypes: ['normal'] });
-}
-
-/**
- * 工作窗口：发布/普通采集直接用当前浏览器窗口（新开标签页）；
- * 无痕采集需要独立的无痕窗口（独立 Cookie，可登录消费者账号）。
- */
-export async function getWorkWindow({ incognito = false } = {}) {
-  if (!incognito) return currentNormalWindow();
-  const { [INCOGNITO_WINDOW_KEY]: id } = await chrome.storage.session.get(INCOGNITO_WINDOW_KEY);
-  const win = await existingWindow(id);
-  if (win) return win;
-  if (!(await chrome.extension.isAllowedIncognitoAccess())) {
-    throw new Error('请在 chrome://extensions 中打开本插件的“在无痕模式下启用”，或在设置中关闭“无痕窗口采集”');
-  }
-  const created = await chrome.windows.create({ url: 'about:blank', focused: false, width: 1366, height: 900, incognito });
-  await chrome.storage.session.set({ [INCOGNITO_WINDOW_KEY]: created.id });
-  return created;
 }
 
 export function waitForTabComplete(tabId, timeoutMs = NAV_LOAD_TIMEOUT_MS) {
@@ -158,8 +134,8 @@ export async function disarmBeforeUnload(tabId) {
 }
 
 /** 在工作窗口中新开标签页（保持激活，页面动画/弹层才能正常工作）并等待加载完成 */
-export async function openWorkTab(url, { incognito = false } = {}) {
-  const win = await getWorkWindow({ incognito });
+export async function openWorkTab(url) {
+  const win = await getWorkWindow();
   const tab = await chrome.tabs.create({ windowId: win.id, url, active: true });
   await sleep(300);
   return waitForTabComplete(tab.id);

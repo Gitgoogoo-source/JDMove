@@ -33,7 +33,6 @@ export async function editSettings(settings) {
     maxDelay: num(s.collect.maxDelaySec, { min: 3 }),
     scroll: check(s.collect.scrollDetail, '采集时滚动页面以加载详情图'),
     allVariants: check(s.collect.allVariants, '采集全部规格（各规格会使用当前页价格，发布前请逐个核对售价）'),
-    incognito: check(s.collect.useIncognito, '在无痕窗口中采集（商家账号无法查看其他店铺商品，需在无痕窗口登录消费者账号）'),
     prefix: h('input', { value: s.title.prefix }),
     suffix: h('input', { value: s.title.suffix }),
     removeWords: h('input', { value: s.title.removeWords.join(',') }),
@@ -68,7 +67,6 @@ export async function editSettings(settings) {
           h('div', { class: 'row2' }, field('每条最小间隔（秒）', f.minDelay), field('每条最大间隔（秒）', f.maxDelay)),
           h('small', { class: 'muted' }, '京东对频繁访问商品页会触发频控/验证。间隔越大越安全；触发后任务会自动暂停。'),
           f.scroll.node,
-          f.incognito.node,
           f.allVariants.node),
         h('fieldset', {}, h('legend', {}, '标题'),
           h('div', { class: 'row2' }, field('前缀', f.prefix), field('后缀', f.suffix)),
@@ -99,7 +97,6 @@ export async function editSettings(settings) {
       minDelaySec: Number(f.minDelay.value),
       maxDelaySec: Number(f.maxDelay.value),
       scrollDetail: f.scroll.box.checked,
-      useIncognito: f.incognito.box.checked,
       allVariants: f.allVariants.box.checked,
     },
     title: {

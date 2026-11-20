@@ -137,9 +137,9 @@ test('item repository imports collected items and validates input', async () => 
   ]);
 });
 
-test('settings default to incognito collection', () => {
-  assert.equal(DEFAULT_SETTINGS.collect.useIncognito, true);
-  assert.equal(validateSettings(mergeSettings({ collect: { useIncognito: false } })).value.collect.useIncognito, false);
+test('settings drop the removed incognito collection option', () => {
+  assert.ok(!('useIncognito' in DEFAULT_SETTINGS.collect));
+  assert.ok(!('useIncognito' in validateSettings(mergeSettings({ collect: { useIncognito: true } })).value.collect));
 });
 
 test('newItem creates a pending item', () => {

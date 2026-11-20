@@ -50,7 +50,6 @@ export function installFakeChrome({ resolveUrl = (u) => u, backend = () => undef
         set: async (obj) => Object.assign(localStore, structuredClone(obj)),
       },
     },
-    extension: { isAllowedIncognitoAccess: async () => true },
     windows: {
       getCurrent: async () => ({ id: currentWindowId, type: 'normal', incognito: false }),
       getLastFocused: async () => ({ id: currentWindowId, type: 'normal', incognito: false }),
@@ -124,7 +123,7 @@ export function installFakeChrome({ resolveUrl = (u) => u, backend = () => undef
     localStore,
     /** 把已有标签页设为某个地址且已加载完成（模拟停留在某页） */
     seedTab: (tab) => tabs.set(tab.id, { status: 'complete', incognito: false, windowId: currentWindowId, ...tab }),
-    /** 模拟一个已存在的窗口（如被最小化的无痕采集窗口） */
+    /** 模拟一个已存在的窗口（如被最小化的采集窗口） */
     seedWindow: (win) => windows.set(win.id, { type: 'normal', incognito: false, state: 'normal', ...win }),
   };
 }

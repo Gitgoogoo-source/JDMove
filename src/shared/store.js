@@ -108,7 +108,7 @@ export function pickRecollect(items, selectedIds) {
 }
 
 // 首次采集遇到频控/验证/登录时回到“待采集”，处理后点“采集选中”继续
-const PAUSE_COLLECT_STATUSES = new Set(['throttle', 'login', 'setup']);
+const PAUSE_COLLECT_STATUSES = new Set(['throttle', 'login']);
 
 /**
  * 采集没成功时写回条目的字段。重新采集（已有商品数据）时保留原状态和上次采集的数据，

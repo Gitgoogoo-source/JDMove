@@ -11,7 +11,7 @@ const SKU = '100035179134';
 test('采集队列：采集成功后保存到本地时带上原始数据', async () => {
   const fake = installFakeChrome({ page: () => ({ ...fixture, detailState: 'ok' }) });
   const task = { id: SKU, skuId: SKU, url: `https://item.jd.com/${SKU}.html`, status: 'pending', message: '', log: [], edits: {}, product: null, createdAt: 1, updatedAt: 1 };
-  Object.assign(fake.localStore, { items: [task], settings: { collect: { useIncognito: false, minDelaySec: 0, maxDelaySec: 0 } } });
+  Object.assign(fake.localStore, { items: [task], settings: { collect: { minDelaySec: 0, maxDelaySec: 0 } } });
   const saved = [];
   const saveLocal = async (item, opts) => {
     saved.push({ item, opts });

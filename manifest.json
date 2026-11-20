@@ -4,7 +4,6 @@
   "version": "0.1.0",
   "description": "采集京东、京东万商商品详情页（标题/属性/主图/详情图/规格），批量填写到京东 VC 自营（供应商后台）发布页并保存草稿。",
   "minimum_chrome_version": "116",
-  "incognito": "spanning",
   "permissions": ["storage", "unlimitedStorage", "tabs", "scripting"],
   "host_permissions": [
     "https://item.jd.com/*",

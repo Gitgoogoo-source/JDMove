@@ -31,8 +31,8 @@ const isExtract = (c) => c.op === 'inject.func' && c.args?.[0] && 'scrollDetail'
 
 test('bringTabToFront: 激活标签页并把所在窗口切到前台，最小化的窗口先恢复', async () => {
   const fake = installFakeChrome();
-  fake.seedWindow({ id: 900, incognito: true, state: 'minimized' });
-  fake.seedTab({ id: 5, url: ITEM_URL, windowId: 900, incognito: true });
+  fake.seedWindow({ id: 900, state: 'minimized' });
+  fake.seedTab({ id: 5, url: ITEM_URL, windowId: 900 });
   assert.equal(await bringTabToFront(5), true);
   assert.ok(fake.calls.some((c) => c.op === 'tabs.activate' && c.tabId === 5 && c.props.active === true));
   const win = fake.calls.find((c) => c.op === 'windows.update');
@@ -47,7 +47,7 @@ test('bringTabToFront: 标签页已关闭时返回 false，不抛错', async () 
 test('collectUrl: 采集前先把采集窗口切到前台', async () => {
   const { page } = pageSequence([loaded]);
   const fake = installFakeChrome({ page });
-  const res = await collectUrl(ITEM_URL, { ...opts, useIncognito: true });
+  const res = await collectUrl(ITEM_URL, opts);
   assert.equal(res.status, 'ok');
   const focusAt = fake.calls.findIndex((c) => c.op === 'windows.update' && c.props.focused === true);
   const extractAt = fake.calls.findIndex(isExtract);
@@ -163,12 +163,12 @@ test('万商商品页注入万商模板，京东商品页仍用京东模板', as
   assert.ok(injectedFiles(other).includes('src/inject/jd-item-extract.js'));
 });
 
-test('万商商品不用无痕窗口：万商账号登录在普通窗口里', async () => {
+test('采集在当前窗口新开标签页，不另开窗口', async () => {
   const { page } = pageSequence([loaded]);
   const fake = installFakeChrome({ page });
-  const res = await collectUrl(B2B_URL, { ...opts, useIncognito: true });
+  const res = await collectUrl(B2B_URL, opts);
   assert.equal(res.status, 'ok');
-  assert.ok(!fake.calls.some((c) => c.op === 'windows.create' && c.opts?.incognito));
+  assert.ok(!fake.ops().includes('windows.create'));
 });
 
 test('万商登录页：暂停并提示登录万商账号', async () => {
@@ -194,11 +194,10 @@ test('万商页面报告未登录 / 无权限 / 没有数据时给出明确结�
   }
 });
 
-test('混合批次：京东与万商交替采集时各复用自己的标签页，不会越开越多', async () => {
+test('混合批次：京东与万商交替采集时复用同一个标签页，不会越开越多', async () => {
   const { page } = pageSequence([loaded]);
   const fake = installFakeChrome({ page });
-  for (const url of [ITEM_URL, B2B_URL, ITEM_URL, B2B_URL]) await collectUrl(url, { ...opts, useIncognito: true });
-  assert.equal(fake.calls.filter((c) => c.op === 'windows.create').length, 1);
-  const created = fake.calls.filter((c) => c.op === 'tabs.create');
-  assert.equal(created.length, 2, '无痕和普通窗口各一个采集标签页');
+  for (const url of [ITEM_URL, B2B_URL, ITEM_URL, B2B_URL]) await collectUrl(url, opts);
+  assert.ok(!fake.ops().includes('windows.create'));
+  assert.equal(fake.calls.filter((c) => c.op === 'tabs.create').length, 1);
 });
