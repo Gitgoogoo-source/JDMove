@@ -43,6 +43,23 @@ test('sheetXml：标了底色的格子带样式，空格子标了底色也写出
   assert.match(xml, /<c r="C2" s="6" t="inlineStr">/, '文本列 + 橙色');
 });
 
+test('sheetXml：表头可以标必填/可选两种底色（仍加粗），没标的表头是普通加粗；正文也能用这两种底色', () => {
+  const xml = sheetXml({
+    name: 's',
+    rows: [
+      ['h1', 'h2', 'h3'],
+      ['必填', '可选', 'x'],
+    ],
+    cellStyles: [['required', 'optional', null], ['required', 'optional', null]],
+  });
+  assert.match(xml, /<c r="A1" s="7"/, '必填表头');
+  assert.match(xml, /<c r="B1" s="8"/, '可选表头');
+  assert.match(xml, /<c r="C1" s="1"/, '没标的表头');
+  assert.match(xml, /<c r="A2" s="9"/);
+  assert.match(xml, /<c r="B2" s="11"/);
+  assert.match(xml, /<c r="C2" t="inlineStr"/);
+});
+
 test('safeSheetNames：去掉不允许的字符、截到 31 个字、重名加序号', () => {
   const long = '家庭清洁/纸品 > 清洁纸品 > 抽纸 > 常规抽纸 > 很长很长的名字';
   const names = safeSheetNames(['附表1-抽纸:常规', long, long, '']);

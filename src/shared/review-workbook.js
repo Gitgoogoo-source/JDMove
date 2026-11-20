@@ -1,6 +1,7 @@
 // 「发布前检查」表（纯函数）：采集到的商品按上架模板分到不同的附表（附表1-抽纸、附表2-调和油……），
 // 每张附表的列是这个模板发布页要填的内容（基本信息、价格与采销、包装与物流、这个模板自己的商品属性和 SKU属性），
 // 格子里写发布时会用的值（自己填的 > 采集到的 > 推断/默认值），红底是缺的或填不上的，橙底是默认值/推断请核对。
+// 必填和可选的列都列出来，表头蓝底（带 *）是必填、绿底是可选。
 // 另有汇总（上架表里每个链接的采集和检查结果）、未匹配模板、可选值、填写说明，和插件自己用的两张隐藏表：
 // _meta（认出这是发布前检查表）、_base（导出时每个格子写的值：上传时和它一样的格子不算修改，
 // 导出之后在插件里改的内容、重新采集到的数据不会被这份旧表冲掉）。读回见 vc-review-sheet.js
@@ -20,6 +21,7 @@ const NOTES_SHEET = '填写说明';
 const FIELD_FILL = { missing: 'error', error: 'error', default: 'warn', warn: 'warn' };
 const ATTR_FILL = { missing: 'error', error: 'error', guess: 'warn', warn: 'warn' };
 const FIXED_WIDTHS = [40, 16, 36, 28, 22];
+const headFill = (required) => (required ? 'required' : 'optional');
 const SUMMARY_HEADER = ['上架表位置', '参考说明', '商品链接', 'SKU', '源商品标题', '采集结果', '使用的模板', '所在工作表', '检查结果', '缺少 / 请核对'];
 
 /**
@@ -81,6 +83,8 @@ function productSheet(name, template, rows, catalog) {
     ...REVIEW_FIELDS.map((f) => `${f.required ? '*' : ''}${sheetLabel(f)}`),
     ...attrs.map((a) => `${a.required ? '*' : ''}${a.where}:${a.title}`),
   ];
+  // 表头底色：固定的核对列不标（没有模板时“上架模板”必填），要填的列按必填/可选标
+  const headerFills = [null, null, null, null, template ? null : 'required', ...REVIEW_FIELDS.map((f) => headFill(f.required)), ...attrs.map((a) => headFill(a.required))];
   const keys = [...REVIEW_FIELDS.map((f) => f.key), ...attrs.map((a) => attrKey(a.title))];
   const body = rows.map((r) => [
     ...fixedCells(r, catalog, template ? null : 'error'),
@@ -100,7 +104,7 @@ function productSheet(name, template, rows, catalog) {
     base,
     name,
     rows: [header, ...body.map((cells) => cells.map((c) => c.value))],
-    cellStyles: [[], ...body.map((cells) => cells.map((c) => c.fill))],
+    cellStyles: [headerFills, ...body.map((cells) => cells.map((c) => c.fill))],
     widths: [...FIXED_WIDTHS, ...REVIEW_FIELDS.map((f) => (f.key === 'title' ? 36 : 14)), ...attrs.map(() => 16)],
     textColumns,
   };
@@ -158,15 +162,21 @@ function summarySheet(name, entries, ctx) {
 }
 
 function optionsSheet(templates) {
-  const rows = templates.flatMap((t) => templateAttrs(t).map((a) => [vcTemplateLeafLabel(t), a.title, a.where, a.required ? '必填' : '', attrFormat(a)]));
-  return { name: OPTIONS_SHEET, rows: [['上架模板', '属性', '位置', '必填', '可选值 / 填写格式'], ...rows], widths: [22, 20, 12, 8, 90] };
+  const attrs = templates.flatMap((t) => templateAttrs(t).map((a) => ({ t, a })));
+  const rows = attrs.map(({ t, a }) => [vcTemplateLeafLabel(t), a.title, a.where, a.required ? '必填' : '可选', attrFormat(a)]);
+  return {
+    name: OPTIONS_SHEET,
+    rows: [['上架模板', '属性', '位置', '必填/可选', '可选值 / 填写格式'], ...rows],
+    cellStyles: [[], ...attrs.map(({ a }) => [null, null, null, headFill(a.required)])],
+    widths: [22, 20, 12, 10, 90],
+  };
 }
 
 function notesSheet(catalog) {
   const choices = templateChoices(catalog).flatMap((g) => g.options.map((o) => o.label));
   const lines = [
     '发布前检查表：插件按上架模板把商品分到不同的附表，每张附表的列是这个模板发布页要填的内容',
-    '1. 格子里是发布时会用的值：你填过的 > 采集到的 > 推断/默认值。红底是缺的或填不上的（必填没有值、超出类目范围、下拉值不对），橙底是用了默认值或推断，请核对。表头带 * 的是必填。',
+    '1. 格子里是发布时会用的值：你填过的 > 采集到的 > 推断/默认值。红底是缺的或填不上的（必填没有值、超出类目范围、下拉值不对），橙底是用了默认值或推断，请核对。表头蓝底（带 *）的是必填，绿底的是可选（可以不填，填了会一起发布）；附表里列出了这个模板全部的属性，可选的也在里面。',
     '2. 直接在附表里改、补；不改的格子保持原样，空着的格子表示用插件的自动值（不会清空）。和插件算出来的值一样的格子不算修改。',
     '3. “汇总”表是上架表里每个链接的采集和检查结果，只用来核对，上传时不读。“还缺”“源商品标题”列也不读。',
     `4. “上架模板”列可以改成别的模板（换了模板的商品这一轮不发布：新模板的属性列不在这张表里，请上传后重新生成发布前检查表核对新模板的属性）。可选：${choices.join('、')}；填“自动”改回按源商品类目匹配。`,

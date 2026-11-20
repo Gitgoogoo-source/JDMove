@@ -1,6 +1,6 @@
 // 生成 .xlsx（纯函数）：导出给用户填写的模板。字符串写成内联字符串、数字写成数字；
 // 标为“文本”的列（SKU、ERP）设成文本格式，Excel 不会把长数字显示成科学计数法；表头加粗并冻结；
-// 格子可以标底色（红：缺的/不对的，橙：请核对）；工作表可以隐藏（放插件自己用的信息）
+// 格子可以标底色（红：缺的/不对的，橙：请核对；蓝：必填，绿：可选，表头也能标这两种）；工作表可以隐藏（放插件自己用的信息）
 import { buildZip } from './zip.js';
 
 const NS_MAIN = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main';
@@ -8,18 +8,20 @@ const NS_REL = 'http://schemas.openxmlformats.org/officeDocument/2006/relationsh
 const NS_PKG_REL = 'http://schemas.openxmlformats.org/package/2006/relationships';
 const CT_PREFIX = 'application/vnd.openxmlformats-officedocument.spreadsheetml';
 const XML_HEAD = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n';
-// styles.xml 里 cellXfs 的下标：普通、表头、文本，以及带底色的普通/文本格子
+// styles.xml 里 cellXfs 的下标：普通、表头、文本，带底色的普通/文本格子，以及带底色的表头
 const STYLE_HEADER = 1;
 const STYLE_TEXT = 2;
-const FILL_STYLES = { error: { normal: 3, text: 4 }, warn: { normal: 5, text: 6 } };
+const FILL_STYLES = { error: { normal: 3, text: 4 }, warn: { normal: 5, text: 6 }, required: { normal: 9, text: 10 }, optional: { normal: 11, text: 12 } };
+const HEADER_FILL_STYLES = { required: 7, optional: 8 };
 const SHEET_NAME_MAX = 31;
 
 /**
  * @typedef {string|number|null|undefined} CellValue
- * @typedef {'error'|'warn'|null|undefined} CellFill
+ * @typedef {'error'|'warn'|'required'|'optional'|null|undefined} CellFill
  * @typedef {{name: string, rows: CellValue[][], widths?: number[], textColumns?: number[], cellStyles?: CellFill[][], hidden?: boolean}} SheetSpec
  *   rows[0] 是表头；widths：列宽（字符数）；textColumns：设成文本格式的列下标；
- *   cellStyles：和 rows 对应的底色（error 红、warn 橙），标了底色的空格子也写出来；hidden：隐藏工作表（不能是第一个）
+ *   cellStyles：和 rows 对应的底色（error 红、warn 橙、required 蓝、optional 绿；cellStyles[0] 是表头的，只认 required/optional），
+ *   标了底色的空格子也写出来；hidden：隐藏工作表（不能是第一个）
  */
 
 export const escapeXml = (s) =>
@@ -50,7 +52,7 @@ function cellXml(value, ref, style) {
 }
 
 function cellStyle(r, c, textColumns, fill) {
-  if (r === 0) return STYLE_HEADER;
+  if (r === 0) return HEADER_FILL_STYLES[fill] ?? STYLE_HEADER;
   const kind = textColumns.has(c) ? 'text' : 'normal';
   if (FILL_STYLES[fill]) return FILL_STYLES[fill][kind];
   return kind === 'text' ? STYLE_TEXT : 0;
@@ -60,9 +62,10 @@ function rowXml(row, r, textColumns, fills = []) {
   const width = Math.max(row.length, fills.length);
   const cells = Array.from({ length: width }, (_, c) => {
     const v = row[c];
-    const fill = r === 0 ? null : fills[c];
+    const fill = fills[c];
     const ref = `${columnName(c)}${r + 1}`;
-    if (v == null || v === '') return FILL_STYLES[fill] ? `<c r="${ref}" s="${cellStyle(r, c, textColumns, fill)}"/>` : '';
+    const filled = r === 0 ? HEADER_FILL_STYLES[fill] : FILL_STYLES[fill];
+    if (v == null || v === '') return filled ? `<c r="${ref}" s="${cellStyle(r, c, textColumns, fill)}"/>` : '';
     return cellXml(v, ref, cellStyle(r, c, textColumns, fill));
   }).join('');
   return `<row r="${r + 1}">${cells}</row>`;
@@ -90,18 +93,27 @@ export function sheetXml(sheet) {
 const STYLES_XML =
   `${XML_HEAD}<styleSheet xmlns="${NS_MAIN}">` +
   '<fonts count="2"><font><sz val="11"/><name val="宋体"/><family val="2"/></font><font><b/><sz val="11"/><name val="宋体"/><family val="2"/></font></fonts>' +
-  '<fills count="4"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill>' +
+  '<fills count="6"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill>' +
   '<fill><patternFill patternType="solid"><fgColor rgb="FFFFC7CE"/><bgColor indexed="64"/></patternFill></fill>' +
-  '<fill><patternFill patternType="solid"><fgColor rgb="FFFFEB9C"/><bgColor indexed="64"/></patternFill></fill></fills>' +
+  '<fill><patternFill patternType="solid"><fgColor rgb="FFFFEB9C"/><bgColor indexed="64"/></patternFill></fill>' +
+  // 必填（蓝）、可选（绿）
+  '<fill><patternFill patternType="solid"><fgColor rgb="FF9BC2E6"/><bgColor indexed="64"/></patternFill></fill>' +
+  '<fill><patternFill patternType="solid"><fgColor rgb="FFC6EFCE"/><bgColor indexed="64"/></patternFill></fill></fills>' +
   '<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>' +
   '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
-  '<cellXfs count="7"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>' +
+  '<cellXfs count="13"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>' +
   '<xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/>' +
   '<xf numFmtId="49" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>' +
   '<xf numFmtId="0" fontId="0" fillId="2" borderId="0" xfId="0" applyFill="1"/>' +
   '<xf numFmtId="49" fontId="0" fillId="2" borderId="0" xfId="0" applyNumberFormat="1" applyFill="1"/>' +
   '<xf numFmtId="0" fontId="0" fillId="3" borderId="0" xfId="0" applyFill="1"/>' +
-  '<xf numFmtId="49" fontId="0" fillId="3" borderId="0" xfId="0" applyNumberFormat="1" applyFill="1"/></cellXfs>' +
+  '<xf numFmtId="49" fontId="0" fillId="3" borderId="0" xfId="0" applyNumberFormat="1" applyFill="1"/>' +
+  '<xf numFmtId="0" fontId="1" fillId="4" borderId="0" xfId="0" applyFont="1" applyFill="1"/>' +
+  '<xf numFmtId="0" fontId="1" fillId="5" borderId="0" xfId="0" applyFont="1" applyFill="1"/>' +
+  '<xf numFmtId="0" fontId="0" fillId="4" borderId="0" xfId="0" applyFill="1"/>' +
+  '<xf numFmtId="49" fontId="0" fillId="4" borderId="0" xfId="0" applyNumberFormat="1" applyFill="1"/>' +
+  '<xf numFmtId="0" fontId="0" fillId="5" borderId="0" xfId="0" applyFill="1"/>' +
+  '<xf numFmtId="49" fontId="0" fillId="5" borderId="0" xfId="0" applyNumberFormat="1" applyFill="1"/></cellXfs>' +
   '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>' +
   '</styleSheet>';
 

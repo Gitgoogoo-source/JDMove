@@ -66,6 +66,32 @@ test('reviewWorkbook：按模板分附表（同一三级类目下发布页不同
   assert.equal(sheets.at(-1).rows.length, ITEMS.length + 1, '_base：每个商品一行');
 });
 
+test('reviewWorkbook：附表里必填和可选的列都有，表头用两种底色区分（必填带 *）；可选值表写明必填/可选', () => {
+  const sheets = reviewWorkbook({ rows: rowsOf(ITEMS), catalog });
+  const tissue = sheets[1];
+  const head = (h) => tissue.cellStyles[0][tissue.rows[0].indexOf(h)];
+  assert.equal(head('*SKU属性:层数'), 'required');
+  assert.equal(head('商品属性:是否压花'), 'optional', '可选属性也有列');
+  assert.equal(head('SKU属性:香型'), 'optional');
+  assert.equal(head('*市场价(元)'), 'required');
+  assert.equal(head('商品条形码'), 'optional');
+  assert.equal(head('商品链接'), null, '核对用的固定列不标');
+  assert.equal(head('上架模板'), null);
+  for (const [i, h] of tissue.rows[0].entries()) {
+    if (i >= 5) assert.equal(tissue.cellStyles[0][i], h.startsWith('*') ? 'required' : 'optional', h);
+  }
+  const none = sheetNamed(sheets, '未匹配模板');
+  assert.equal(none.cellStyles[0][none.rows[0].indexOf('*上架模板')], 'required');
+  const options = sheetNamed(sheets, '可选值');
+  const flag = options.rows[0].indexOf('必填/可选');
+  const optRow = options.rows.findIndex((r) => r[1] === '是否压花');
+  assert.equal(options.rows[optRow][flag], '可选');
+  assert.equal(options.cellStyles[optRow][flag], 'optional');
+  const reqRow = options.rows.findIndex((r) => r[1] === '层数');
+  assert.equal(options.rows[reqRow][flag], '必填');
+  assert.equal(options.cellStyles[reqRow][flag], 'required');
+});
+
 test('reviewWorkbook：格子里是发布时会用的值（自己填的 > 采集到的 > 默认值），缺的标红、默认值标橙', () => {
   const sheets = reviewWorkbook({ rows: rowsOf(ITEMS), catalog });
   const tissue = sheets[1];
