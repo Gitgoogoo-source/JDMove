@@ -7,6 +7,11 @@
   "scripts": {
     "test": "node --test tests/*.test.js",
     "coverage": "node --test --experimental-test-coverage tests/*.test.js",
-    "icons": "node scripts/make-icons.mjs"
+    "icons": "node scripts/make-icons.mjs",
+    "e2e": "node scripts/e2e/cli.mjs",
+    "test:e2e": "node --test --test-concurrency=1 tests/e2e/*.e2e.js"
+  },
+  "devDependencies": {
+    "playwright-core": "^1.65.1"
   }
 }

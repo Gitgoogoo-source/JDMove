@@ -202,7 +202,31 @@
 npm test          # 单元测试（node:test，无依赖）
 npm run coverage  # 覆盖率
 npm run icons     # 重新生成图标
+npm run test:e2e  # 真实浏览器冒烟测试（需 playwright-core，先 npm install）
 ```
+
+### 真实浏览器调试（给 AI / 开发者用）
+
+`scripts/e2e/` 会启动一个**独立的调试浏览器**（Playwright 自带的 Chrome for Testing，不是你日常用的 Chrome），自动加载本插件，并开放调试端口 9333，脚本可以随时连上去操作。正式版 Google Chrome 137 起不再支持命令行加载插件，所以不用它。
+
+- **用户目录**是 `.e2e-profile/`（已加入 .gitignore），登录状态保存在这里。第一次运行 `npm run e2e -- launch` 后，在弹出的窗口里登录京东 / VC 后台即可，以后不用再登。
+- 启动时自动打开**开发者模式**（不开的话插件一重载就会被 Chrome 禁用）和插件的**无痕模式权限**。
+- 脚本退出后浏览器仍在运行，用 `npm run e2e -- stop` 关闭。端口和目录可用环境变量 `E2E_CDP_PORT`、`E2E_PROFILE` 修改，`E2E_CHROME` 指定浏览器路径。
+
+常用命令（`npm run e2e` 不带参数时显示全部）：
+
+```bash
+npm run e2e -- launch                 # 启动（加 --headless 为无界面）
+npm run e2e -- reload                 # 改完代码后重载插件，并刷新已打开的商品页
+npm run e2e -- eval "const { settingsRepo } = await import('/src/lib/chrome-env.js'); return settingsRepo.get();"
+npm run e2e -- sw "return chrome.storage.local.get('items');"   # 在后台 service worker 里执行
+npm run e2e -- open src/dashboard/dashboard.html
+npm run e2e -- page item.jd.com "return document.title"         # 在网页主世界执行
+npm run e2e -- shot dashboard.html    # 截图到 .e2e-artifacts/
+npm run e2e -- errors                 # 插件运行错误
+```
+
+`eval` 在插件页里执行，能用全部 `chrome.*` API，也能 `import` 插件里的任何模块；`sw` 在后台执行，可调用 `chrome.*`，但不能 `import`。`npm run test:e2e` 会检查插件加载、后台消息、弹窗和任务面板；没开调试浏览器时自动以无界面模式启动，测完关闭。`E2E_ONLINE=1` 时额外检查京东商品页的“搬运此商品”按钮，这需要有界面的浏览器并已登录，否则会被京东跳到频控页。测发布流程时建议设置为“只填写，不发布”，以免发出真实商品。
 
 目录结构：
 
