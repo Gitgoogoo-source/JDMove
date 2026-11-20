@@ -242,16 +242,24 @@
   }
 
   // 点击期间临时拦截 XHR/fetch 的返回，记下保存草稿/发布商品接口的结果；结束后 restore() 恢复原来的 XHR/fetch，不长期改动页面
+  // 发布成功后页面 100ms 就整页跳走：记下接口返回时立刻叫醒等待的 clickAndWatch（不等下一次 100ms 轮询），赶在跳转前把结果带回扩展
   function installSaveCapture() {
     const saves = [];
     const restores = [];
+    let wake = null;
     const record = (text, url) => {
       const kind = saveKind(url);
       if (!kind) return;
       const t = String(text);
       const ids = kind === 'vc_publish' ? publishIdsOf(t) : { draftId: idField(t, 'draftId') };
       saves.push({ kind, at: Date.now(), ...ids, failure: saveFailure(t), text: t.slice(0, SAVE_RESPONSE_MAX) });
+      if (wake) wake();
     };
+    /** 等到下一次记下接口返回，最多等 ms */
+    const waitSave = (ms) =>
+      Promise.race([sleep(ms), new Promise((resolve) => (wake = resolve))]).then(() => {
+        wake = null;
+      });
     if (typeof XMLHttpRequest !== 'undefined') {
       const origSend = XMLHttpRequest.prototype.send;
       restores.push(() => (XMLHttpRequest.prototype.send = origSend));
@@ -276,7 +284,7 @@
         });
       };
     }
-    return { saves, restore: () => [...restores].reverse().forEach((fn) => fn()) };
+    return { saves, waitSave, restore: () => [...restores].reverse().forEach((fn) => fn()) };
   }
 
   /** 保存草稿接口的返回 → runAction 的结果 */
@@ -384,7 +392,7 @@
       }
       if (location.href !== startUrl) break;
       if ([...seen].some((m) => SUCCESS_POPUP_RE.test(m) || /失败|错误|请/.test(m))) break;
-      await sleep(100);
+      await (capture.waitSave ? capture.waitSave(100) : sleep(100));
     }
     if (save) return action === 'vc_publish' ? vcPublishResult(save, location.href) : vcDraftResult(save, location.href);
     const msgs = [...seen];

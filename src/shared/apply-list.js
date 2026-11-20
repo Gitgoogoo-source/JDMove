@@ -41,3 +41,25 @@ export function pickPublishedSku(rows, { name, since }) {
     .sort((a, b) => b.submittedAt - a.submittedAt);
   return hits[0]?.sku ?? '';
 }
+
+/**
+ * 商品审核列表每一行的文字（注入页面执行，必须自包含）。
+ * 2026-11-20 实测页面结构：<div class="product-info">商品编码：<span class="product-id">100343137723</span><div class="show-btn"></div></div>，
+ * “商品编码：”和数字不在同一个元素里，所以找“文字里含 商品编码: 数字、但子元素里都不含”的最小元素，再往上找到带“提交:”时间的那一行
+ * @param {number} waitMs 列表加载出商品行最多等这么久
+ * @returns {Promise<string[]>}
+ */
+export async function readApplyRowsInPage(waitMs) {
+  const SKU = /商品编码\s*[:：]\s*\d{6,}/;
+  const has = (e) => SKU.test(e.textContent || '');
+  const end = Date.now() + waitMs;
+  for (;;) {
+    const cells = [...document.querySelectorAll('body *')].filter((e) => has(e) && ![...e.children].some(has));
+    const rows = cells.map((cell) => {
+      for (let n = cell, i = 0; n && i < 10; i += 1, n = n.parentElement) if (/提交\s*[:：]/.test(n.innerText || '')) return n.innerText;
+      return cell.innerText || cell.textContent || '';
+    });
+    if (rows.length || Date.now() > end) return [...new Set(rows)];
+    await new Promise((r) => setTimeout(r, 500));
+  }
+}

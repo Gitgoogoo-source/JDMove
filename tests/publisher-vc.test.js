@@ -213,13 +213,15 @@ test('publishVcItem: 发布 → 点“发布商品”；接口没返回 SKU、�
   const page = vcPage();
   const fake = installFakeChrome({ backend: page.backend, page: () => [] });
   const lines = [];
-  const res = await publishVcItem(vcItem(), settings({ action: 'publish' }), (l) => lines.push(l), { imageMakers: makers });
+  const res = await publishVcItem(vcItem(), settings({ action: 'publish' }), (l) => lines.push(l), { imageMakers: makers, applyRetryMs: 1 });
   assert.deepEqual(page.calls.find((c) => c.method === 'runAction').args, ['vc_publish']);
   assert.equal(res.status, 'published');
   assert.deepEqual(res.skuIds, []);
   assert.ok(lines.some((l) => /没拿到京东分配的 SKU/.test(l)));
   assert.ok(lines.some((l) => /商品审核列表里没找到/.test(l)), lines.join('\n'));
   assert.ok(fake.calls.some((c) => c.op === 'tabs.update' && /activeTab=ApplyWare/.test(c.url)), '打开了商品审核列表');
+  assert.equal(lines.filter((l) => /秒后刷新再找/.test(l)).length, 2, '没找到时刷新列表重找');
+  assert.equal(fake.calls.filter((c) => c.op === 'tabs.update' && /activeTab=ApplyWare/.test(c.url)).length, 3);
 });
 
 test('publishVcItem: 接口没返回 SKU 时到商品审核列表按名称和提交时间找回（名称=品牌名+标题）', async () => {
@@ -493,7 +495,7 @@ test('publishVcItem: 发布后页面整页跳走、脚本没来得及返回时�
     });
     fake = installFakeChrome({ backend: page.backend });
     const lines = [];
-    const res = await publishVcItem(vcItem(), settings({ action: 'publish' }), (l) => lines.push(l), { imageMakers: makers, landTimeoutMs: 500 });
+    const res = await publishVcItem(vcItem(), settings({ action: 'publish' }), (l) => lines.push(l), { imageMakers: makers, landTimeoutMs: 500, applyRetryMs: 1 });
     assert.equal(res.status, 'published', res.message);
     assert.equal(res.productId, productId);
     assert.deepEqual(res.skuIds, []);
