@@ -243,6 +243,25 @@ test('publishVcItem: 接口没返回 SKU 时到商品审核列表按名称和提
   assert.ok(lines.some((l) => /在商品审核列表里找到了 SKU 100448634314/.test(l)));
 });
 
+test('publishVcItem: 同名商品连发时，商品审核列表里已经记进上架总表的 SKU 不再拿，刷新到新提交的那条', async () => {
+  const page = vcPage({ vcPayloadCheck: { ok: true, problems: [], floats: [], brandTitle: '维达' } });
+  const now = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  const stamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+  const earlier = `维达棉韧抽纸 3层100抽*36包\n商品编码: 100448634314\n提交: ${stamp}\n审核中`;
+  const fresh = `维达棉韧抽纸 3层100抽*36包\n商品编码: 100448634999\n提交: ${stamp}\n审核中`;
+  let reads = 0;
+  // 第一次读列表：新提交的还没出来，只有上一次发布的；刷新后才有新的
+  installFakeChrome({ backend: page.backend, page: () => (++reads === 1 ? [earlier] : [fresh, earlier]) });
+  await chrome.storage.local.set({ masterRecords: [{ id: '100448634314-1', sku: '100448634314', name: '维达棉韧抽纸 3层100抽*36包' }] });
+  const lines = [];
+  const item = vcItem({ title: '棉韧抽纸 3层100抽*36包', vc: { ...PRICES, erpCode: 'xudezhi.6' } });
+  const res = await publishVcItem(item, settings({ action: 'publish' }), (l) => lines.push(l), { imageMakers: makers, applyRetryMs: 1 });
+  assert.equal(res.status, 'published');
+  assert.deepEqual(res.skuIds, ['100448634999']);
+  assert.ok(lines.some((l) => /秒后刷新再找/.test(l)), lines.join('\n'));
+});
+
 test('publishVcItem: 页面本地校验没通过时不提交，保留页面并写出原因', async () => {
   const page = vcPage({ vcValidate: { ok: false, errors: ['图片信息识别：请先上传图片'] } });
   installFakeChrome({ backend: page.backend });

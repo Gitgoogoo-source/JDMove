@@ -32,13 +32,25 @@
     return near ? values[near] : null;
   }
 
-  function fieldsOf(drawer) {
-    return qsa('.shop-dynamic-component', drawer)
+  // 行内规格的字段没有标题，用输入框的提示文字当名称；“请设置”这类通用提示的是规格组合本身
+  const GENERIC_PLACEHOLDER_RE = /^(请设置|请选择|请输入)?$/;
+  const SPEC_LABEL = '规格';
+
+  function untitledLabel(root) {
+    const box = qsa('input, textarea', root)[0];
+    const hint = box ? String(box.placeholder || '').trim() : '';
+    return GENERIC_PLACEHOLDER_RE.test(hint) ? SPEC_LABEL : hint;
+  }
+
+  /** 抽屉 / 行内规格里的字段。行内规格没有必填星号：规格组合（数量 + 单位）当必填，文字说明选填 */
+  function fieldsOf(container) {
+    return qsa('.shop-dynamic-component', container)
       .filter((c) => !(c.parentElement && c.parentElement.closest('.shop-dynamic-component')))
       .map((root) => {
         const t = root.querySelector('.shop-dynamic-component-title');
-        const label = t ? textOf(t).replace(/[*＊]/g, '').replace(/重要$/, '').trim() : '';
-        return { root, label, required: !!(t && t.classList.contains('is-required-star')) };
+        if (t) return { root, label: textOf(t).replace(/[*＊]/g, '').replace(/重要$/, '').trim(), required: t.classList.contains('is-required-star') };
+        const structured = !!root.querySelector('.sale-base-group, .sale-number-units');
+        return { root, label: qsa('input', root).length ? untitledLabel(root) : '', required: structured };
       })
       .filter((f) => f.label);
   }
@@ -232,7 +244,8 @@
     const value = plannedValue(label, ctx.values);
     if (root.querySelector('.sale-base-group')) return fillGroup(root, value, ctx);
     if (root.querySelector('.sale-number-units')) return fillNumberUnit(root.querySelector('.sale-number-units'), value, ctx);
-    if (root.querySelector('.sale-custom-notes')) return fillText(root, value != null ? value : ctx.desc);
+    // 规格描述（【王牌爆款】）只写进“产品描述”，备注这类说明框不拿它填
+    if (root.querySelector('.sale-custom-notes')) return fillText(root, value != null ? value : REMARK_RE.test(label) ? null : ctx.desc);
     if (root.querySelector('.sale-structured-template')) return fillTemplate(root, value);
     if (root.querySelector('.jd-select-v2')) return fillSelectV2(root, value);
     if (root.querySelector('.jd-select')) return fillClassic(root, value);
@@ -240,7 +253,35 @@
     return fillPlain(root, value, ctx);
   }
 
+  const REMARK_RE = /备注/;
   const DRAWER_CONFIRM_TRIES = 3;
+
+  /** 逐个字段填写；返回填好的、必填但还空着的 */
+  async function fillFields(container, ctx) {
+    const filled = [];
+    const missing = [];
+    for (const field of fieldsOf(container)) {
+      let done = false;
+      try {
+        done = await fillField(field, ctx);
+      } catch {
+        done = false;
+      }
+      if (done) filled.push(field.label);
+      else if (field.required && !qsa('input', field.root).some((i) => i.value)) missing.push(field.label);
+    }
+    return { filled, missing };
+  }
+
+  /**
+   * 行内规格（SaleTile，湿厕纸/卷纸）：规格格子里直接是 产品描述 / “请设置”（单包数量 × 包装规格 弹层）/ 备注，
+   * 没有抽屉也没有“确定”，必填的都有值就算填好
+   */
+  async function fillInlineSpec(tile, ctx) {
+    tile.scrollIntoView({ block: 'center' });
+    const { filled, missing } = await fillFields(tile, ctx);
+    return { opened: true, confirmed: !missing.length, filled, missing, errors: [] };
+  }
 
   async function confirm(drawer) {
     for (let i = 0; i < DRAWER_CONFIRM_TRIES; i += 1) {
@@ -265,6 +306,8 @@
   async function fillRowDrawer(column, { rowIndex = 0, values = {}, units = {}, desc = '' }) {
     const tr = vcSkuRows()[rowIndex];
     const trigger = tr && cellOf(tr, column);
+    const tile = !trigger && tr && column === 'SaleDrawer' ? tr.querySelector('.sale-dimension-container .sale-tile') : null;
+    if (tile) return fillInlineSpec(tile, { values, units, desc });
     if (!trigger) return { opened: false, confirmed: false, filled: [], missing: [], errors: ['找不到单元格'] };
     const before = new Set(qsa('.jd-drawer').filter(visible));
     trigger.scrollIntoView({ block: 'center' });
@@ -272,19 +315,7 @@
     const drawer = await waitFor(() => qsa('.jd-drawer').find((d) => visible(d) && !before.has(d)), { timeout: 5000 });
     if (!drawer) return { opened: false, confirmed: false, filled: [], missing: [], errors: ['抽屉没有打开'] };
     await sleep(500);
-    const ctx = { values, units, desc };
-    const filled = [];
-    const missing = [];
-    for (const field of fieldsOf(drawer)) {
-      let done = false;
-      try {
-        done = await fillField(field, ctx);
-      } catch {
-        done = false;
-      }
-      if (done) filled.push(field.label);
-      else if (field.required && !qsa('input', field.root).some((i) => i.value)) missing.push(field.label);
-    }
+    const { filled, missing } = await fillFields(drawer, { values, units, desc });
     const result = await confirm(drawer);
     return { opened: true, ...result, filled, missing };
   }

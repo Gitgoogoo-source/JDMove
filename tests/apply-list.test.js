@@ -66,3 +66,16 @@ test('pickPublishedSku: 同名商品发布过多次时，取点“发布商品�
   // 新提交的还没进列表时不能错拿旧的
   assert.equal(pickPublishedSku(rows.slice(1), { name: '维达无芯卷纸', since }), '');
 });
+
+test('pickPublishedSku: 同一个商品连发两次（如常规价、促销价），第二次跳过已经记下的 SKU，新提交的还没进列表时返回空', () => {
+  // 第一次 01:57:56 提交、已记为 100343137723；第二次 01:58:40 点“发布商品”，都在 2 分钟容差内
+  const since = new Date(2026, 10, 20, 1, 58, 40).getTime();
+  const first = '维达无芯卷纸\n商品编码：\n100343137723\n提交： 2026-11-20 01:57:56';
+  const second = '维达无芯卷纸\n商品编码：\n100343137999\n提交： 2026-11-20 01:58:43';
+  const taken = new Set(['100343137723']);
+  assert.equal(pickPublishedSku(parseApplyRows([first]), { name: '维达无芯卷纸', since, taken }), '');
+  assert.equal(pickPublishedSku(parseApplyRows([second, first]), { name: '维达无芯卷纸', since, taken }), '100343137999');
+  // 列表时间只到秒，第二次的提交时间和第一次相同时也不会拿成第一次的
+  const sameSecond = '维达无芯卷纸\n商品编码：\n100343137999\n提交： 2026-11-20 01:57:56';
+  assert.equal(pickPublishedSku(parseApplyRows([first, sameSecond]), { name: '维达无芯卷纸', since, taken }), '100343137999');
+});
