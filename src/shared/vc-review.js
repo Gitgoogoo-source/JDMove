@@ -240,11 +240,13 @@ function imagesOf(plan, product) {
   };
 }
 
+/** @typedef {{name: string, note: string}} ReviewIssue  note：填错的原因；缺的为空 */
+
 /**
  * @typedef {{fields: ReviewField[], props: import('./vc-review-attrs.js').ReviewAttr[], skuAttrs: import('./vc-review-attrs.js').ReviewAttr[],
  *   skuAttrsOn: boolean, images: {main: string[], transparent: string, detailCount: number, problems: string[]},
- *   blockers: string[], warnings: string[], problems: string[], checks: number, ready: boolean}} Review
- *   blockers：打开发布页前会被拦下的原因（发布流程的原文）；problems：缺项/错项的名字；checks：需要核对的项数；
+ *   blockers: string[], warnings: string[], problems: string[], issues: ReviewIssue[], checks: number, ready: boolean}} Review
+ *   blockers：打开发布页前会被拦下的原因（发布流程的原文）；problems：缺项/错项的名字；issues：同样的项，填错的带原因（note）；checks：需要核对的项数；
  *   ready：齐全，可以发布
  */
 
@@ -265,13 +267,16 @@ export function buildReview({ product, edits = {}, settings, template = null }) 
   const skuAttrs = reviewSkuAttrs(vcTemplateSkuAttrs(template), { sources: skuValueSources(product, edits, settings), units: plan.skuAttrUnits, upcValues: upc });
   const images = imagesOf(plan, product);
   const skuProblems = skuAttrsOn ? skuAttrs.filter(attrProblem) : [];
-  const problems = [
-    ...(vcCategory(product, edits, settings) ? [] : [NO_CATEGORY]),
-    ...fields.filter((f) => f.state === 'missing' || f.state === 'error').map((f) => f.label),
-    ...props.filter(attrProblem).map((a) => a.title),
-    ...skuProblems.map((a) => a.title),
-    ...images.problems,
-  ];
+  // 填错（state=error）的带上原因，缺的只有名字：“缺 京东价”和“京东价高于市场价”要分开说
+  const issueOf = (name, x) => ({ name, note: x.state === 'error' ? x.note || '' : '' });
+  const issues = uniqueIssues([
+    ...(vcCategory(product, edits, settings) ? [] : [{ name: NO_CATEGORY, note: '' }]),
+    ...fields.filter((f) => f.state === 'missing' || f.state === 'error').map((f) => issueOf(f.label, f)),
+    ...props.filter(attrProblem).map((a) => issueOf(a.title, a)),
+    ...skuProblems.map((a) => issueOf(a.title, a)),
+    ...images.problems.map((name) => ({ name, note: '' })),
+  ]);
+  const problems = issues.map((i) => i.name);
   const blockers = [...(target.error ? [target.error] : []), ...plan.blockers];
   const checks = [...fields, ...props, ...skuAttrs].filter((x) => ['default', 'warn', 'guess'].includes(x.state)).length;
   return {
@@ -282,10 +287,35 @@ export function buildReview({ product, edits = {}, settings, template = null }) 
     images,
     blockers,
     warnings: plan.warnings,
-    problems: [...new Set(problems)],
+    problems,
+    issues,
     checks,
     ready: !blockers.length && !problems.length,
   };
+}
+
+/** 同名的只留第一个 */
+function uniqueIssues(list) {
+  const seen = new Set();
+  return list.filter((i) => !seen.has(i.name) && seen.add(i.name));
+}
+
+/**
+ * 缺项/错项的标签：填错的带原因，如“京东价(元)（京东价不能高于市场价）”
+ * @param {ReviewIssue[]} issues
+ * @returns {string[]}
+ */
+export const issueLabels = (issues) => issues.map((i) => (i.note ? `${i.name}（${i.note}）` : i.name));
+
+/**
+ * 不能发布的原因：“缺 A、B；C：原因”
+ * @param {ReviewIssue[]} issues
+ * @returns {string}
+ */
+export function issueText(issues) {
+  const missing = issues.filter((i) => !i.note).map((i) => i.name);
+  const wrong = issues.filter((i) => i.note).map((i) => `${i.name}：${i.note}`);
+  return [missing.length ? `缺 ${missing.join('、')}` : '', ...wrong].filter(Boolean).join('；');
 }
 
 // 编辑里的 ERP 三个键互相关联（两个相同时存成 erpCode），合并时当成一项

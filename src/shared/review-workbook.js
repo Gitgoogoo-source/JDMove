@@ -4,7 +4,7 @@
 // 另有汇总（上架表里每个链接的采集和检查结果）、未匹配模板、可选值、填写说明，和插件自己用的两张隐藏表：
 // _meta（认出这是发布前检查表）、_base（导出时每个格子写的值：上传时和它一样的格子不算修改，
 // 导出之后在插件里改的内容、重新采集到的数据不会被这份旧表冲掉）。读回见 vc-review-sheet.js
-import { REVIEW_FIELDS, templateChoices } from './vc-review.js';
+import { issueLabels, REVIEW_FIELDS, templateChoices } from './vc-review.js';
 import { HEAD, attrFormat, sheetLabel, templateAttrs, templateCell } from './vc-review-sheet.js';
 import { attrKey } from './vc-review-attrs.js';
 import { vcTemplateLeafLabel } from './vc-templates.js';
@@ -64,7 +64,7 @@ function fixedCells({ item, match, review }, catalog, templateFill) {
     { value: item.url },
     { value: item.skuId },
     { value: item.product?.title ?? '' },
-    { value: review.problems.join('、') },
+    { value: issueLabels(review.issues).join('、') },
     { value: templateCell(catalog, match), fill: templateFill },
   ];
 }
@@ -139,7 +139,7 @@ function summaryRow(entry, ctx) {
   if (!row) return { cells: [...base, '', '', '没有检查', ''], fill: item?.product ? null : 'warn' };
   const { review, match } = row;
   const checks = review.checks ? `请核对 ${review.checks} 项（橙色）` : '';
-  const missing = [review.problems.join('、'), checks].filter(Boolean).join('；');
+  const missing = [issueLabels(review.issues).join('、'), checks].filter(Boolean).join('；');
   const template = match.template ? vcTemplateLeafLabel(match.template) : '没有匹配到模板';
   const result = review.ready ? '齐全' : `缺 ${review.problems.length} 项`;
   return { cells: [...base, template, ctx.sheetOf.get(entry.skuId) ?? '', result, missing], fill: review.ready ? null : 'error' };
@@ -172,7 +172,7 @@ function notesSheet(catalog) {
     `4. “上架模板”列可以改成别的模板（换了模板的商品这一轮不发布：新模板的属性列不在这张表里，请上传后重新生成发布前检查表核对新模板的属性）。可选：${choices.join('、')}；填“自动”改回按源商品类目匹配。`,
     '5. “未匹配模板”表里的商品没有找到上架模板，在“上架模板”列填上模板名，上传后再导出一次补属性。',
     '6. 下拉类属性要填“可选值”表里的值；纸张尺寸这类多段数字写成“195×133”。价格：市场价、京东价最多 2 位小数，采购价最多 4 位，京东价不能高于市场价。ERP 填账号，不是姓名。',
-    '7. 一行里有一个值不对，这一行都不导入（上传后会写明哪张表第几行、为什么）。',
+    '7. 一行里有一个值格式不对（如价格不是数字、下拉值不在可选值里），这一行都不导入（上传后会写明哪张表第几行、为什么）；格式对但前后矛盾的（如京东价高于市场价）会导入，这个商品不发布，原因写在上传确认里。',
     '8. 改好后在插件任务面板点“上传表格”选这个文件：插件保存修改，发布齐全的商品（点“发布商品”）；还缺东西的商品不发布，留在任务列表。',
     '9. 不要改工作表名，也不要删除隐藏的 _meta、_base 表（插件靠它们认出这是发布前检查表、判断哪些格子改过）。',
   ];

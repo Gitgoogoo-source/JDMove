@@ -215,6 +215,16 @@ const domRaw = {
   priceText: '21.34',
 };
 
+// 2026-11-20 7224900：页面品牌写“洁柔”，面包屑末级是“洁柔（C&S）”，末级也是品牌，不是叶子类目
+test('normalizeProduct: 品牌名和面包屑末级只差括号里的别名时，末级仍当作品牌', () => {
+  for (const brandText of ['维达', 'Vinda', '维达（Vinda）', '维达(Vinda)']) {
+    const p = normalizeProduct({ ...domRaw, brandText });
+    assert.equal(p.leafCategory, '常规抽纸', brandText);
+  }
+  const other = normalizeProduct({ ...domRaw, brandText: '清风', domTitle: '清风抽纸' });
+  assert.equal(other.leafCategory, '维达（Vinda）', '品牌对不上时不猜');
+});
+
 test('normalizeProduct: 没有品牌参数时，标题开头的面包屑末级当作品牌，不当作叶子类目', () => {
   const p = normalizeProduct(domRaw);
   assert.equal(p.brand.name, '维达（Vinda）');

@@ -3,7 +3,7 @@
 import { BASE_SHEET, META_SHEET, REVIEW_BOOK_FORMAT } from './review-workbook.js';
 import { parseReviewSheet, REVIEW_HEADER_MISSING } from './vc-review-sheet.js';
 import { parseListingBook } from './listing-sheet.js';
-import { buildReview, reviewTemplate } from './vc-review.js';
+import { buildReview, issueText, reviewTemplate } from './vc-review.js';
 
 export const UNKNOWN_TABLE =
   '认不出这个表格：上架表要有一列表头以“参考链接”开头；发布前检查表请上传插件导出的那份（不要删除隐藏的 _meta 工作表，也可以是「表格导入价格/ERP」的表）';
@@ -85,7 +85,7 @@ export function parseReviewBook(sheets) {
  * @param {{ids: string[], items: object[], drafts: Map<string, object>, catalog: object, settings: object, held?: Map<string, string>}} input
  *   ids：表格里导入了的商品；drafts：导入后的编辑内容（没有修改的商品用它自己的）；held：这一轮不发布的商品和原因（如换了模板）
  * @returns {{ready: string[], incomplete: {id: string, title: string, problems: string[], reason: string}[], skipped: {id: string, reason: string}[]}}
- *   incomplete.reason：这次不发布的原因（缺什么，或换了模板）
+ *   incomplete.reason：这次不发布的原因（缺什么、哪里填错了，或换了模板）
  */
 export function publishPlan({ ids, items, drafts, catalog, settings, held = new Map() }) {
   const byId = new Map(items.map((i) => [i.id, i]));
@@ -102,8 +102,10 @@ export function publishPlan({ ids, items, drafts, catalog, settings, held = new 
       const review = buildReview({ product: item.product, edits, settings, template });
       if (review.ready) out.ready.push(id);
       else {
+        // 缺的说“缺 X”，填错的写明原因；只有打开发布页前的拦截原因时用原文（本身就是完整的句子）
         const problems = review.problems.length ? review.problems : review.blockers;
-        out.incomplete.push({ id, title: edits.title || item.product.title || '', problems, reason: `缺 ${problems.join('、')}` });
+        const reason = review.problems.length ? issueText(review.issues) : review.blockers.join('；');
+        out.incomplete.push({ id, title: edits.title || item.product.title || '', problems, reason });
       }
     }
   }

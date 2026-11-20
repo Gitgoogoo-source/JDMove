@@ -1,5 +1,5 @@
 // 把页面抓取到的原始数据归一化为统一商品模型（纯函数）
-import { normalizeName } from './text.js';
+import { normalizeName, toHalfWidth } from './text.js';
 import { parsePrice } from './pricing.js';
 import { toOriginalImageUrl, jfsPathOf } from './url-utils.js';
 import { productUpc } from './sku-attrs.js';
@@ -107,6 +107,21 @@ function crumbBrand(crumbs, title) {
   return normalizeName(title).startsWith(normalizeName(last)) ? last : '';
 }
 
+const BRAND_ALIAS_RE = /^(.*?)\(([^)]*)\)\s*$/;
+
+/** 品牌的几种写法：全名、括号外、括号里（“洁柔（C&S）”→ 洁柔cs / 洁柔 / cs），都归一化 */
+function brandForms(name) {
+  const half = toHalfWidth(name).trim();
+  const m = half.match(BRAND_ALIAS_RE);
+  return new Set([half, ...(m ? [m[1], m[2]] : [])].map(normalizeName).filter(Boolean));
+}
+
+/** 两个品牌名是同一个品牌：有一种写法相同（页面写“洁柔”、面包屑写“洁柔（C&S）”也算） */
+function sameBrand(a, b) {
+  const forms = brandForms(a);
+  return [...brandForms(b)].some((f) => forms.has(f));
+}
+
 /**
  * @param {object} raw 页面抓取结果（见 src/inject/jd-item-extract.js）
  * @param {{allVariants?: boolean}} [opts] allVariants=true 时保留全部规格
@@ -124,7 +139,7 @@ export function normalizeProduct(raw = {}, opts = {}) {
   const title = str(raw.domTitle) || str(pc?.name) || cleanDocTitle(raw.docTitle);
   const brandName = str(raw.brandText) || brandParam?.value || crumbBrand(crumbs, title);
   // 面包屑最后一级通常是品牌，倒数第二级才是叶子类目
-  const leafIdx = brandName && crumbs.length > 1 && normalizeName(crumbs.at(-1)) === normalizeName(brandName) ? -2 : -1;
+  const leafIdx = brandName && crumbs.length > 1 && sameBrand(crumbs.at(-1), brandName) ? -2 : -1;
 
   return {
     skuId,

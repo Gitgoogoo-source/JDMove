@@ -212,3 +212,18 @@ test('表格里换了上架模板的商品这一轮不发布（即使按新模�
   assert.deepEqual(held.ready, []);
   assert.equal(held.incomplete[0].reason, TEMPLATE_CHANGED);
 });
+
+test('publishPlan：填错的值（京东价高于市场价）写明原因，不说“缺”', () => {
+  const wrong = { ...WIPES, edits: { ...WIPES.edits, vc: { marketPrice: 39, jdPrice: 99, costPrice: 20 } } };
+  const pub = publishPlan({ ids: [wrong.id], items: [wrong], drafts: new Map(), catalog, settings });
+  assert.equal(pub.ready.length, 0);
+  assert.equal(pub.incomplete[0].reason, '京东价(元)：京东价不能高于市场价');
+  assert.deepEqual(pub.incomplete[0].problems, ['京东价(元)']);
+});
+
+test('发布前检查表：“还缺”列写明填错的原因', () => {
+  const wrong = { ...WIPES, edits: { ...WIPES.edits, vc: { marketPrice: 39, jdPrice: 99, costPrice: 20 } } };
+  const sheets = reviewWorkbook({ rows: rowsOf([wrong]), catalog, items: [wrong] });
+  const sheet = sheets.find((s) => s.name.startsWith('附表'));
+  assert.equal(cellOf(sheet, 1, '还缺（核对用，不导入）'), '京东价(元)（京东价不能高于市场价）');
+});

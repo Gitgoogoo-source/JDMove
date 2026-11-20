@@ -379,3 +379,12 @@ test('buildVcPublishPlan: 设置里的「适用场景」默认值优先于内置
   const plan = buildVcPublishPlan({ product: bare, edits: { vc: PRICES }, settings: s, schema: SCHEMA });
   assert.equal(plan.props.values['132416'], '1');
 });
+
+test('buildVcPublishPlan: 销售单位按编辑里改过的包装形式推断（发布前检查表里改的属性优先于源商品参数）', () => {
+  const p = { ...product(), params: [{ name: '包装形式', value: '软包装' }] };
+  const plan = buildVcPublishPlan({ product: p, edits: { vc: PRICES, attrOverrides: { 包装形式: '箱装' } }, settings: settings(), schema: { attrs: [] } });
+  assert.equal(plan.logistics.unit, '箱');
+  assert.ok(plan.warnings.some((w) => /销售单位按推断填写：箱（依据：包装形式 箱装）/.test(w)));
+  const untouched = buildVcPublishPlan({ product: p, edits: { vc: PRICES }, settings: settings(), schema: { attrs: [] } });
+  assert.equal(untouched.logistics.unit, '包');
+});

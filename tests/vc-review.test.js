@@ -9,6 +9,8 @@ import {
   autoTemplate,
   buildReview,
   currentChoice,
+  issueLabels,
+  issueText,
   NO_CATEGORY,
   rebaseEdits,
   reviewOwnValue,
@@ -251,4 +253,17 @@ test('reviewPropAttrs：湿厕纸纸张尺寸显示成“200mm × 140mm”；数
   assert.match(bad.note, /长×宽/);
   const [none] = reviewPropAttrs(attrs, buildPropPlan(attrs, { params: [] }).report);
   assert.equal(none.state, 'missing');
+});
+
+test('buildReview：填了但不对的项（京东价高于市场价）在 issues 里带原因，issueText 分开写“缺”和“不对”', () => {
+  const r = buildReview({ product: tissue(), edits: { vc: { marketPrice: 50, jdPrice: 60 } }, settings, template: null });
+  assert.ok(r.problems.includes('京东价(元)'), 'problems 仍是名字');
+  assert.deepEqual(r.issues.find((i) => i.name === '京东价(元)'), { name: '京东价(元)', note: '京东价不能高于市场价' });
+  assert.deepEqual(r.issues.find((i) => i.name === '采购价(元)'), { name: '采购价(元)', note: '' });
+  const text = issueText(r.issues);
+  assert.match(text, /^缺 [^；]*采购价\(元\)/);
+  assert.match(text, /京东价\(元\)：京东价不能高于市场价/);
+  assert.doesNotMatch(text, /缺 [^；]*京东价/);
+  assert.deepEqual(issueLabels([{ name: 'A', note: '' }, { name: 'B', note: '太大' }]), ['A', 'B（太大）']);
+  assert.equal(issueText([]), '');
 });

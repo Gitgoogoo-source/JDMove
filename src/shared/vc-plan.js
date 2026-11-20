@@ -239,8 +239,14 @@ function skuName(title, spec) {
   return budget > 0 ? `${truncateWeighted(title, budget).trim()} ${extra}` : truncateWeighted(extra, SKU_NAME_MAX);
 }
 
-function inferSaleUnit(product, spec) {
-  const pack = PACK_PARAM_NAMES.map((n) => (product?.params ?? []).find((p) => p.name === n)?.value).find(Boolean) ?? '';
+/** 包装形式：编辑里改过的（发布前检查表 / 编辑弹窗的属性）优先，没改时用源商品参数 */
+function packText(product, edits) {
+  const own = PACK_PARAM_NAMES.map((n) => String(edits?.attrOverrides?.[n] ?? '').trim()).find(Boolean);
+  return own || (PACK_PARAM_NAMES.map((n) => (product?.params ?? []).find((p) => p.name === n)?.value).find(Boolean) ?? '');
+}
+
+function inferSaleUnit(product, edits, spec) {
+  const pack = packText(product, edits);
   // 取文字里最先出现的容器词：“盒装（含6瓶，整箱发货）”是盒
   const fromPack = UNIT_WORDS.map((u) => [u, pack.indexOf(u)])
     .filter(([, at]) => at >= 0)
@@ -338,7 +344,7 @@ export function buildVcPublishPlan({ product, edits = {}, settings, schema, temp
   ];
   const title = planTitle(product, edits, settings);
   const spec = parseSpecText(specTextOf(product));
-  const unit = settings.vc.saleUnit ? { unit: settings.vc.saleUnit, fromSettings: true } : inferSaleUnit(product, spec);
+  const unit = settings.vc.saleUnit ? { unit: settings.vc.saleUnit, fromSettings: true } : inferSaleUnit(product, edits, spec);
   // 采购员 / 销售员 ERP：编辑里单独填的 > 编辑里共用的 > 设置里的默认 ERP
   const erp = vcErpCodes(edits.vc, settings.vc.erpCode);
   const prices = vcPrices(edits);
