@@ -9,7 +9,7 @@ export const isExactTotal = (attr) => attr.title === '总净含量' && attr.kind
 
 /** undefined 沿用普通控件规则，空串表示有此控件但该值不能填写。 */
 export function skuQuantityValue(attr, raw) {
-  if (raw == null || !['总净含量', '包装规格'].includes(attr.title)) return undefined;
+  if (raw == null || !['总净含量', '包装规格', '保质期'].includes(attr.title)) return undefined;
   const text = toHalfWidth(raw).trim();
   const m = /^(\d+(?:\.\d+)?)\s*([a-z\u4e00-\u9fff]*)$/i.exec(text);
   if (attr.kind === 'select' && attr.title === '总净含量') {
@@ -35,7 +35,6 @@ export function skuQuantityValue(attr, raw) {
 export function skuQuantityFields(attrs, values) {
   const fields = { select: {}, numbers: {} };
   for (const attr of attrs) {
-    if (!['总净含量', '包装规格'].includes(attr.title)) continue;
     const key = plannedKey(attr.title, values);
     const value = key == null ? undefined : skuQuantityValue(attr, values[key]);
     if (value !== undefined) fields[attr.kind][attr.title] = value;

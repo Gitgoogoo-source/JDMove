@@ -143,6 +143,9 @@ export function reviewPropAttrs(attrs, report, overrides = {}) {
       const from = own ? '手动填写' : STATUS_FROM[r.status]?.(r) ?? '';
       return { ...base, value: propDisplay(attr, r.value), from, state: r.status === 'guessed' && !own ? 'guess' : 'ok', note: '' };
     }
+    if (attr.type === 'ShopAttrAddress') {
+      return { ...base, ...missing(attr, '需在京麦页面选择地区，选填时可留空') };
+    }
     if (attr.kind === 'numbers' && r.status === 'unmatched') {
       const need = numberSegments(attr).map((x) => x.name).filter(Boolean).join('×');
       return { ...base, value: '', from: own ? '手动填写' : r.source ? `采集参数“${r.source}”` : '', state: badState(attr, own), note: `“${r.raw}”里要有 ${need || '对应'} 的数字，如 195×133` };

@@ -102,3 +102,13 @@ test('页面采集入口按标签读取高亮卡片和普通参数行，并保�
   assert.equal(raw.packList, '谷物600g×6');
   assert.deepEqual(normalizeProduct(raw).params, [{ name: '总净含量', value: '3.6kg' }, { name: '包装规格', value: '6袋' }]);
 });
+
+test('调味油模板按 SKU 保质期的原单位填入抽屉和检查表', () => {
+  const template = JSON.parse(readFileSync(new URL('../templates/vc/34945.json', import.meta.url)));
+  const attrs = vcTemplateSkuAttrs(template).filter((a) => a.title === '保质期');
+  const values = { 保质期: '18个月' };
+  assert.equal(skuQuantityFields(attrs, values).numbers['保质期'], '18个月');
+  const [review] = reviewSkuAttrs(attrs, { sources: { params: values, defaults: {}, overrides: {} } });
+  assert.equal(review.value, '18个月');
+  assert.equal(skuQuantityFields(attrs, { 保质期: '2周' }).numbers['保质期'], '');
+});

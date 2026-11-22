@@ -7,7 +7,7 @@ import { landedPageKind } from './category-search.js';
 import { forgetLeaf, resolveLeafTarget, sharedLeafCache } from './vc-leaf.js';
 import { startImagePrep } from './image-prep.js';
 import { createStopwatch } from '../shared/stopwatch.js';
-import { detectSaveThrottle } from '../shared/publish-throttle.js';
+import { detectSaveThrottle, parseSaveResponse } from '../shared/publish-throttle.js';
 import { loadVcTemplate } from './vc-templates.js';
 import {
   APPLY_LIST_URL,
@@ -315,7 +315,13 @@ function submitOutcome(result, plan, target, tabId, log) {
   if (result?.confirmText) return { status: 'need_action', message: `页面弹出确认：${result.confirmText}`, target, tabId };
   if (!result?.ok) {
     const detail = [result?.error, ...(result?.errors ?? []), ...(result?.messages ?? [])].filter(Boolean).join('；');
-    return { status: 'failed', message: detail || '提交未成功', target, tabId };
+    const response = result?.saveResponses?.map(parseSaveResponse).find(Boolean);
+    const codes = response && [
+      response.code && `code ${response.code}`,
+      response.bCode && `bCode ${response.bCode}`,
+      response.traceId && `trace-id ${response.traceId}`,
+    ].filter(Boolean).join('，');
+    return { status: 'failed', message: (detail || '提交未成功') + (codes ? `（${codes}）` : ''), target, tabId };
   }
   const skuIds = result.skuIds ?? [];
   const where = result.applyId ? `按申请单 ${result.applyId} 到商品审核列表里找` : '没拿到申请单号，到商品审核列表里按商品名称和提交时间找';
@@ -331,7 +337,10 @@ function submitOutcome(result, plan, target, tabId, log) {
   };
 }
 
-async function publishInVcTab(tab, item, settings, log, target, ctx) {
+const FRAME_REMOVED = /Frame with ID 0 was removed/i;
+
+async function publishOnPage(tab, item, settings, log, target, ctx) {
+  let submitting = false;
   try {
     log(`目标类目：${target.name} [${target.cateList.join(',')}]，品牌ID ${target.brandId}`);
     const landed = await landedPageKind(tab.id);
@@ -364,6 +373,7 @@ async function publishInVcTab(tab, item, settings, log, target, ctx) {
       return { status: 'filled', message: '已填写完成，请在工作窗口中检查后手动点“发布商品”', target, tabId: tab.id };
     }
     const since = Date.now();
+    submitting = true;
     const result = await submitVc(tab.id, ctx.landTimeoutMs);
     ctx.timer.lap('发布商品');
     const listing = listingOf(plan, listingBrandTitle(payload.brandTitle, itemBrand(item)));
@@ -376,7 +386,31 @@ async function publishInVcTab(tab, item, settings, log, target, ctx) {
     const ids = [outcome.applyId && `申请单 ${outcome.applyId}`, `SKU ${sku}`].filter(Boolean).join('，');
     return { ...outcome, skuIds: [sku], message: `商品已发布（${ids}）` };
   } catch (e) {
+    if (FRAME_REMOVED.test(e.message)) {
+      if (submitting) return { status: 'need_action', message: '提交时发布页已离开，未确认结果。请先到商品审核列表核对', target, tabId: tab.id };
+      return { status: 'failed', frameRemoved: true, message: '提交前发布页已关闭或刷新，填写中断', target, tabId: tab.id };
+    }
     return { status: 'failed', message: e.message, target, tabId: tab.id };
+  }
+}
+
+// 只在点击发布之前恢复一次。从干净表单重新填写，避免继续操作已经重建的图片组件。
+async function publishInVcTab(tab, item, settings, log, target, ctx) {
+  const first = await publishOnPage(tab, item, settings, log, target, ctx);
+  if (!first.frameRemoved) return first;
+  const url = buildVcPublishUrl(target);
+  const current = await chrome.tabs.get(tab.id).catch(() => null);
+  if (current && (current.pendingUrl || current.url) !== url) return first;
+  let workTab = tab;
+  try {
+    log('提交前发布页中断，重新打开同一商品的表单并恢复填写一次');
+    if (current) await navigateTab(tab.id, url);
+    else workTab = await openWorkTab(url);
+    const result = await publishOnPage(workTab, item, settings, log, target, ctx);
+    if (workTab.id !== tab.id && !result.tabId) await closeTab(workTab.id);
+    return result;
+  } catch (e) {
+    return { status: 'failed', message: `恢复发布页失败：${e.message}`, target, tabId: workTab.id };
   }
 }
 

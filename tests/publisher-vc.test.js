@@ -602,3 +602,53 @@ test('publishVcItem: 读不到列表组件数据时退回读文字，按服务�
   const res = await publishVcItem(namedItem(), settings({ action: 'publish' }), () => {}, { imageMakers: makers, applyRetryMs: 1 });
   assert.deepEqual(res.skuIds, ['100448634999']);
 });
+
+test('方图上传期间主页面丢失：恢复表单并只提交一次', async () => {
+  let first = true;
+  const page = vcPage({
+    vcPutImages: ([input]) => {
+      if (first) {
+        first = false;
+        throw new Error('Frame with ID 0 was removed.');
+      }
+      return { ok: true, count: (input.images || input.names).length };
+    },
+    runAction: { ok: true, skuIds: ['100200300400'] },
+  });
+  installFakeChrome({ backend: page.backend });
+  const result = await publishVcItem(vcItem(), settings({ action: 'submit_on' }), () => {}, { imageMakers: makers });
+  assert.equal(result.status, 'published', result.message);
+  assert.equal(page.methods().filter((m) => m === 'vcSetFields').length, 2);
+  assert.equal(page.methods().filter((m) => m === 'runAction').length, 1);
+});
+
+test('上传时标签页消失：新开一页，第二次再中断时停止', async () => {
+  const page = vcPage({
+    vcPutImages: () => {
+      fake.tabs.clear();
+      throw new Error('Frame with ID 0 was removed.');
+    },
+  });
+  const fake = installFakeChrome({ backend: page.backend });
+  const res = await publishVcItem(vcItem(), settings({ action: 'submit_on' }), () => {}, { imageMakers: makers });
+  assert.equal(res.status, 'failed');
+  assert.match(res.message, /提交前/);
+  assert.equal(fake.ops().filter((op) => op === 'tabs.create').length, 2);
+  assert.ok(!page.methods().includes('runAction'));
+});
+
+test('已点发布后丢失主页面且没有成功凭据：保留待核对状态且不重发', async () => {
+  const page = vcPage({ runAction: () => { throw new Error('Frame with ID 0 was removed.'); } });
+  installFakeChrome({ backend: page.backend });
+  const result = await publishVcItem(vcItem(), settings({ action: 'submit_on' }), () => {}, { imageMakers: makers, landTimeoutMs: 0 });
+  assert.equal(result.status, 'need_action');
+  assert.equal(page.methods().filter((m) => m === 'runAction').length, 1);
+});
+
+test('业务繁忙失败表保留业务码和跟踪号', async () => {
+  const page = vcPage({ runAction: { ok: false, messages: ['发布商品失败：业务繁忙'], saveResponses: [JSON.stringify({ code: 201, bCode: '10001', 'dsm-trace-id': 'example' })] } });
+  installFakeChrome({ backend: page.backend });
+  const res = await publishVcItem(vcItem(), settings({ action: 'submit_on' }), () => {}, { imageMakers: makers });
+  assert.equal(res.status, 'failed');
+  assert.match(res.message, /业务繁忙.*code 201.*bCode 10001.*trace-id example/);
+});

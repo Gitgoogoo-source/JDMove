@@ -288,6 +288,8 @@ function convertSelect(attr, raw, lenient) {
  * @param {{lenient?: boolean}} [opts] lenient：源数据里确有该属性但选项对不上时，退到“其它”
  */
 function convertForAttr(attr, raw, { lenient = false } = {}) {
+  // 产地级联选择器保存地区路径，页面上无法识别直接写入的国家名。
+  if (attr.type === 'ShopAttrAddress') return null;
   if (attr.kind === 'select') return convertSelect(attr, raw, lenient);
   if (attr.kind === 'numbers') return parseNumberParts(raw, numberSegments(attr));
   if (attr.kind === 'multi') {

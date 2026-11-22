@@ -221,7 +221,7 @@
     await sleep(150);
     click(buttonByText('确定', pop));
     await sleep(300);
-    return !!trigger.value;
+    return unit ? trigger.value.replace(/\s/g, '').toLowerCase() === String(value).replace(/\s/g, '').toLowerCase() : !!trigger.value;
   }
 
   async function fillPlain(root, value, ctx) {
@@ -283,7 +283,9 @@
         done = false;
       }
       if (done) filled.push(field.label);
-      else if (field.required && !qsa('input', field.root).some((i) => i.value)) missing.push(field.label);
+      else if (ctx.quantityFields?.numbers[field.label] !== undefined || (field.required && !qsa('input', field.root).some((i) => i.value))) {
+        missing.push(field.label);
+      }
     }
     return { filled, missing };
   }
@@ -331,6 +333,7 @@
     if (!drawer) return { opened: false, confirmed: false, filled: [], missing: [], errors: ['抽屉没有打开'] };
     await sleep(500);
     const { filled, missing } = await fillFields(drawer, { values, units, desc, quantityFields });
+    if (column === 'ShopSkuAttributeCommon' && missing.length) return { opened: true, confirmed: false, filled, missing, errors: [] };
     const result = await confirm(drawer);
     return { opened: true, ...result, filled, missing };
   }

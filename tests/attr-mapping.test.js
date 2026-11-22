@@ -169,3 +169,11 @@ test('buildPropPlan: 区间按“斤”换算', () => {
   assert.equal(rangeValue('2.5斤'), 'c');
   assert.equal(rangeValue('0.5斤'), 'b');
 });
+
+test('调味油的产地级联控件不能写入推断或采集到的纯文本，选填项保持原值', () => {
+  const attr = { field: '252853', title: '产地', type: 'ShopAttrAddress', kind: 'input', options: [] };
+  for (const source of [{ title: '藤椒油' }, { params: [{ name: '产地', value: '四川' }] }]) {
+    assert.deepEqual(buildPropPlan([attr], source).values, {});
+    assert.deepEqual(buildPropPlan([{ ...attr, required: true }], source).missingRequired, ['产地']);
+  }
+});
