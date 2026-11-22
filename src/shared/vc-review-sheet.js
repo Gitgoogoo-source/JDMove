@@ -6,6 +6,7 @@ import { extractSkuIds } from './url-utils.js';
 import { normalizeHeader, parsePrice, skuFromCell } from './vc-import.js';
 import { VC_PRICE_LABELS } from './vc-plan.js';
 import { applyReviewValue, applyTemplateChoice, buildReview, currentChoice, reviewOwnValue, reviewTemplate, reviewValueError, REVIEW_FIELDS, templateChoices } from './vc-review.js';
+import { isExactTotal, skuQuantityValue } from './sku-quantity.js';
 import { attrKey, pickOption } from './vc-review-attrs.js';
 import { normalizeUpc } from './sku-attrs.js';
 import { vcTemplateAttrs, vcTemplateLabel, vcTemplateSkuAttrs } from './vc-templates.js';
@@ -176,6 +177,8 @@ function readValue(key, raw, template) {
 
 /** 属性值：下拉的要对上选项（存成选项原文），数字类的要有数字 */
 function readAttr(attr, raw) {
+  const quantity = skuQuantityValue(attr, raw);
+  if (quantity !== undefined) return quantity ? { value: quantity } : { error: `${attr.title}“${raw}”与可选单位或区间不匹配` };
   if (/MultiInputUnit/i.test(attr.type)) {
     const need = Math.max(1, (attr.options ?? []).filter((o) => o.label).length);
     return (String(raw).match(/\d+(?:\.\d+)?/g) ?? []).length >= need ? { value: raw } : { error: `${attr.title}“${raw}”要有 ${need} 个数字` };
@@ -204,7 +207,9 @@ function sameValue(key, a, b) {
 function effectiveValues(item, edits, template, settings) {
   const review = buildReview({ product: item.product, edits, settings, template });
   const attrs = new Map();
-  for (const a of [...review.props, ...review.skuAttrs]) if (!attrs.get(a.title)) attrs.set(a.title, a.value ?? '');
+  for (const a of [...review.props, ...review.skuAttrs]) {
+    if (!attrs.get(a.title) || (isExactTotal(a) && a.value)) attrs.set(a.title, a.value ?? '');
+  }
   return { fields: new Map(review.fields.map((f) => [f.key, f.value])), attrs };
 }
 
@@ -240,7 +245,10 @@ function applyRow(entry, item, edits, ctx) {
   for (const [key, raw] of Object.entries(entry.values)) {
     next = applyCell({ key, raw, current: current.fields.get(key), exported: base?.values.get(key), read: () => readValue(key, raw, template), errors }, next);
   }
-  const attrs = new Map(templateAttrs(template).map((a) => [a.title, a]));
+  const attrs = new Map();
+  for (const attr of templateAttrs(template)) {
+    if (!isExactTotal(attrs.get(attr.title) ?? {})) attrs.set(attr.title, attr);
+  }
   for (const [title, raw] of Object.entries(entry.attrs)) {
     const attr = attrs.get(title);
     if (!attr) {

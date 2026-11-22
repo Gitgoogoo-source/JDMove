@@ -148,3 +148,17 @@ test('resolveTemplateCell：和模板目录的顺序无关；只写四级类目�
   assert.equal(resolveTemplateCell(withClash, '悬挂式抽纸'), null, '两个模板都有这个四级类目');
   assert.equal(resolveTemplateCell(withClash, '抽纸 > 悬挂式抽纸'), '15908:44478');
 });
+
+test('总净含量同时有精确数值和区间时，导出和改填使用带单位的精确值', async () => {
+  const oil = item('710003', ['34884', '34885', '34890']);
+  oil.product.params = [{ name: '总净含量', value: '900mL' }, { name: '包装规格', value: '1桶' }];
+  const sheets = await readXlsxSheets(buildXlsx(reviewWorkbook({ rows: rowsOf([oil]), catalog })));
+  const sheet = sheets.find((s) => s.name.startsWith('附表1'));
+  const col = sheet.rows[0].indexOf('*SKU属性:总净含量');
+  assert.equal(sheet.rows[1][col], '900mL');
+  assert.equal(sheet.rows[1][sheet.rows[0].indexOf('*SKU属性:包装规格')], '1桶');
+  sheet.rows[1][col] = '1.5L';
+  const book = parseReviewBook(sheets);
+  const plan = planReviewImport(book.entries, { items: [oil], drafts: new Map(), catalog, settings, base: book.base });
+  assert.equal(plan.updates[0].edits.attrOverrides['总净含量'], '1.5L');
+});

@@ -7,6 +7,7 @@
 // 导出之后在插件里改的内容、重新采集到的数据不会被这份旧表冲掉）。读回见 vc-review-sheet.js
 import { issueLabels, REVIEW_FIELDS, templateChoices } from './vc-review.js';
 import { HEAD, attrFormat, sheetLabel, templateAttrs, templateCell } from './vc-review-sheet.js';
+import { isExactTotal } from './sku-quantity.js';
 import { attrKey } from './vc-review-attrs.js';
 import { vcTemplateLeafLabel } from './vc-templates.js';
 import { safeSheetNames } from './xlsx-write.js';
@@ -56,7 +57,8 @@ function fieldCell(f) {
 /** 属性格子：同名属性取第一个有值的；SKU属性不填写（设置里关了）时不标颜色 */
 function attrCell(review, title) {
   const cands = [...review.props.filter((a) => a.title === title).map((a) => ({ a, sku: false })), ...review.skuAttrs.filter((a) => a.title === title).map((a) => ({ a, sku: true }))];
-  const value = cands.find((c) => c.a.value)?.a.value ?? '';
+  const exact = cands.find((c) => c.a.value && isExactTotal(c.a));
+  const value = (exact ?? cands.find((c) => c.a.value))?.a.value ?? '';
   const fills = cands.filter((c) => !c.sku || review.skuAttrsOn).map((c) => ATTR_FILL[c.a.state] ?? null);
   return { value, fill: worst(fills) };
 }

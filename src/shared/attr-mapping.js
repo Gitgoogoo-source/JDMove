@@ -107,6 +107,11 @@ function optionRange(label) {
     const top = amountOf(high, highUnit);
     return { group: top.group, min: amountOf(low, lowUnit ?? highUnit).amount, max: top.amount };
   }
+  const bound = text.match(new RegExp(`^([<>])${NUM_PATTERN}${AMOUNT_UNIT_PATTERN}$`));
+  if (bound) {
+    const { group, amount } = amountOf(bound[2], bound[3]);
+    return bound[1] === '>' ? { group, min: amount, max: Infinity, exclusiveMin: true } : { group, min: 0, max: amount, exclusiveMax: true };
+  }
   const open = text.match(OPEN_ENDED_RE);
   if (!open) return null;
   const { group, amount } = amountOf(open[1], open[2]);
@@ -117,13 +122,15 @@ function optionRange(label) {
  * 选项是数量区间时，按数值找 raw 所在的区间。不用相似度匹配：700g 和 201-500g 文字相近，但数量不对
  * @returns {{label: string, value: string}|null|undefined} 选项不是区间时为 undefined；是区间但落不进任何一个时为 null
  */
-function rangeOption(options, raw) {
+export function rangeOption(options, raw) {
   const ranged = options.map((option) => ({ option, range: optionRange(option.label) })).filter((x) => x.range);
   if (ranged.length < MIN_RANGE_OPTIONS) return undefined;
   const m = toHalfWidth(raw ?? '').toLowerCase().match(AMOUNT_RE);
   if (!m) return null;
   const { group, amount } = amountOf(m[1], m[2]);
-  const hit = ranged.find(({ range }) => range.group === group && amount >= range.min && amount <= range.max);
+  const hit = ranged.find(({ range }) => range.group === group
+    && (range.exclusiveMin ? amount > range.min : amount >= range.min)
+    && (range.exclusiveMax ? amount < range.max : amount <= range.max));
   return hit ? hit.option : null;
 }
 

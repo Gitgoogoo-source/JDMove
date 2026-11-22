@@ -18,14 +18,14 @@ export const fiber = (value, { child = null, sibling = null } = {}) => ({
  * 加载采集脚本的假商品页，返回页面里的 window.__JDMOVE__
  * @param {{url?: string, tree?: object|null}} page url：商品页地址（决定域名）；tree：React 根 fiber
  */
-export function loadItemPage({ url = 'https://item.jd.com/100200187696.html', tree = null } = {}) {
+export function loadItemPage({ url = 'https://item.jd.com/100200187696.html', tree = null, dom = null } = {}) {
   const u = new URL(url);
   const root = tree ? { __reactContainer$test: tree } : {};
   const document = {
     title: '商品-京东',
     getElementById: (id) => (id === 'root' ? root : null),
-    querySelector: () => null,
-    querySelectorAll: () => [],
+    querySelector: (sel) => dom?.querySelector(sel) ?? null,
+    querySelectorAll: (sel) => dom?.querySelectorAll(sel) ?? [],
     documentElement: { scrollHeight: 0 },
   };
   const ctx = {

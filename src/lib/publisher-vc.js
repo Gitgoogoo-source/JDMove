@@ -163,7 +163,7 @@ async function fillSku(tabId, plan, settings, log, timer) {
   log(`SKU 商品名称：${plan.sku.name}`);
   if (row.upcNotice) log(`商品条形码 ${plan.sku.upc}：${row.upcNotice}`);
   if (settings.publish.fillSkuAttrs) {
-    const attrs = await callVcBackend(tabId, 'vcFillSkuAttrs', ctx);
+    const attrs = await callVcBackend(tabId, 'vcFillSkuAttrs', { ...ctx, quantityFields: plan.skuQuantityFields });
     timer.lap('SKU属性');
     if (!attrs?.confirmed) {
       return stop('need_action', `SKU属性没有填好（${drawerNote(attrs) || '抽屉没有关上'}），请在「编辑 → 属性覆盖」中补充后重新发布`);

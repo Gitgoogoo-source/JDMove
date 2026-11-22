@@ -199,14 +199,24 @@
   }
 
   /** 只读框点开是数字弹层（纸张尺寸：长、宽），按顺序填文本里的数字，再点弹层里的“确定” */
-  async function fillNumberPopover(root, value) {
+  async function fillNumberPopover(root, value, unit = '') {
     const nums = allNumbers(value);
-    const trigger = qsa('input', root).find((i) => i.readOnly);
+    const trigger = qsa('input', root).find((i) => i.readOnly && !i.closest('.jd-select, .jd-select-v2'));
     if (!trigger || !nums.length) return false;
     click(trigger);
     const pop = await waitFor(() => qsa('.jd-popper').find((p) => visible(p) && buttonByText('确定', p) && editable(p)), { timeout: 3000 });
     if (!pop) return false;
-    const inputs = qsa('input.jd-input__inner', pop).filter((i) => !i.readOnly && visible(i));
+    if (unit) {
+      const classic = pop.querySelector('.jd-select');
+      const v2 = pop.querySelector('.jd-select-v2');
+      const fixed = textOf(pop.querySelector('.jd-input-group__append'));
+      const selected = classic ? await pickClassic(classic, [unit]) : v2 ? await fillSelectV2(pop, unit) : fixed === unit;
+      if (!selected) {
+        click(trigger);
+        return false;
+      }
+    }
+    const inputs = qsa('input.jd-input__inner', pop).filter((i) => !i.readOnly && !i.closest('.jd-select, .jd-select-v2') && visible(i));
     inputs.forEach((input, i) => nums[i] != null && commitInput(input, nums[i]));
     await sleep(150);
     click(buttonByText('确定', pop));
@@ -242,15 +252,20 @@
 
   async function fillField({ root, label }, ctx) {
     const value = plannedValue(label, ctx.values);
+    const number = ctx.quantityFields?.numbers[label];
+    const selection = ctx.quantityFields?.select[label] ?? value;
+    if (number !== undefined && qsa('input', root).some((i) => i.readOnly && !i.closest('.jd-select, .jd-select-v2'))) {
+      return !!number && fillNumberPopover(root, number, unitOfValue(number));
+    }
     if (root.querySelector('.sale-base-group')) return fillGroup(root, value, ctx);
-    if (root.querySelector('.sale-number-units')) return fillNumberUnit(root.querySelector('.sale-number-units'), value, ctx);
+    if (root.querySelector('.sale-number-units')) return number === '' ? false : fillNumberUnit(root.querySelector('.sale-number-units'), number ?? value, ctx);
     // 规格描述（【王牌爆款】）只写进“产品描述”，备注这类说明框不拿它填
     if (root.querySelector('.sale-custom-notes')) return fillText(root, value != null ? value : REMARK_RE.test(label) ? null : ctx.desc);
     if (root.querySelector('.sale-structured-template')) return fillTemplate(root, value);
-    if (root.querySelector('.jd-select-v2')) return fillSelectV2(root, value);
-    if (root.querySelector('.jd-select')) return fillClassic(root, value);
+    if (root.querySelector('.jd-select-v2')) return fillSelectV2(root, selection);
+    if (root.querySelector('.jd-select')) return fillClassic(root, selection);
     if (qsa('input', root).some((i) => i.readOnly)) return fillNumberPopover(root, value);
-    return fillPlain(root, value, ctx);
+    return fillPlain(root, number ?? value, ctx);
   }
 
   const REMARK_RE = /备注/;
@@ -303,7 +318,7 @@
    * @param {'SaleDrawer'|'ShopSkuAttributeCommon'} column
    * @param {{rowIndex?: number, values?: Record<string, string>, units?: Record<string, string>, desc?: string}} plan
    */
-  async function fillRowDrawer(column, { rowIndex = 0, values = {}, units = {}, desc = '' }) {
+  async function fillRowDrawer(column, { rowIndex = 0, values = {}, units = {}, desc = '', quantityFields }) {
     const tr = vcSkuRows()[rowIndex];
     const trigger = tr && cellOf(tr, column);
     const tile = !trigger && tr && column === 'SaleDrawer' ? tr.querySelector('.sale-dimension-container .sale-tile') : null;
@@ -315,7 +330,7 @@
     const drawer = await waitFor(() => qsa('.jd-drawer').find((d) => visible(d) && !before.has(d)), { timeout: 5000 });
     if (!drawer) return { opened: false, confirmed: false, filled: [], missing: [], errors: ['抽屉没有打开'] };
     await sleep(500);
-    const { filled, missing } = await fillFields(drawer, { values, units, desc });
+    const { filled, missing } = await fillFields(drawer, { values, units, desc, quantityFields });
     const result = await confirm(drawer);
     return { opened: true, ...result, filled, missing };
   }

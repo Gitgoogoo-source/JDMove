@@ -3,6 +3,7 @@ import { normalizeName, toHalfWidth } from './text.js';
 import { parsePrice } from './pricing.js';
 import { toOriginalImageUrl, jfsPathOf } from './url-utils.js';
 import { productUpc } from './sku-attrs.js';
+import { withPackListParams } from './pack-list.js';
 import { vcSourceInfo } from './vc-source.js';
 
 const NOISE_PARAMS = new Set(['商品编号', '店铺', '店铺名称'].map(normalizeName));
@@ -141,7 +142,7 @@ export function normalizeProduct(raw = {}, opts = {}) {
   // 面包屑最后一级通常是品牌，倒数第二级才是叶子类目
   const leafIdx = brandName && crumbs.length > 1 && sameBrand(crumbs.at(-1), brandName) ? -2 : -1;
 
-  return {
+  return withPackListParams({
     skuId,
     url: str(raw.url),
     title,
@@ -163,7 +164,7 @@ export function normalizeProduct(raw = {}, opts = {}) {
     upc: productUpc({ upc: raw.wareInfo?.upc_code, skuId, variants: allDims.variants }),
     // VC 自营发布用：四级类目、品牌 ID、型号、包装长宽高、毛重、质保（商品主数据里的值）
     vc: vcSourceInfo(raw.wareInfo),
-  };
+  });
 }
 
 // 采集时详情区的加载状态（jd-detail.js 的 classifyDetail）对应的提示：发布时缺少详情图会被拦下

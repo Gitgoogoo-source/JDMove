@@ -11,7 +11,8 @@ import { parseSpecText, quantitiesByUnit } from './vc-spec.js';
 import { vcFormEntries, vcWeightKg } from './vc-form-values.js';
 import { ERP_LABELS, vcErpCodes } from './vc-erp.js';
 import { vcSourceFields } from './vc-source.js';
-import { vcTemplateAttrs, vcTemplateLimits } from './vc-templates.js';
+import { skuQuantityFields } from './sku-quantity.js';
+import { vcTemplateAttrs, vcTemplateLimits, vcTemplateSkuAttrs } from './vc-templates.js';
 
 export { vcWeightKg };
 
@@ -351,6 +352,7 @@ export function buildVcPublishPlan({ product, edits = {}, settings, schema, temp
   // VC 不用默认 UPC：同一个条码填到所有商品上会被判重码，入仓还要贴码
   const upc = normalizeUpc(edits.upc) || productUpc(product);
   const { mainImageUrls, detailImageUrls } = publishImagePlan({ product, edits, settings });
+  const skuAttrValues = skuAttrValueMap({ params: product.params ?? [], defaults: attrDefaults, overrides });
   const model = vcField(product, edits, 'model');
   const logistics = logisticsOf(product, edits, settings, source, unit.unit);
   const form = vcFormEntries({ model, prices, logistics }, vcTemplateLimits(template));
@@ -368,7 +370,8 @@ export function buildVcPublishPlan({ product, edits = {}, settings, schema, temp
     props,
     images: { mainImageUrls, detailImageUrls, transparentUrl: mainImageUrls[0] ?? null, aiRecUrl: mainImageUrls[0] ?? null },
     sku: { name: skuName(title, spec), spec, upc },
-    skuAttrValues: skuAttrValueMap({ params: product.params ?? [], defaults: attrDefaults, overrides }),
+    skuAttrValues,
+    skuQuantityFields: skuQuantityFields(vcTemplateSkuAttrs(template), skuAttrValues),
     skuAttrUnits: quantitiesByUnit(spec.quantities),
     // 源商品的危险品标记（true/false/null）：页面选项结构没走查过，只提醒不填写
     dangerGoods: product.vc?.dangerGoods ?? null,

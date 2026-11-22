@@ -156,6 +156,11 @@
   // 参数：li "名称：值"、dl dt/dd、table th/td 多种结构
   function params() {
     const pairs = [];
+    // 新版规格参数：高亮卡片是“值、名称”，普通行是“名称、值”。
+    for (const row of qsa('.highlight-attrs .item, .attrs .item')) {
+      const name = text(row.querySelector('.desc .text, .label'));
+      if (name && name !== '包装清单') pairs.push([name, text(row.querySelector('.title, .value'))]);
+    }
     const roots = qsa(
       '#detail, .p-parameter, .parameter2, .Ptable, #parameter2, [class*="param"], [class*="Param"], [class*="spec-list"], [class*="specification"]',
     );
@@ -230,7 +235,7 @@
   }
 
   // 新版商品详情的参数区里，“包装清单”单独占一行（.item.exclusive-row，div.label + div.value），
-  // params() 认不出这种结构；旧版页面是 .package-list 段落
+  // 单独保存到 packList；旧版页面是 .package-list 段落
   const PACK_LIST_LABEL = '包装清单';
   function packListText() {
     for (const row of qsa('.item.exclusive-row, [class*="attrs"] .item')) {

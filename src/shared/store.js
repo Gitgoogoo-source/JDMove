@@ -1,5 +1,6 @@
 // 数据仓储：任务条目 + 设置。存储后端通过 adapter 注入，方便测试。
 import { buildItemUrl, isB2bItemUrl } from './url-utils.js';
+import { withPackListParams } from './pack-list.js';
 import { mergeSettings } from './settings.js';
 
 const ITEMS_KEY = 'items';
@@ -166,7 +167,13 @@ export function createItemRepository(storage) {
     chain = run.catch(() => undefined);
     return run;
   };
-  const load = async () => (await storage.get(ITEMS_KEY)) ?? [];
+  const load = async () => {
+    const items = (await storage.get(ITEMS_KEY)) ?? [];
+    return items.map((item) => {
+      const product = withPackListParams(item.product);
+      return product === item.product ? item : { ...item, product };
+    });
+  };
   const persist = (items) => storage.set(ITEMS_KEY, items);
   const loadPublished = async () => (await storage.get(PUBLISHED_KEY)) ?? {};
   // 记进已发布记录（已有的保留原来的时间）：上架表批次进度按它数“已发布”

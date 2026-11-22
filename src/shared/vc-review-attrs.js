@@ -1,25 +1,20 @@
 // 发布前检查里的属性（纯函数）：上架模板的商品属性、SKU属性，每一项发布时会填什么、从哪来、缺不缺。
 // 商品属性用发布流程同一套匹配（buildPropPlan 的结果）；SKU属性在发布页的抽屉里按标签名取值，
 // 这里照抄抽屉脚本（src/inject/backend-vc-drawer.js 的 plannedValue / pickText / 各控件取数）的规则，结果和发布时一致
+import { normSkuLabel as norm, plannedKey } from './sku-attrs.js';
+import { skuQuantityValue } from './sku-quantity.js';
 import { BUILTIN_ATTR_DEFAULTS } from './vc-plan.js';
 import { parseAttrDefaults } from './settings.js';
 import { formatNumberParts, numberSegments } from './attr-numbers.js';
+
+export { plannedKey };
 
 /** 属性在编辑里的存法：attrOverrides[属性名]；弹窗里的键是 attr:属性名 */
 export const ATTR_KEY_PREFIX = 'attr:';
 export const attrKey = (title) => `${ATTR_KEY_PREFIX}${title}`;
 
-// 和发布页脚本的 norm（backend-core.js）相同：去掉空白和常见标点，英文小写
-const norm = (s) => String(s ?? '').toLowerCase().replace(/[\s:：,，()（）[\]【】*＊/、\-_.]/g, '');
 const NUMBER_RE = /\d+(?:\.\d+)?/g;
 const numbersOf = (v) => String(v ?? '').match(NUMBER_RE) ?? [];
-
-/** 抽屉按标签名找值：完全相同优先，否则互相包含（至少 2 个字）；返回命中的键 */
-export function plannedKey(label, values) {
-  const want = norm(label);
-  const keys = Object.keys(values ?? {});
-  return keys.find((k) => norm(k) === want) ?? keys.find((k) => norm(k).length >= 2 && (want.includes(norm(k)) || norm(k).includes(want))) ?? null;
-}
 
 /** 下拉选项：文字相同优先，否则互相包含 */
 export function pickOption(labels, value) {
@@ -41,6 +36,15 @@ const missing = (attr, note = '') => ({ value: '', from: '', state: attr.require
 
 /** SKU属性：抽屉里每种控件怎么取值（下拉要能对上选项、带单位的输入框只填数字、长×宽要有两个数） */
 function skuValue(attr, raw, units) {
+  const quantity = skuQuantityValue(attr, raw);
+  if (quantity !== undefined) {
+    if (quantity) return { value: quantity };
+    // 件数已知但容器未知时，检查表保留该件数并标红，供核对后补单位。
+    if (attr.title === '包装规格' && /^\d+件$/.test(raw)) {
+      return { value: raw, bad: `清单只标明 ${raw}，请核对包装单位（${attr.segments?.[0]?.units?.join('、') || '见类目选项'}）` };
+    }
+    return { bad: `“${raw}”与可选单位或区间不匹配` };
+  }
   if (isMultiNumber(attr)) {
     const nums = numbersOf(raw);
     if (nums.length >= partsOf(attr)) return { value: nums.slice(0, partsOf(attr)).join(' × ') + (attr.suffix || '') };
@@ -104,7 +108,7 @@ export function reviewSkuAttrs(attrs, { sources, units = {}, upcValues = {} }) {
     const got = skuValue(attr, raw, units);
     const base = { key: attrKey(attr.title), id: `sku:${attr.field}`, title: attr.title, required: attr.required, kind: attr.kind, options: optionLabels(attr), suffix: attr.suffix, own: String(sources.overrides[attr.title] ?? '') };
     if (!got) return { ...base, ...missing(attr, attr.required ? '源商品没有这个参数' : '') };
-    if (got.bad) return { ...base, value: '', from: key ? sourceLabel(key, sources) : '', state: badState(attr, base.own), note: `${got.bad}，发布时填不上` };
+    if (got.bad) return { ...base, value: got.value ?? '', from: key ? sourceLabel(key, sources) : '', state: badState(attr, base.own), note: `${got.bad}，发布时填不上` };
     return { ...base, ...ok(got.value, got.fromSpec ? '规格' : sourceLabel(key, sources)), note: '' };
   });
 }

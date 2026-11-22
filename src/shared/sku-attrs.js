@@ -44,6 +44,16 @@ export function productUpc(product) {
   return codes.find((code) => code && !skuIds.includes(code)) ?? '';
 }
 
+// 和发布页脚本的 norm（backend-core.js）相同：去掉空白和常见标点，英文小写
+export const normSkuLabel = (s) => String(s ?? '').toLowerCase().replace(/[\s:：,，()（）[\]【】*＊/、\-_.]/g, '');
+
+/** 抽屉按标签名找值：完全相同优先，否则互相包含（至少 2 个字）；返回命中的键 */
+export function plannedKey(label, values) {
+  const want = normSkuLabel(label);
+  const keys = Object.keys(values ?? {});
+  return keys.find((k) => normSkuLabel(k) === want) ?? keys.find((k) => normSkuLabel(k).length >= 2 && (want.includes(normSkuLabel(k)) || normSkuLabel(k).includes(want))) ?? null;
+}
+
 const fill = (labels, value) => Object.fromEntries(labels.map((l) => [l, value]));
 
 /**

@@ -59,13 +59,13 @@ function load(page) {
     },
     setNativeValue: (n, v) => (n.value = v),
     click: (n) => n.click(),
-    buttonByText: () => null,
+    buttonByText: (label, root) => root.querySelectorAll('button').find((b) => b.textContent === label),
   };
   const backend = {
     __vc: true,
     util,
     mediaUtil: { commitInput: (n, v) => (n.value = v) },
-    vcUtil: { vcSkuRows: () => [page.tr], cellOf: () => null },
+    vcUtil: { vcSkuRows: () => [page.tr], cellOf: () => page.drawerTrigger ?? null },
   };
   class Ev {}
   vm.runInNewContext(SRC, { window: { __JDMOVE__: { backend } }, document: page.body, MouseEvent: Ev, KeyboardEvent: Ev });
@@ -104,4 +104,35 @@ test('vcFillSpec：既没有抽屉也没有行内规格时报“找不到单元�
   const res = await load(page).vcFillSpec(WET_WIPE_PLAN);
   assert.equal(res.opened, false);
   assert.deepEqual([...res.errors], ['找不到单元格']);
+});
+
+test('SKU抽屉的总净含量区间和精确数值分别填写，包装规格切换到实际容器', async () => {
+  const field = (title, control) => el('div.shop-dynamic-component', {}, [
+    el('div.shop-dynamic-component-title.is-required-star', { ownText: title }), control,
+  ]);
+  const volume = el('div.sale-number-units', {}, [input('输入数值'), unitSelect(['mL', 'L'])]);
+  const ranges = unitSelect(['0-1L', '1.01-3L']);
+  const pack = input('请设置', { readOnly: true });
+  const count = input('输入数值');
+  const containerUnit = unitSelect(['瓶', '桶']);
+  containerUnit.querySelector('input').value = '瓶';
+  const pop = el('div.jd-popper', { shown: false }, [count, containerUnit, el('button', {
+    ownText: '确定', onClick: () => { pack.value = count.value + containerUnit.querySelector('input').value; pop.shown = false; },
+  })]);
+  pack.onClick = () => { pop.shown = !pop.shown; };
+  const drawer = el('div.jd-drawer', { shown: false }, [
+    field('总净含量', ranges), field('包装规格', pack), field('总净含量', volume),
+    el('button', { ownText: '确定', onClick: () => { drawer.shown = false; } }),
+  ]);
+  const drawerTrigger = el('button', { onClick: () => { drawer.shown = true; } });
+  const tr = el('tr', {}, [el('td', {}, [drawerTrigger])]);
+  const body = el('body', {}, [tr, drawer, pop]);
+  const values = { 总净含量: '900mL', 包装规格: '1桶' };
+  const res = await load({ body, tr, drawerTrigger }).vcFillSkuAttrs({
+    values, quantityFields: { select: { 总净含量: '0-1L' }, numbers: values },
+  });
+  assert.equal(res.confirmed, true);
+  assert.equal(ranges.querySelector('input').value, '0-1L');
+  assert.equal(pack.value, '1桶');
+  assert.deepEqual(volume.querySelectorAll('input').map((i) => i.value), ['900', 'mL']);
 });
