@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-11-09",
+  "updatedAt": "2026-11-22",
   "templates": [
     {
       "categoryId": "37038",
@@ -193,6 +193,28 @@
         "36139"
       ],
       "file": "36139.json"
+    },
+    {
+      "categoryId": "47728",
+      "categoryName": "稻米油",
+      "path": "粮油调味 > 食用油 > 稻米油",
+      "isLeaf": true,
+      "publishCategoryId": "47728",
+      "leafIds": [
+        "47728"
+      ],
+      "file": "47728.json"
+    },
+    {
+      "categoryId": "47729",
+      "categoryName": "亚麻籽油/火麻油",
+      "path": "粮油调味 > 食用油 > 亚麻籽油/火麻油",
+      "isLeaf": true,
+      "publishCategoryId": "47729",
+      "leafIds": [
+        "47729"
+      ],
+      "file": "47729.json"
     },
     {
       "categoryId": "34896",
@@ -887,6 +909,44 @@
         "36236"
       ],
       "file": "36236.json"
+    },
+    {
+      "categoryId": "36355",
+      "categoryName": "传统挂面",
+      "path": "粮油调味 > 挂面 > 传统挂面",
+      "isLeaf": true,
+      "publishCategoryId": "36355",
+      "leafIds": [
+        "36355"
+      ],
+      "file": "36355.json"
+    },
+    {
+      "categoryId": "34898",
+      "categoryName": "通用粉",
+      "path": "粮油调味 > 面粉 > 通用粉",
+      "isLeaf": false,
+      "publishCategoryId": "34900",
+      "leafIds": [
+        "34899",
+        "34901",
+        "34900"
+      ],
+      "file": "34898.json"
+    },
+    {
+      "categoryId": "34902",
+      "categoryName": "专用粉",
+      "path": "粮油调味 > 面粉 > 专用粉",
+      "isLeaf": false,
+      "publishCategoryId": "34905",
+      "leafIds": [
+        "34905",
+        "34904",
+        "34903",
+        "35517"
+      ],
+      "file": "34902.json"
     },
     {
       "categoryId": "5000",

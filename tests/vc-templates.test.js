@@ -8,9 +8,9 @@ import { mergeSettings } from '../src/shared/settings.js';
 const read = (f) => JSON.parse(fs.readFileSync(new URL(`../templates/vc/${f}`, import.meta.url), 'utf8'));
 const index = read('index.json');
 
-test('店铺可发布的 307 个三级类目都有模板，文件齐全、四级类目都列出', () => {
-  assert.equal(index.templates.length, 307);
-  assert.equal(new Set(index.templates.map((e) => e.categoryId)).size, 307);
+test('模板目录覆盖 312 个三级类目，文件齐全、四级类目都列出', () => {
+  assert.equal(index.templates.length, 312);
+  assert.equal(new Set(index.templates.map((e) => e.categoryId)).size, index.templates.length);
   const roots = new Set(index.templates.map((e) => e.path.split(' > ')[0]));
   assert.deepEqual([...roots].sort(), ['个人护理', '休闲食品', '家庭清洁/纸品', '母婴', '水饮冲调', '粮油调味'].sort());
   for (const e of index.templates) {
