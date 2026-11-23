@@ -5,12 +5,12 @@ import { buildXlsx } from '../src/shared/xlsx-write.js';
 import { readXlsxSheets } from '../src/shared/xlsx-read.js';
 import { readZipEntries } from '../src/shared/zip.js';
 
-test('采集数据表保留源价格、三级类目、SKU 和对应的京东商品链接，缺失字段留空', async () => {
+test('采集数据表保留源价格、三级类目、SKU、京东商品链接和采集到的 UPC，缺失字段留空', async () => {
   const bytes = buildXlsx([collectedProductsSheet([
     {
       skuId: '00012345678901234567',
-      product: { title: '采集标题', price: 149.9, crumbs: ['粮油调味', '食用油', '花生油', '品牌'] },
-      edits: { title: '胡姬花花生油', vc: { jdPrice: 168 }, cateName: '目标类目' },
+      product: { title: '采集标题', price: 149.9, crumbs: ['粮油调味', '食用油', '花生油', '品牌'], upc: '036000291452' },
+      edits: { title: '胡姬花花生油', vc: { jdPrice: 168 }, cateName: '目标类目', upc: '6914973609563' },
     },
     {
       skuId: '1234567',
@@ -18,15 +18,22 @@ test('采集数据表保留源价格、三级类目、SKU 和对应的京东商�
       product: { title: '暂无报价的商品' },
       edits: { vc: { jdPrice: 39 } },
     },
+    {
+      skuId: '100229520979',
+      product: { title: '未登记条形码的商品', upc: '0000000000000;100229520979' },
+    },
   ])]);
   const [sheet] = await readXlsxSheets(bytes);
   assert.equal(sheet.name, '采集数据');
   assert.deepEqual(sheet.rows, [
-    ['商品名称', '京东自营价格', '一二三级类目', 'sku编码', '京东自营链接'],
-    ['胡姬花花生油', '149.9', '粮油调味 > 食用油 > 花生油', '00012345678901234567', 'https://item.jd.com/00012345678901234567.html'],
+    ['商品名称', '京东自营价格', '一二三级类目', 'sku编码', '京东自营链接', '商品UPC/69码'],
+    ['胡姬花花生油', '149.9', '粮油调味 > 食用油 > 花生油', '00012345678901234567', 'https://item.jd.com/00012345678901234567.html', '036000291452'],
     ['暂无报价的商品', '', '', '1234567', 'https://item.jd.com/1234567.html'],
+    ['未登记条形码的商品', '', '', '100229520979', 'https://item.jd.com/100229520979.html'],
   ]);
   const xml = new TextDecoder().decode(readZipEntries(bytes).get('xl/worksheets/sheet1.xml').data);
   assert.match(xml, /<c r="B2"><v>149\.9<\/v><\/c>/);
   assert.match(xml, /<c r="D2" s="2" t="inlineStr">/);
+  assert.match(xml, /<c r="F2" s="2" t="inlineStr">/);
+  assert.doesNotMatch(xml, /<c r="F[34]"/);
 });

@@ -1,6 +1,7 @@
+import { productUpc } from './sku-attrs.js';
 import { buildItemUrl } from './url-utils.js';
 
-const HEADER = ['商品名称', '京东自营价格', '一二三级类目', 'sku编码', '京东自营链接'];
+const HEADER = ['商品名称', '京东自营价格', '一二三级类目', 'sku编码', '京东自营链接', '商品UPC/69码'];
 
 /**
  * @param {import('./store.js').Item[]} items 已采集的任务
@@ -16,7 +17,8 @@ export function collectedProductsSheet(items) {
       product.crumbs?.slice(0, 3).join(' > ') ?? '',
       sku,
       sku ? buildItemUrl(sku) : '',
+      productUpc({ upc: product.upc, skuId: product.skuId ?? sku, variants: product.variants }),
     ];
   });
-  return { name: '采集数据', rows: [HEADER, ...rows], widths: [76, 18, 48, 24, 50], textColumns: [3] };
+  return { name: '采集数据', rows: [HEADER, ...rows], widths: [76, 18, 48, 24, 50, 20], textColumns: [3, 5] };
 }
