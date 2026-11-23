@@ -23,6 +23,8 @@ import { cooldownNotice } from '../shared/publish-throttle.js';
 import { BATCHES_KEY } from '../shared/batch.js';
 import { MASTER_KEY } from '../shared/master-store.js';
 import { LISTING_TEMPLATE_NAME, listingTemplateXlsx } from '../shared/listing-template.js';
+import { collectedProductsSheet } from '../shared/collected-products-sheet.js';
+import { buildXlsx } from '../shared/xlsx-write.js';
 
 const MAX_LOG = 400;
 let items = [];
@@ -367,6 +369,21 @@ function handleExport() {
   appendLog(`已导出 ${chosen.length} 条`);
 }
 
+function handleExportXlsx() {
+  const chosen = visibleItems().filter((item) => selected.has(item.id));
+  if (!chosen.length) return appendLog('请先在当前列表勾选要导出为表格的商品');
+  const collected = chosen.filter((item) => item.product);
+  if (!collected.length) return appendLog('勾选的商品还没有采集数据，请先采集');
+  try {
+    const name = `采集数据-${Date.now()}.xlsx`;
+    downloadBytes(buildXlsx([collectedProductsSheet(collected)]), name);
+    const skipped = chosen.length - collected.length;
+    appendLog(`已导出 ${collected.length} 条采集数据为表格${skipped ? `，跳过 ${skipped} 条没有采集数据的商品` : ''}`);
+  } catch (e) {
+    appendLog(`导出采集数据表格失败：${e.message}`);
+  }
+}
+
 async function handleImport(file) {
   try {
     const data = JSON.parse(await file.text());
@@ -381,6 +398,7 @@ async function handleImport(file) {
 
 function bind() {
   $('#btnExport').addEventListener('click', handleExport);
+  $('#btnExportXlsx').addEventListener('click', handleExportXlsx);
   $('#btnImport').addEventListener('click', () => $('#importFile').click());
   $('#importFile').addEventListener('change', (e) => {
     const file = e.target.files?.[0];
