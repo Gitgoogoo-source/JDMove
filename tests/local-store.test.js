@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { saveItemToFolder, removeItemFolder } from '../src/lib/local-store.js';
+import { findCollectedItems, saveItemToFolder, removeItemFolder } from '../src/lib/local-store.js';
 import { fakeDir } from './helpers/fake-fs.js';
 
 const product = {
@@ -16,6 +16,22 @@ const item = { id: '100012345678', skuId: '100012345678', product, edits: {} };
 
 const fakeFetch = async (url) =>
   url.includes('broken') ? { ok: false, status: 404 } : { ok: true, blob: async () => `bytes:${url}` };
+
+test('findCollectedItems reads only requested source SKUs and ignores corrupt archives', async () => {
+  const root = fakeDir();
+  const archived = { ...item, product: { ...product, skuId: '100000000002' }, edits: { vc: { marketPrice: 30 } } };
+  const saved = await saveItemToFolder(root, archived, { fetchImpl: fakeFetch });
+  const corrupt = await (await root.getDirectoryHandle('另一个品牌', { create: true })).getDirectoryHandle('100000000003', { create: true });
+  const info = await corrupt.getFileHandle('商品信息.json', { create: true });
+  await (await info.createWritable()).write('broken json');
+
+  const result = await findCollectedItems(root, ['100000000002', '100000000003', '100000000004', archived.skuId]);
+  assert.deepEqual(result.items.map(({ skuId, product, edits, local }) => ({ skuId, product, edits, dir: local.dir })), [
+    { skuId: archived.skuId, product: archived.product, edits: archived.edits, dir: saved.dir },
+  ]);
+  assert.deepEqual(result.unreadable, ['100000000003']);
+  assert.deepEqual(await findCollectedItems(root, ['100000000004']), { items: [], unreadable: [] });
+});
 
 test('saveItemToFolder writes images and info into brand/sku', async () => {
   const root = fakeDir();

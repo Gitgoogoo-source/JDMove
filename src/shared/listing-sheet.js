@@ -168,7 +168,7 @@ export function parseListingBook(sheets) {
 
 /**
  * 上架表里的值写进商品的编辑内容（给 itemRepo.saveEditsMany）：价格/协议价/ERP/型号 → VC 自营，条形码 → UPC；
- * 表格里填了的覆盖原来的（发布成功的商品已经移出任务列表，不会被改到）
+ * 表格里填写的值覆盖当前任务中的对应字段。
  * @param {ListingValues} values
  * @returns {(edits: object) => object}
  */

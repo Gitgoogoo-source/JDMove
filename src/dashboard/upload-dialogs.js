@@ -1,4 +1,4 @@
-// 「上传表格」的两个确认弹窗：上架表（加入任务列表并采集）、发布前检查表（保存修改并发布齐全的商品）
+// 「上传表格」的确认弹窗：采集缺少数据的商品，或保存发布前检查表的修改并发布。
 import { h, openDialog } from './dom.js';
 
 const LIST_MAX = 200;
@@ -27,42 +27,25 @@ function dialogShell(title, body, buttons) {
   );
 }
 
-/** 上架表里的链接和任务列表对照：新加入 / 已在列表（已采集的直接用） */
-function listingStats(parsed, items) {
-  const byId = new Map(items.map((i) => [i.id, i]));
-  const known = parsed.links.map((l) => byId.get(l.skuId)).filter(Boolean);
-  return { fresh: parsed.links.length - known.length, existing: known.length, collected: known.filter((i) => i.product).length };
-}
-
-/**
- * 上架表预览：读到多少个链接、哪些已在任务列表、哪些行有问题；确认后加入任务列表并开始采集
- * @param {{fileName: string, parsed: ReturnType<typeof import('../shared/listing-sheet.js').parseListingBook>, items: object[]}} input
- * @returns {Promise<{recollect: boolean}|null>}
- */
-export async function confirmListingUpload({ fileName, parsed, items }) {
-  const st = listingStats(parsed, items);
-  const recollect = h('input', { type: 'checkbox' });
+/** 列出上架表里缺少采集记录的商品，确认后才开始采集。 */
+export async function confirmMissingCollection({ fileName, parsed, missing, notes }) {
   const noLinkRows = parsed.noLink.slice(0, ROWS_SHOWN).map(whereText).join('、');
-  const lines = [
-    `新加入任务列表：${st.fresh} 个（以前发布过的也会加入，可以再次上架）`,
-    st.existing ? `已在任务列表：${st.existing} 个，其中已采集 ${st.collected} 个（直接用已有的数据，不重新采集）` : '',
-    parsed.values.length ? `${parsed.values.length} 个商品带了价格 / 协议价 / ERP / 条形码 / 型号，会写进它们的「编辑」` : '',
-    parsed.noLink.length ? `参考链接为空的行：${parsed.noLink.length} 行（${noLinkRows}${parsed.noLink.length > ROWS_SHOWN ? '…' : ''}），不加入` : '',
-  ].filter(Boolean);
-  const ok = h('button', { value: 'ok', class: 'primary', disabled: !parsed.links.length }, '加入并开始采集');
-  const dialog = dialogShell(
-    '上传上架表',
-    [
-      h('p', { class: 'import-summary' }, `${fileName}：在「${parsed.sheets.join('」「')}」里读到 ${parsed.links.length} 个商品链接（一个格子里的多个链接各算一个，同一个链接出现在多行只算一个）`),
-      h('ul', {}, ...lines.map((l) => h('li', {}, l))),
-      problemList('需要留意的行', parsed.problems),
-      h('label', { class: 'check' }, recollect, '已采集过的商品也重新采集（覆盖商品信息和图片，编辑内容保留）'),
-      h('p', { class: 'muted' }, '加入后自动开始采集；这批商品都采集完后，自动生成并下载「发布前检查」表（设置了存储位置时另存一份到 存储位置/发布前检查/）。'),
-    ],
-    [h('button', { value: 'cancel', formnovalidate: true }, '取消'), ok],
+  const rows = missing.map((link) =>
+    h('li', {}, `${link.refs.map(whereText).join('、')} · SKU ${link.skuId}${link.label ? ` · ${link.label}` : ''} · ${link.url}`),
   );
-  if ((await openDialog(dialog)) !== 'ok') return null;
-  return { recollect: recollect.checked };
+  const dialog = dialogShell(
+    '存在未采集商品，是否采集？',
+    [
+      h('p', { class: 'import-summary' }, `「${fileName}」共 ${parsed.links.length} 个商品，已匹配 ${parsed.links.length - missing.length} 个，未找到采集记录 ${missing.length} 个。`),
+      ...notes.map((note) => h('p', { class: 'muted' }, note)),
+      h('ol', { class: 'import-problems' }, rows),
+      parsed.noLink.length ? h('p', { class: 'muted' }, `有 ${parsed.noLink.length} 行的参考链接为空（${noLinkRows}${parsed.noLink.length > ROWS_SHOWN ? '…' : ''}）。`) : null,
+      problemList('需要留意的行', parsed.problems),
+      h('p', { class: 'muted' }, '确认后采集下列商品，结束后为这张上架表生成「发布前检查表」。'),
+    ],
+    [h('button', { value: 'cancel', formnovalidate: true }, '取消'), h('button', { value: 'collect', class: 'primary' }, `采集 ${missing.length} 个商品`)],
+  );
+  return (await openDialog(dialog)) === 'collect';
 }
 
 function changesBox(updates, itemsById) {

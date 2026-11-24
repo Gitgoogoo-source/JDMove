@@ -14,7 +14,7 @@
   <section class="toolbar">
     <button id="btnAdd" class="primary">添加链接</button>
     <button id="btnShop">抓取店铺</button>
-    <button id="btnUpload" title="上传上架表（有“参考链接”列）：加入任务列表并采集，采集完自动生成发布前检查表；上传改好的发布前检查表：保存修改并发布齐全的商品">上传表格</button>
+    <button id="btnUpload" title="上传上架表（有“参考链接”列）：匹配采集记录，生成发布前检查表；上传改好的发布前检查表：保存修改并发布齐全的商品">上传表格</button>
     <button id="btnListingTemplate" title="下载固定的上架表模板：参考链接必填，市场价/京东价/采购价/协议价/条形码等选填；填好后点“上传表格”">下载上架表模板</button>
     <span class="sep"></span>
     <button id="btnCollect">采集选中</button>
@@ -46,6 +46,7 @@
   </section>
 
   <p id="pauseBanner" class="banner" hidden></p>
+  <p id="uploadStatus" class="banner" role="status" hidden></p>
   <div id="batchBar" class="banner batch-bar" hidden></div>
 
   <main>

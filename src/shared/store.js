@@ -2,6 +2,7 @@
 import { buildItemUrl, isB2bItemUrl } from './url-utils.js';
 import { withPackListParams } from './pack-list.js';
 import { mergeSettings } from './settings.js';
+import { rebaseEdits } from './vc-review.js';
 
 const ITEMS_KEY = 'items';
 const SETTINGS_KEY = 'settings';
@@ -188,16 +189,38 @@ export function createItemRepository(storage) {
   /**
    * 批量加入任务：已在列表里的不重复添加；以前发布过的商品照样加入（不去重）。
    * opts.urls（SKU → 链接）指定采集用的链接（京东万商），已在列表里的商品也改用这个链接
-   * @returns {Promise<{added: Item[], existing: string[]}>}
+   * opts.collected 提供上架表匹配到的本地采集记录，只补入当前没有商品数据、也未在采集的任务
+   * @returns {Promise<{added: Item[], existing: string[], restored: string[]}>}
    */
-  const addTasks = (skuIds, { urls = {} } = {}) =>
+  const addTasks = (skuIds, { urls = {}, collected = [] } = {}) =>
     serial(async () => {
       const items = await load();
       const plan = planNewSkus(skuIds, items);
-      const added = plan.fresh.map((id) => newItem(id, Date.now(), urls[id]));
-      const retargeted = items.map((i) => (plan.existing.includes(i.id) && urls[i.id] ? { ...i, url: urls[i.id] } : i));
-      if (added.length || plan.existing.some((id) => urls[id])) await persist([...retargeted, ...added]);
-      return { added, existing: plan.existing };
+      const requested = new Set([...plan.fresh, ...plan.existing]);
+      const savedById = new Map(collected.map((record) => [record.skuId, record]));
+      const restored = [];
+      const now = Date.now();
+      const apply = (item) => {
+        const saved = savedById.get(item.id);
+        const url = urls[item.id];
+        if (!saved?.product || item.product || RECOLLECT_BLOCKED.has(item.status)) return url && url !== item.url ? { ...item, url } : item;
+        restored.push(item.id);
+        const source = sourceUrlPatch(item.skuId, saved.product);
+        return {
+          ...item,
+          url: url || source.url || item.url,
+          product: saved.product,
+          local: saved.local,
+          edits: rebaseEdits({}, item.edits, saved.edits ?? {}),
+          status: 'collected',
+          message: '已恢复本地采集记录',
+          updatedAt: Math.max(now, item.updatedAt),
+        };
+      };
+      const added = plan.fresh.map((id) => apply(newItem(id, now)));
+      const updated = items.map((item) => (requested.has(item.id) ? apply(item) : item));
+      if (added.length || updated.some((item, index) => item !== items[index])) await persist([...updated, ...added]);
+      return { added, existing: plan.existing, restored };
     });
 
   return {

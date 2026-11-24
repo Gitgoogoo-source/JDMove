@@ -1,5 +1,5 @@
 // 把一个已采集的商品写到本地文件夹：<存储位置>/<品牌>/<SKU>/{主图,详情图,商品信息.*}
-import { buildLocalPlan, pickBrandDir, safeName, IMAGE_DIRS } from '../shared/local-layout.js';
+import { buildLocalPlan, pickBrandDir, safeName, IMAGE_DIRS, INFO_JSON } from '../shared/local-layout.js';
 import { itemBrand } from '../shared/brand-folders.js';
 
 const IMAGE_CONCURRENCY = 4;
@@ -87,6 +87,37 @@ export async function saveItemToFolder(root, item, { fetchImpl = globalThis.fetc
   const result = await saveImages(skuDir, plan.images, fetchImpl);
   for (const f of plan.files) await writeFile(skuDir, f.name, new Blob([f.text], { type: 'text/plain;charset=utf-8' }));
   return { dir: `${brandName}/${plan.skuDir}`, ...result };
+}
+
+/** 从存储位置的品牌/SKU/商品信息.json 中查找上架表需要的采集记录。 */
+export async function findCollectedItems(root, skuIds) {
+  const wanted = new Set(skuIds);
+  const found = new Map();
+  const unreadable = new Set();
+  for await (const [brand, brandDir] of root.entries()) {
+    if (brandDir.kind !== 'directory') continue;
+    for await (const [skuId, skuDir] of brandDir.entries()) {
+      if (skuDir.kind !== 'directory' || !wanted.has(skuId)) continue;
+      try {
+        const file = await (await skuDir.getFileHandle(INFO_JSON)).getFile();
+        const data = JSON.parse(await file.text());
+        const record = data?.app === 'jdmove' && Array.isArray(data.items)
+          ? data.items.find((item) => String(item?.skuId) === skuId)
+          : null;
+        if (!record?.product || typeof record.product !== 'object' || Array.isArray(record.product) || !Object.keys(record.product).length) {
+          unreadable.add(skuId);
+          continue;
+        }
+        const savedAt = Date.parse(data.exportedAt) || 0;
+        if (!found.has(skuId) || found.get(skuId).local.savedAt < savedAt) {
+          found.set(skuId, { skuId, product: record.product, edits: record.edits, local: { dir: `${brand}/${skuId}`, savedAt } });
+        }
+      } catch (e) {
+        if (e?.name !== 'NotFoundError') unreadable.add(skuId);
+      }
+    }
+  }
+  return { items: [...found.values()], unreadable: [...unreadable].filter((id) => !found.has(id)) };
 }
 
 const isPlainName = (name) => Boolean(name) && !/[\\/]/.test(name) && !/^\.+$/.test(name);

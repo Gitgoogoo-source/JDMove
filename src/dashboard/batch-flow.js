@@ -1,9 +1,9 @@
 // 上架表 → 采集 → 发布前检查表 → 上传 → 发布：任务面板上的「上传表格」和上架表批次。
-// 上传上架表：加入任务列表、记一个批次、开始采集；这批采集完（onRunEnd）自动生成并下载发布前检查表。
+// 上传上架表：匹配任务和本地采集记录，有缺项时确认采集，自动生成并下载发布前检查表。
 // 上传发布前检查表：读回所有附表、保存修改、发布齐全的商品（和「发布选中」后的发布流程相同）
 import { h } from './dom.js';
 import { downloadBytes, pickFile, TABLE_ACCEPT } from './download.js';
-import { confirmListingUpload, confirmReviewUpload, whereText } from './upload-dialogs.js';
+import { confirmMissingCollection, confirmReviewUpload, whereText } from './upload-dialogs.js';
 import { readTableBook } from '../shared/table-file.js';
 import { listingEdit, parseListingBook } from '../shared/listing-sheet.js';
 import { parseReviewBook, publishPlan, templateChangedIds, workbookKind } from '../shared/review-workbook-import.js';
@@ -24,10 +24,12 @@ const LOG_PROBLEMS = 30;
 const STALE_MS = 1000;
 
 /**
- * @param {{runner: object, storage: object, onLog: (line: string) => void, reload: () => Promise<void>, confirmCooldown: () => boolean}} deps
+ * @param {{runner: object, storage: object, onLog: (line: string) => void, onUploadStatus: (line: string) => void,
+ *   reload: () => Promise<void>, confirmCooldown: () => boolean}} deps
  */
-export function createBatchFlow({ runner, storage, onLog, reload, confirmCooldown }) {
+export function createBatchFlow({ runner, storage, onLog, onUploadStatus, reload, confirmCooldown }) {
   let batches = [];
+  let uploading = false;
   // 发布成功过的 SKU（发布成功的商品已移出任务列表，进度条里按它数“已发布”）
   let published = new Set();
   // 生成发布前检查表排队执行（采集结束自动生成和手动点的同时来时都不丢）
@@ -117,28 +119,49 @@ export function createBatchFlow({ runner, storage, onLog, reload, confirmCooldow
 
   async function uploadListing(fileName, sheets) {
     const parsed = parseListingBook(sheets);
-    const choice = await confirmListingUpload({ fileName, parsed, items: await itemRepo.findAll() });
-    if (!choice) return onLog('已取消上传上架表');
-    const local = await storage.prepare();
+    parsed.problems.slice(0, LOG_PROBLEMS).forEach((p) => onLog(`上架表${whereText(p)}：${p.text}`));
+    if (parsed.noLink.length) onLog(`上架表「${fileName}」有 ${parsed.noLink.length} 行的参考链接为空`);
+    if (!parsed.links.length) throw new Error('没有读到有效的商品链接，请检查“参考链接”列');
+    onUploadStatus(`正在匹配「${fileName}」里的 ${parsed.links.length} 个商品…`);
+    const collectedIds = new Set((await itemRepo.findAll()).filter((item) => item.product).map((item) => item.id));
+    const lookup = parsed.links.filter((l) => !collectedIds.has(l.skuId));
+    const notes = [];
+    let history = [];
+    if (lookup.length) {
+      try {
+        const { items, unreadable } = await storage.findCollected(lookup.map((l) => l.skuId));
+        history = items;
+        items.forEach((item) => collectedIds.add(item.skuId));
+        if (unreadable.length) notes.push(`有 ${unreadable.length} 个商品的本地「商品信息.json」无法读取，明细见运行日志。`);
+        unreadable.slice(0, LOG_PROBLEMS).forEach((id) => onLog(`[${id}] 无法读取本地「商品信息.json」`));
+      } catch (e) {
+        const note = `无法检查本地采集记录。${e.message}`;
+        notes.push(note);
+        onLog(note);
+      }
+    }
+    const missing = parsed.links.filter((l) => !collectedIds.has(l.skuId));
+    if (missing.length && !(await confirmMissingCollection({ fileName, parsed, missing, notes }))) return onLog('已取消上传上架表');
+
     const urls = Object.fromEntries(parsed.links.filter((l) => isB2bItemUrl(l.url)).map((l) => [l.skuId, l.url]));
-    const res = await itemRepo.addTasks(parsed.links.map((l) => l.skuId), { urls });
-    // 这批要跟进的：上架表里的全部商品（以前发布过的也重新加入，不去重）
-    const inList = new Set((await itemRepo.findAll()).map((i) => i.id));
-    const tracked = [...new Set(parsed.links.map((l) => l.skuId))].filter((id) => inList.has(id));
-    const wanted = new Set(tracked);
-    const changed = await itemRepo.saveEditsMany(parsed.values.filter((v) => wanted.has(v.skuId)).map((v) => ({ id: v.skuId, edit: listingEdit(v.values) })));
+    const tracked = parsed.links.map((l) => l.skuId);
+    const res = await itemRepo.addTasks(tracked, { urls, collected: history });
+    const changed = await itemRepo.saveEditsMany(parsed.values.map((v) => ({ id: v.skuId, edit: listingEdit(v.values) })));
     const batch = newBatch({ fileName, links: parsed.links, skuIds: tracked });
     await batchRepo.add(batch);
-    onLog(`上架表 ${fileName}：${parsed.links.length} 个商品链接，新加入 ${res.added.length} 个，已在任务列表 ${tracked.length - res.added.length} 个`);
+    onLog(`上架表 ${fileName}：${tracked.length} 个商品，新加入 ${res.added.length} 个，已在任务列表 ${res.existing.length} 个`);
+    if (res.restored.length) onLog(`已恢复 ${res.restored.length} 个商品的本地采集记录`);
     if (changed.length) onLog(`上架表：${changed.length} 个商品的价格 / 协议价 / ERP / 条形码 / 型号已写进「编辑」`);
-    parsed.problems.slice(0, LOG_PROBLEMS).forEach((p) => onLog(`上架表${whereText(p)}：${p.text}`));
-    await refresh();
     await reload();
-    const ids = idsToCollect(tracked, await itemRepo.findAll(), { recollect: choice.recollect });
-    if (!ids.length) {
+    const items = await itemRepo.findAll();
+    const readyIds = new Set(items.filter((item) => item.product).map((item) => item.id));
+    if (tracked.every((id) => readyIds.has(id))) {
       onLog('这批商品都已采集过，直接生成发布前检查表');
-      return exportBatch(batch);
+      return exportBatch(batch, { auto: true });
     }
+    const ids = idsToCollect(missing.map((l) => l.skuId), items);
+    if (!ids.length) return onLog('这批商品还有待完成的采集任务，请查看批次进度');
+    const local = await storage.prepare();
     if (runner.getState().running) return onLog(`有任务正在执行：上架表里的 ${ids.length} 个商品已加入任务列表，等当前任务结束后勾选它们点“采集选中”，采集完会自动生成发布前检查表`);
     onLog(`开始采集上架表里的 ${ids.length} 个商品${local ? '（完成后自动保存到本地）' : ''}；采集完自动生成发布前检查表`);
     runner.collect(ids);
@@ -194,17 +217,26 @@ export function createBatchFlow({ runner, storage, onLog, reload, confirmCooldow
   }
 
   async function handleUpload() {
-    const file = await pickFile(TABLE_ACCEPT);
-    if (!file) return;
+    if (uploading) return;
+    uploading = true;
+    let file;
     try {
+      file = await pickFile(TABLE_ACCEPT);
+      if (!file) return;
+      onUploadStatus(`正在读取「${file.name}」…`);
       const { sheets } = await readTableBook(new Uint8Array(await file.arrayBuffer()));
       sheets.filter((s) => s.error).forEach((s) => onLog(`上传表格：${file.name} 的工作表「${s.name}」没有读：${s.error}`));
       const kind = workbookKind(sheets);
-      if (kind.kind === 'listing') return await uploadListing(file.name, sheets);
-      if (kind.kind === 'review') return await uploadReview(file.name, sheets);
-      onLog(`上传表格：${file.name}：${kind.error}`);
+      if (kind.kind === 'listing') await uploadListing(file.name, sheets);
+      else if (kind.kind === 'review') await uploadReview(file.name, sheets);
+      else throw new Error(kind.error);
+      onUploadStatus('');
     } catch (e) {
-      onLog(`上传表格：${file.name} 处理失败：${e.message}`);
+      const message = file ? `上传「${file.name}」失败。${e.message}` : `打开表格失败。${e.message}`;
+      onUploadStatus(message);
+      onLog(message);
+    } finally {
+      uploading = false;
     }
   }
 

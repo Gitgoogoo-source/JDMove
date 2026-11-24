@@ -252,6 +252,30 @@ test('addTasks：以前发布过的商品不去重，照样作为新任务加入
   assert.equal(res.added[0].status, 'pending');
 });
 
+test('addTasks restores published and pending tasks from local collection while keeping newer task data', async () => {
+  const repo = createItemRepository(memoryStorage());
+  await repo.saveCollected({ skuId: '100001', title: '旧商品' });
+  await repo.finishPublished('100001');
+  await repo.addTasks(['100002', '100004']);
+  await repo.update('100004', { status: 'collecting' });
+  await repo.saveEdits('100002', { vc: { marketPrice: 20 } });
+  await repo.saveCollected({ skuId: '100003', title: '新采集的数据' });
+  const collected = ['100001', '100002', '100003', '100004', '100005'].map((skuId) => ({
+    skuId,
+    product: { skuId, title: '本地文件里的商品' },
+    edits: { vc: { marketPrice: 10, costPrice: 5 } },
+    local: { dir: `品牌/${skuId}`, savedAt: 123 },
+  }));
+  const res = await repo.addTasks(['100001', '100002', '100003', '100004'], { collected });
+  assert.deepEqual(res.restored, ['100001', '100002']);
+  assert.equal(res.added[0].status, 'collected');
+  assert.deepEqual(res.added[0].local, collected[0].local);
+  assert.deepEqual((await repo.findById('100002')).edits, { vc: { marketPrice: 20, costPrice: 5 } });
+  assert.equal((await repo.findById('100003')).product.title, '新采集的数据');
+  assert.equal((await repo.findById('100004')).status, 'collecting');
+  assert.equal(await repo.findById('100005'), null);
+});
+
 test('removing unpublished items does not mark them as published', async () => {
   const storage = memoryStorage();
   const repo = createItemRepository(storage);

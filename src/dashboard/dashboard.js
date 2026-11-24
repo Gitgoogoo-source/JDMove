@@ -66,7 +66,14 @@ const runner = createQueueRunner({
     publishResult.onRunEnd(info, master.onRunEnd(info));
   },
 });
-const batchFlow = createBatchFlow({ runner, storage, onLog: appendLog, reload: () => reload(), confirmCooldown: () => confirmPublishDuringCooldown() });
+const batchFlow = createBatchFlow({
+  runner, storage, onLog: appendLog, reload: () => reload(), confirmCooldown: () => confirmPublishDuringCooldown(),
+  onUploadStatus: (message) => {
+    const status = $('#uploadStatus');
+    status.textContent = message;
+    status.hidden = !message;
+  },
+});
 const publishResult = createPublishResult({ storage, onLog: appendLog, exportReview: (ids, label) => batchFlow.exportReviewFor(ids, label) });
 
 const TASKS_EMPTY_TEXT = $('#empty').textContent;
