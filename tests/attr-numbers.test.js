@@ -33,6 +33,12 @@ test('parseNumberParts: 各自单位分别换算，最多 3 位小数', () => {
   assert.deepEqual(parseNumberParts('12.3456×1', SIZE), parts('12.346', '1'));
 });
 
+test('parseNumberParts: 保质期的年、月按模板单位换算', () => {
+  const segments = [{ name: '', units: ['天', '个月', '年'] }];
+  assert.deepEqual(parseNumberParts('3年', segments), [{ name: '', unit: '天', value: '1095' }]);
+  assert.deepEqual(parseNumberParts('12个月', segments), [{ name: '', unit: '天', value: '360' }]);
+});
+
 test('parseNumberParts: 数字不够、超出页面范围时返回 null', () => {
   assert.equal(parseNumberParts('195mm', SIZE), null);
   assert.equal(parseNumberParts('', SIZE), null);

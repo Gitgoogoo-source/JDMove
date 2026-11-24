@@ -3,12 +3,16 @@ import { toHalfWidth } from './text.js';
 import { UNIT_GROUPS } from './attr-numbers.js';
 
 const MEASURE = /(\d+(?:\.\d+)?)\s*(毫升|升|ml|l|毫克|千克|公斤|斤|克|mg|kg|g)(?=$|[^a-z]|x\s*\d)/gi;
-const PACK_UNITS = '瓶桶罐袋盒包箱把件';
+const PACK_UNITS = '瓶桶罐袋盒包箱把支件';
 const PACK_COUNT = new RegExp(`^([1-9]\\d*)\\s*([${PACK_UNITS}])?装?$`);
 const LIST_COUNT = new RegExp(`(?:[*×]|(?<![a-z])x)\\s*([1-9]\\d*)\\s*([${PACK_UNITS}])?装?$`, 'i');
 const COPIES = new RegExp(`^\\s*(?:/\\s*([${PACK_UNITS}]))?\\s*[*×x]\\s*([1-9]\\d*)\\s*([${PACK_UNITS}])?(?:\\s*[*×x]\\s*1(?![\\d.]))?`, 'i');
+const ADJACENT_COUNT = new RegExp(`^\\s*([1-9]\\d*)\\s*([${PACK_UNITS}])`);
+const PACK_FORM = new RegExp(`^([${PACK_UNITS}])装?$`);
+const COUNTED_CONTAINER = new RegExp(`(?<![\\d.])([1-9]\\d*)\\s*([${PACK_UNITS}])`, 'g');
 const UNSAFE = /毛重|含包装重|[+赠送;、,\n]|\d\s*[-~～至到]\s*\d/;
 const MORE_COUNTS = new RegExp(`[*×]|x\\s*\\d|\\d\\s*[${PACK_UNITS}]`, 'i');
+const concreteUnit = (unit) => unit && unit !== '件';
 
 function measure(match) {
   const unit = match[2].toLowerCase();
@@ -22,9 +26,14 @@ function readSize(value, corroboratingList) {
   const matches = [...text.matchAll(MEASURE)];
   const last = matches.at(-1);
   // 系列名称本身有时带加号。只有清单独立给出了含量时，才允许所选规格在首个含量之前这样命名。
-  const checked = corroboratingList?.n && last
+  let checked = corroboratingList?.n && last
     ? text.slice(0, matches[0].index).replaceAll('+', '') + text.slice(matches[0].index)
     : text;
+  if (corroboratingList?.count && text.includes('+')) {
+    // 清单已列明数量。“【280g×2】石榴+椰香”里加号后的名称不是另一项计量。
+    if (matches.length === 1 && /[】\]]/.test(text.slice(last.index + last[0].length))) checked = checked.replaceAll('+', '');
+    if (corroboratingList.multiLine && !last && !UNSAFE.test(text.replaceAll('+', '')) && ![...text.matchAll(COUNTED_CONTAINER)].length) return undefined;
+  }
   if (UNSAFE.test(checked)) return null;
   if (!last) {
     const bare = text.match(PACK_COUNT);
@@ -39,12 +48,25 @@ function readSize(value, corroboratingList) {
   const prefix = text.slice(0, last.index);
   let suffix = text.slice(last.index + last[0].length).replace(/^\s*\([^\d()*×+]*\)/, '');
   const copies = suffix.match(COPIES);
-  if (copies) suffix = suffix.slice(copies[0].length);
+  const adjacent = copies ? null : suffix.match(ADJACENT_COUNT);
+  if (copies || adjacent) suffix = suffix.slice((copies || adjacent)[0].length);
   if (MORE_COUNTS.test(prefix) || MORE_COUNTS.test(suffix) || /^\s*[.\d/]/.test(suffix)) return null;
-  return { ...size, count: copies ? Number(copies[2]) : null, container: copies?.[3] || copies?.[1] || '' };
+  const count = copies?.[2] ?? adjacent?.[1];
+  return { ...size, count: count == null ? null : Number(count), container: copies?.[3] || copies?.[1] || adjacent?.[2] || '' };
 }
 
 const sameSize = (a, b) => a.n === b.n && a.unit === b.unit;
+
+// 京东会把同容量的不同款式逐行列出，每一行都要有明确件数才可合计。
+function readPackList(value) {
+  const lines = String(value ?? '').split(/[\r\n]+/).map((line) => line.trim()).filter(Boolean);
+  if (lines.length <= 1) return readSize(lines[0]);
+  const sizes = lines.map((line) => readSize(line));
+  const first = sizes[0];
+  const units = new Set(sizes.map((size) => size?.container).filter(concreteUnit));
+  if (units.size > 1 || sizes.some((size) => !size?.n || !size.count || !sameSize(size, first))) return null;
+  return { ...first, count: sizes.reduce((total, size) => total + size.count, 0), container: [...units][0] || '', multiLine: true };
+}
 
 function currentAttributes(product) {
   const variant = Array.isArray(product.variants) && product.variants.find((v) => v?.skuId && String(v.skuId) === String(product.skuId));
@@ -57,30 +79,35 @@ export function withPackListParams(product) {
   if (!product || (product.params != null && !Array.isArray(product.params))) return product;
   const params = product.params ?? [];
   const param = (name) => params.find((p) => p?.name === name)?.value;
-  if (param('总净含量') && param('包装规格')) return product;
+  // 磨砂膏模板要求单件值。其它类目仍提取页面直接标注的单件值。
+  const needsPerItem = product.leafCategory === '磨砂膏' || product.vc?.cateIds?.at(-1) === '34485';
 
   const current = currentAttributes(product);
   const extra = [];
-  for (const name of ['总净含量', '包装规格']) {
+  for (const name of ['总净含量', '包装规格', '单件净含量']) {
     const values = new Set(current.filter((p) => p?.name === name && p.value).map((p) => p.value));
     if (!param(name) && values.size === 1) extra.push({ name, value: [...values][0] });
   }
-  const net = param('总净含量') || extra.find((p) => p.name === '总净含量')?.value;
-  const pack = param('包装规格') || extra.find((p) => p.name === '包装规格')?.value;
-  const result = () => extra.length ? { ...product, params: [...params, ...extra] } : product;
-  if (net && pack) return result();
+  const attribute = (name) => param(name) || extra.find((p) => p.name === name)?.value;
+  const net = attribute('总净含量');
+  const pack = attribute('包装规格');
+  const single = attribute('单件净含量');
+  const stated = pack && toHalfWidth(pack).trim().match(PACK_COUNT);
+  const result = () => extra.length
+    ? { ...product, params: [...params.filter((p) => !extra.some(({ name }) => p?.name === name)), ...extra] }
+    : product;
+  if (net && pack && (!stated || concreteUnit(stated[2])) && (!needsPerItem || single)) return result();
 
-  const list = readSize(product.packList || param('包装清单'));
-  const specTexts = [...params, ...current].filter((p) => /^(规格|产品规格|商品规格)$/.test(p?.name)).map((p) => p.value);
+  const list = readPackList(product.packList || param('包装清单'));
+  const specTexts = [...params, ...current].filter((p) => /规格$/.test(p?.name) && p.name !== '包装规格').map((p) => p.value);
   const specs = [...new Set(specTexts)].map((value) => readSize(value, list));
-  const perItem = readSize(param('单件净含量') || param('单包净含量') || param('单瓶净含量'));
+  const perItem = readSize(single || param('单包净含量') || param('单瓶净含量') || param('单罐净含量') || param('单支净含量'));
   const candidates = [list, ...specs, perItem];
   if (candidates.includes(null)) return result();
   const evidence = candidates.filter(Boolean);
   const sizes = evidence.filter((s) => s.n != null);
   const size = sizes.find((s) => s.count != null) ?? (perItem?.n ? perItem : sizes[0]);
   const counts = new Set(evidence.map((s) => s.count).filter((n) => n != null));
-  const stated = pack && toHalfWidth(pack).trim().match(PACK_COUNT);
   if (pack && !stated) return result();
   const copies = [...counts][0];
   if (counts.size > 1 || (copies != null && stated && copies !== Number(stated[1]))) return result();
@@ -95,11 +122,28 @@ export function withPackListParams(product) {
   if (!net && size && (count === 1 || (count && measuredPerItem) || corroborated)) {
     extra.push({ name: '总净含量', value: total.n + total.unit });
   }
-  if (!pack && copies) {
-    const containers = new Set(evidence.map((s) => s.container).filter(Boolean));
-    const form = String(param('包装形式') ?? '').match(/^([瓶桶罐袋盒包箱])装$/);
-    if (form) containers.add(form[1]);
-    if (containers.size <= 1) extra.push({ name: '包装规格', value: copies + ([...containers][0] || '件') });
+  if (needsPerItem && !single && size && (count === 1 || measuredPerItem)) {
+    extra.push({ name: '单件净含量', value: size.n + size.unit });
+  }
+  if ((!pack || !concreteUnit(stated?.[2])) && count) {
+    const containers = new Set(evidence.map((s) => s.container).filter(concreteUnit));
+    for (const name of ['包装形式', '包装类型', '包装方式', '包装']) {
+      const form = toHalfWidth(param(name)).trim().match(PACK_FORM)?.[1];
+      if (concreteUnit(form)) containers.add(form);
+    }
+    // 磨砂膏标题也可能直接写“2罐”或“2支”，只用件数与清单一致、没有赠品或范围的标注。
+    const title = toHalfWidth(product.title);
+    if (needsPerItem && !UNSAFE.test(title)) {
+      const labelled = [...title.matchAll(COUNTED_CONTAINER)];
+      if (labelled.length === 1 && Number(labelled[0][1]) === count && concreteUnit(labelled[0][2])) containers.add(labelled[0][2]);
+    }
+    const container = containers.size === 1 ? [...containers][0] : '';
+    if (container || (!pack && containers.size === 0)) {
+      const next = { name: '包装规格', value: count + (container || '件') };
+      const at = extra.findIndex((p) => p.name === next.name);
+      if (at < 0) extra.push(next);
+      else extra[at] = next;
+    }
   }
   return result();
 }

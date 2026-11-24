@@ -78,6 +78,19 @@ test('商品主数据带上货号（POP 商品的型号常是空的，货号有�
   assert.equal(raw.wareInfoAll.category_id4, '21953');
 });
 
+test('图文详情只采集明确标注且不冲突的整件保质期', async () => {
+  const detail = { querySelector: () => ({}), querySelectorAll: () => [] };
+  const dom = {
+    querySelector: (sel) => sel === '#detail-main' ? detail : null,
+    querySelectorAll: () => [],
+  };
+  const NS = loadPage({ url: 'https://item.jd.com/100200187696.html', tree: healthTree(), dom });
+  detail.innerText = '产品信息\n保质期：3年\n开封后保质期：6个月\n功效持续：7天';
+  assert.equal((await NS.extractItem({ scrollDetail: false, detailWaitMs: 0 })).detailShelfLife, '3年');
+  detail.innerText += '\n保质期：2年';
+  assert.equal((await NS.extractItem({ scrollDetail: false, detailWaitMs: 0 })).detailShelfLife, '');
+});
+
 test('同时有没带主数据的商品数据和带 wareInfoReadMap 的商品数据时，用带主数据的那份', async () => {
   const { wareInfoReadMap, ...noReadMap } = HEALTH_BIZ;
   const rendered = { ...noReadMap, pageConfigVO: { brand: '1', cat: [1, 2, 3] } };

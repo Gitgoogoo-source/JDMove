@@ -103,6 +103,42 @@ test('页面采集入口按标签读取高亮卡片和普通参数行，并保�
   assert.deepEqual(normalizeProduct(raw).params, [{ name: '总净含量', value: '3.6kg' }, { name: '包装规格', value: '6袋' }]);
 });
 
+test('磨砂膏包装清单保留各行，按单件容量和件数合计，包装单位取自所选规格', async () => {
+  const packList = '磨砂膏甲 250g×2\n磨砂膏乙 250g×1';
+  const row = { querySelector: (sel) => ({
+    '.label': { textContent: '包装清单' },
+    '.value .text[title]': { innerText: packList.replace('\n', ' '), getAttribute: () => packList },
+  })[sel] };
+  const dom = {
+    querySelector: () => null,
+    querySelectorAll: (sel) => sel.includes('.item.exclusive-row') ? [row] : [],
+  };
+  const tree = fiber({
+    skuHeadVO: { skuTitle: '身体磨砂膏' },
+    crumbInfoVO: { crumbs: [{ text: '个人护理' }, { text: '磨砂膏' }] },
+    price: { p: '15.00', id: '100200187696' },
+    wareInfoReadMap: { sale_attributes: '[{"saleName":"功效规格","saleValue":"【250g3罐】甲+乙"}]' },
+  });
+  const raw = plain(await loadItemPage({ tree, dom }).extractItem({ scrollDetail: false, detailWaitMs: 0 }));
+  assert.equal(raw.packList, packList);
+  const product = normalizeProduct(raw);
+  const values = Object.fromEntries(product.params.map((p) => [p.name, p.value]));
+  assert.deepEqual(values, { 总净含量: '750g', 单件净含量: '250g', 包装规格: '3罐' });
+  const template = JSON.parse(readFileSync(new URL('../templates/vc/34485.json', import.meta.url)));
+  const attrs = vcTemplateSkuAttrs(template).filter((a) => ['单件净含量', '包装规格'].includes(a.title));
+  assert.deepEqual(skuQuantityFields(attrs, values).numbers, { 单件净含量: '250g', 包装规格: '3罐' });
+  assert.deepEqual(normalizeProduct({ ...raw, packList: packList.replace('250g×1', '150g×1') }).params, []);
+  assert.equal(normalizeProduct({ ...raw, wareInfo: null }).params.find((p) => p.name === '包装规格').value, '3件');
+});
+
+test('用同一商品另一处的明确单位补足旧记录的通用件数，保留冲突项供核对', () => {
+  const product = { leafCategory: '磨砂膏', packList: '磨砂膏250g×2', params: [{ name: '包装规格', value: '2件' }] };
+  assert.deepEqual(withPackListParams({ ...product, title: '磨砂膏 2支装' }).params, [
+    { name: '总净含量', value: '500g' }, { name: '单件净含量', value: '250g' }, { name: '包装规格', value: '2支' },
+  ]);
+  assert.equal(withPackListParams({ ...product, title: '磨砂膏 2支装', packList: '磨砂膏250g×2盒' }).params[0].value, '2件');
+});
+
 test('调味油模板按 SKU 保质期的原单位填入抽屉和检查表', () => {
   const template = JSON.parse(readFileSync(new URL('../templates/vc/34945.json', import.meta.url)));
   const attrs = vcTemplateSkuAttrs(template).filter((a) => a.title === '保质期');
@@ -111,4 +147,12 @@ test('调味油模板按 SKU 保质期的原单位填入抽屉和检查表', () 
   const [review] = reviewSkuAttrs(attrs, { sources: { params: values, defaults: {}, overrides: {} } });
   assert.equal(review.value, '18个月');
   assert.equal(skuQuantityFields(attrs, { 保质期: '2周' }).numbers['保质期'], '');
+});
+
+test('沐浴露模板的 mL(g) 区间同时接受容量和重量', () => {
+  const template = JSON.parse(readFileSync(new URL('../templates/vc/16779.json', import.meta.url)));
+  const attrs = vcTemplateSkuAttrs(template).filter((a) => a.title === '总净含量');
+  for (const value of ['1460g', '1460mL']) {
+    assert.equal(skuQuantityFields(attrs, { 总净含量: value }).select['总净含量'], '1000mL(g）以上');
+  }
 });

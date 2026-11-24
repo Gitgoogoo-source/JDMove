@@ -170,11 +170,18 @@ async function handleRecollectSelected() {
   runner.collect(ids);
 }
 
-async function reload() {
+async function reload(selectIds = []) {
   [items, settings, throttle] = await Promise.all([itemRepo.findAll(), settingsRepo.get(), throttleRepo.get(), batchFlow.refresh()]);
+  if (selectIds.length) {
+    const requested = new Set(selectIds);
+    const filter = $('#filter');
+    if (filter.value !== 'all' && items.some((item) => requested.has(item.id) && item.status !== filter.value)) {
+      filter.value = 'all';
+    }
+  }
   // 发布成功的商品会移出任务列表：同时取消它的勾选，避免“删除选中”等操作作用到看不见的条目
   const visible = new Set(visibleItems().map((i) => i.id));
-  selected = new Set([...selected].filter((id) => visible.has(id)));
+  selected = new Set([...selected, ...selectIds].filter((id) => visible.has(id)));
   render();
 }
 
@@ -207,7 +214,7 @@ async function handleAdd() {
   const skus = extractSkuIds(area.value);
   const res = await itemRepo.addTasks(skus, { urls: b2bItemUrls(area.value) });
   appendLog(addSummary(skus.length, res));
-  await reload();
+  await reload(skus);
 }
 
 async function handleShop() {

@@ -178,6 +178,23 @@ test('参数里已有保质期时以参数为准；shelf_life 为 0 或缺失时
   }
 });
 
+test('保质期先用参数和主数据，再用图文详情的明确标注，跳过零值', () => {
+  const raw = { params: [['保质期', '0天']], detailShelfLife: '3年' };
+  assert.deepEqual(normalizeProduct(raw).params, [{ name: '保质期', value: '3年' }]);
+  assert.deepEqual(normalizeProduct({ ...raw, wareInfo: { shelf_life: '730' } }).params, [{ name: '保质期', value: '730天' }]);
+});
+
+test('按明确的备案或注册编号补化妆品类型，保留原值并跳过冲突编号', () => {
+  const type = (params) => normalizeProduct({ params }).params.find((p) => p.name === '是否特殊化妆品')?.value;
+  const filing = ['批准文号/备案编号', '沪G妆网备字2025001234'];
+  const registered = ['化妆品注册证编号', '国妆特进字20250001'];
+  assert.equal(type([filing]), '非特殊化妆品');
+  assert.equal(type([registered]), '特殊化妆品');
+  assert.equal(type([filing, registered]), undefined);
+  assert.equal(type([['批准文号', '国妆原备字2025000012']]), undefined);
+  assert.equal(type([filing, ['是否特殊化妆品', '跨境商品']]), '跨境商品');
+});
+
 test('取 wareInfoReadMap.upc_code 作为商品条形码', () => {
   const p = normalizeProduct({ ...legacyRaw, wareInfo: { shelf_life: '364', upc_code: '6914973609563' } });
   assert.equal(p.upc, '6914973609563');

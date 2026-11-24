@@ -1,6 +1,6 @@
 // 数据仓储：任务条目 + 设置。存储后端通过 adapter 注入，方便测试。
 import { buildItemUrl, isB2bItemUrl } from './url-utils.js';
-import { withPackListParams } from './pack-list.js';
+import { withCollectedParams } from './product-normalize.js';
 import { mergeSettings } from './settings.js';
 import { rebaseEdits } from './vc-review.js';
 
@@ -171,7 +171,7 @@ export function createItemRepository(storage) {
   const load = async () => {
     const items = (await storage.get(ITEMS_KEY)) ?? [];
     return items.map((item) => {
-      const product = withPackListParams(item.product);
+      const product = withCollectedParams(item.product);
       return product === item.product ? item : { ...item, product };
     });
   };

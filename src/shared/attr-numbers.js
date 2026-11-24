@@ -14,8 +14,8 @@ export const UNIT_GROUPS = [
 const PART_MAX = 999999999.999;
 const DECIMALS = 3;
 
-// 只认长度/重量/容量这几组里的单位；长词在前，“mm”不会被认成“m”
-const UNIT_WORDS = [...new Set(UNIT_GROUPS.slice(1).flatMap((g) => Object.keys(g)))].sort((a, b) => b.length - a.length);
+// 长词在前，“mm”不会被认成“m”，“个月”不会被认成“月”。
+const UNIT_WORDS = [...new Set(UNIT_GROUPS.flatMap((g) => Object.keys(g)))].sort((a, b) => b.length - a.length);
 const UNIT_SRC = `(${UNIT_WORDS.join('|')})(?![a-z])`;
 const TOKEN_RE = new RegExp(`(\\d+(?:\\.\\d+)?)\\s*(?:${UNIT_SRC})?`, 'gi');
 

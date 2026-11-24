@@ -76,6 +76,46 @@ test('任务面板正常渲染', async () => {
   assert.deepEqual(problems, []);
 });
 
+test('添加链接后自动勾选本次提交的商品', async () => {
+  const { page, problems } = await openWatched(extUrl('src/dashboard/dashboard.html'));
+  const skuPrefix = Date.now();
+  const ids = Array.from({ length: 5 }, (_, i) => `${skuPrefix}${i}`);
+  const [selected, unrelated, existing, added, b2b] = ids;
+  const row = (id) => page.locator(`#rows tr[data-id="${id}"]`);
+  try {
+    await page.evaluate(async ({ selected, unrelated, existing }) => {
+      const { itemRepo } = await import('/src/lib/chrome-env.js');
+      await itemRepo.addTasks([selected, unrelated, existing]);
+      await itemRepo.update(existing, { status: 'failed' });
+    }, { selected, unrelated, existing });
+    const filter = page.locator('#filter');
+    await filter.selectOption('pending');
+    await row(selected).locator('input').check();
+    await page.locator('#btnAdd').click();
+    const dialog = page.locator('dialog[open]');
+    await dialog.locator('textarea').fill([
+      `https://item.jd.com/${added}.html`,
+      `https://b2b.jd.com/goods/goods-detail/${b2b}?buId=1`,
+      `https://item.jd.com/${existing}.html`,
+      `https://item.jd.com/${added}.html?from=test`,
+    ].join('\n'));
+    await dialog.getByRole('button', { name: '添加', exact: true }).click();
+
+    for (const id of [selected, existing, added, b2b]) {
+      await row(id).locator('input:checked').waitFor();
+      assert.equal(await row(id).count(), 1);
+    }
+    assert.equal(await row(unrelated).locator('input').isChecked(), false);
+    assert.equal(await filter.inputValue(), 'all');
+    assert.deepEqual(problems, []);
+  } finally {
+    await page.evaluate(async (ids) => {
+      const { itemRepo } = await import('/src/lib/chrome-env.js');
+      await itemRepo.remove(ids);
+    }, ids);
+  }
+});
+
 test('chrome://extensions 里没有插件运行错误', async () => {
   assert.deepEqual(await b.extensionErrors(context), []);
 });

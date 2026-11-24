@@ -237,12 +237,19 @@
   // 新版商品详情的参数区里，“包装清单”单独占一行（.item.exclusive-row，div.label + div.value），
   // 单独保存到 packList；旧版页面是 .package-list 段落
   const PACK_LIST_LABEL = '包装清单';
+  function packListValue(el) {
+    const content = el?.getAttribute?.('title') || el?.innerText || el?.textContent || '';
+    return content.split(/\r?\n/).map((line) => line.replace(/\s+/g, ' ').trim()).filter(Boolean).join('\n');
+  }
+
   function packListText() {
     for (const row of qsa('.item.exclusive-row, [class*="attrs"] .item')) {
-      if (text(row.querySelector('.label')) === PACK_LIST_LABEL) return text(row.querySelector('.value'));
+      if (text(row.querySelector('.label')) !== PACK_LIST_LABEL) continue;
+      const value = packListValue(row.querySelector('.value .text[title]') || row.querySelector('.value'));
+      if (value) return value;
     }
     const old = document.querySelector('.package-list p, .package-list');
-    return old ? text(old).replace(/^包装清单[：:]?\s*/, '') : '';
+    return packListValue(old).replace(/^包装清单[：:]?\s*/, '');
   }
 
   function detailRoot() {
@@ -252,6 +259,14 @@
       if (el && el.querySelector('img, style, [class*="ssd-module"]')) return el;
     }
     return null;
+  }
+
+  function detailShelfLife(root) {
+    const content = root?.innerText || root?.textContent || '';
+    const values = new Set(Array.from(content.matchAll(
+      /^\s*(?:产品)?保质期(?:限)?(?:[（(]未开封[）)])?\s*[：:]?\s*([1-9]\d*)\s*(个月|天|日|月|年)\s*(?:[（(]未开封[）)])?[。.]?[\t ]*$/gm,
+    ), ([, amount, unit]) => amount + unit));
+    return values.size === 1 ? [...values][0] : '';
   }
 
   // 新版商品页“商品详情”楼层：标题 #SPXQ-title 的父节点；骨架 .imgtext-ske 在详情加载完成后被替换
@@ -272,7 +287,7 @@
       skeleton: Boolean(skeleton),
       sectionText: text(section),
     });
-    return { state, images, skeleton };
+    return { state, images, skeleton, shelfLife: detailShelfLife(root || section) };
   }
 
   // 详情区要等骨架进入视口才会加载：把骨架滚到视口中间并等待，超时仍未加载记为 not_loaded
@@ -354,6 +369,7 @@
       priceText: price || priceText(),
       saleDims: saleDims(),
       packList: packListText(),
+      detailShelfLife: detail.shelfLife,
       detailImages: detail.images,
       detailState: detail.state,
       isSelf: self || /自营/.test(shopName) ? true : null,

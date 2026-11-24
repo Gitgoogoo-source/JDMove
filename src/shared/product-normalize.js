@@ -7,6 +7,7 @@ import { withPackListParams } from './pack-list.js';
 import { vcSourceInfo } from './vc-source.js';
 
 const NOISE_PARAMS = new Set(['商品编号', '店铺', '店铺名称'].map(normalizeName));
+const SHELF_LIFE_LABELS = new Set(['保质期', '保质期限', '保鲜期']);
 const BAD_IMAGE_RE = /blank\.gif|loading|misc\.360buyimg\.com|^data:|\/\/static\.360buyimg\.com/i;
 
 const str = (v) => (v == null ? '' : String(v)).trim();
@@ -41,6 +42,7 @@ function normalizeParams(pairs) {
     const value = str(pair?.[1]);
     const key = normalizeName(name);
     if (!key || !value || NOISE_PARAMS.has(key) || seen.has(key)) continue;
+    if (SHELF_LIFE_LABELS.has(key) && /^0+(?:\.0+)?\s*(?:天|日|个月|月|年)?$/.test(toHalfWidth(value))) continue;
     seen.add(key);
     out.push({ name, value });
   }
@@ -50,7 +52,26 @@ function normalizeParams(pairs) {
 // 商品主数据（wareInfoReadMap）里的结构化字段：有些商品的参数列表里没有保质期，但主数据里有 shelf_life（天）
 function readMapParams(wareInfo) {
   const days = Number(str(wareInfo?.shelf_life));
-  return days > 0 ? [['保质期', `${days}天`]] : [];
+  return Number.isInteger(days) && days > 0 ? [['保质期', `${days}天`]] : [];
+}
+
+const COSMETIC_TYPE = '是否特殊化妆品';
+const COSMETIC_NUMBER_LABELS = new Set([
+  '批准文号/备案编号', '批准文号', '备案编号', '化妆品备案编号', '化妆品注册证编号', '化妆品注册证号',
+].map(normalizeName));
+// 国家药监局的化妆品编号规则。生产许可证号和新原料编号不表示成品类别。
+const ORDINARY_COSMETIC_NUMBER = /(?:[京津冀晋蒙辽吉黑沪苏浙皖闽赣鲁豫鄂湘粤桂琼渝川贵云藏陕甘青宁新]G妆网备字\d{10}|国妆网备[进制]字(?:\([^()]+\))?\d{10})(?!\d)/i;
+const SPECIAL_COSMETIC_NUMBER = /国妆特(?:进|制)?字[GHJ]?\d{8,10}(?!\d)/i;
+
+export function withCollectedParams(product) {
+  const enriched = withPackListParams(product);
+  const params = enriched?.params;
+  if (!Array.isArray(params) || params.some((p) => normalizeName(p?.name) === COSMETIC_TYPE && str(p.value))) return enriched;
+  const numbers = params.filter((p) => COSMETIC_NUMBER_LABELS.has(normalizeName(p?.name))).map((p) => toHalfWidth(p.value).replace(/\s+/g, ''));
+  const ordinary = numbers.some((value) => ORDINARY_COSMETIC_NUMBER.test(value));
+  const special = numbers.some((value) => SPECIAL_COSMETIC_NUMBER.test(value));
+  if (ordinary === special) return enriched;
+  return { ...enriched, params: [...params, { name: COSMETIC_TYPE, value: special ? '特殊化妆品' : '非特殊化妆品' }] };
 }
 
 function fromColorSize(colorSize) {
@@ -130,7 +151,9 @@ function sameBrand(a, b) {
 export function normalizeProduct(raw = {}, opts = {}) {
   const pc = raw.pageConfig ?? null;
   // 页面参数在前：同名参数去重时保留页面上的写法
-  const params = normalizeParams([...(raw.params ?? []), ...readMapParams(raw.wareInfo)]);
+  const params = normalizeParams([
+    ...(raw.params ?? []), ...readMapParams(raw.wareInfo), ['保质期', raw.detailShelfLife],
+  ]);
   const brandParam = params.find((p) => normalizeName(p.name) === '品牌');
   const pcImages = Array.isArray(pc?.imageList) ? pc.imageList : [];
   const crumbs = (raw.crumbs ?? []).map(str).filter(Boolean);
@@ -142,7 +165,7 @@ export function normalizeProduct(raw = {}, opts = {}) {
   // 面包屑最后一级通常是品牌，倒数第二级才是叶子类目
   const leafIdx = brandName && crumbs.length > 1 && sameBrand(crumbs.at(-1), brandName) ? -2 : -1;
 
-  return withPackListParams({
+  return withCollectedParams({
     skuId,
     url: str(raw.url),
     title,

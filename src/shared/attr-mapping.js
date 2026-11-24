@@ -99,8 +99,9 @@ function amountOf(num, unit) {
 }
 
 /** 选项文字表示的数量区间（0-200g、1kg以上、100g以下）；不是区间时返回 null */
-function optionRange(label) {
-  const text = toHalfWidth(label).toLowerCase().replace(/\s+/g, '');
+function optionRange(label, sourceGroup) {
+  // 京麦日化类目的 mL(g) 同时接受容量和重量，按源数据的计量维度匹配。
+  const text = toHalfWidth(label).toLowerCase().replace(/\s+/g, '').replace(/ml\(g\)/g, sourceGroup && 'g' in sourceGroup ? 'g' : 'ml');
   const between = text.match(BETWEEN_RE);
   if (between) {
     const [, low, lowUnit, high, highUnit] = between;
@@ -123,11 +124,11 @@ function optionRange(label) {
  * @returns {{label: string, value: string}|null|undefined} 选项不是区间时为 undefined；是区间但落不进任何一个时为 null
  */
 export function rangeOption(options, raw) {
-  const ranged = options.map((option) => ({ option, range: optionRange(option.label) })).filter((x) => x.range);
-  if (ranged.length < MIN_RANGE_OPTIONS) return undefined;
   const m = toHalfWidth(raw ?? '').toLowerCase().match(AMOUNT_RE);
+  const { group, amount } = m ? amountOf(m[1], m[2]) : {};
+  const ranged = options.map((option) => ({ option, range: optionRange(option.label, group) })).filter((x) => x.range);
+  if (ranged.length < MIN_RANGE_OPTIONS) return undefined;
   if (!m) return null;
-  const { group, amount } = amountOf(m[1], m[2]);
   const hit = ranged.find(({ range }) => range.group === group
     && (range.exclusiveMin ? amount > range.min : amount >= range.min)
     && (range.exclusiveMax ? amount < range.max : amount <= range.max));
