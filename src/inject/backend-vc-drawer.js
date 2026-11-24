@@ -57,7 +57,9 @@
 
   const CLASSIC_OPTION = '.jd-select-dropdown__item';
   const V2_OPTION = 'li.jd-select-dropdown__option-item';
-  const visibleOptions = (sel) => qsa(sel).filter(visible);
+  const V2_SELECTION = '.jd-select-v2__placeholder.is-has-model-value, .jd-select-v2__tags';
+  const visibleOptions = (sel, root) => qsa(sel, root).filter(visible);
+  const v2Selection = (box) => qsa(V2_SELECTION, box).map(textOf).filter(Boolean);
   const pickText = (els, value) => {
     const want = norm(value);
     return els.find((el) => norm(textOf(el)) === want) || els.find((el) => want && (norm(textOf(el)).includes(want) || want.includes(norm(textOf(el))))) || null;
@@ -178,24 +180,48 @@
   }
 
   /**
-   * 新版下拉：等上一个下拉收起后再展开（否则会读到上一个的选项），直接点选项。
-   * 不在框里输入筛选：输入会触发 change，下拉失焦时把已选的值清掉。没有匹配的选项时按 Esc 收起
+   * 新版下拉的搜索框不保存选中值。用当前控件的选中标签验收；选项可能挂在控件内，也可能挂在页面外层。
    */
   async function fillSelectV2(root, value) {
     if (!value) return false;
     const box = root.querySelector('.jd-select-v2');
+    const wrapper = box.querySelector('.jd-select-v2__wrapper') || box;
     const combo = box.querySelector('input.jd-select-v2__combobox-input');
-    await optionsClosed(V2_OPTION);
-    click(box.querySelector('.jd-select-v2__wrapper') || box);
-    const items = await waitFor(() => {
-      const list = visibleOptions(V2_OPTION);
+    const expanded = () => combo?.getAttribute('aria-expanded') === 'true';
+    const press = (key) => combo?.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
+    const selected = (label) => v2Selection(box).some((text) => norm(text) === norm(label));
+    const close = async () => {
+      if (!expanded()) return;
+      press('Escape');
+      if (await waitFor(() => !expanded(), { timeout: 600 })) return;
+      click(wrapper);
+      await waitFor(() => !expanded(), { timeout: 600 });
+    };
+    await close();
+    if (selected(value)) return true;
+
+    // 部分下拉的弹层挂在 body，只有这次打开后新出现的选项属于当前字段。
+    const before = new Set(visibleOptions(V2_OPTION));
+    const options = () => {
+      if (combo?.getAttribute('aria-expanded') === 'false') return null;
+      const popup = box.querySelector('.jd-select-v2__popper');
+      const list = popup ? visibleOptions(V2_OPTION, popup) : visibleOptions(V2_OPTION).filter((el) => !before.has(el));
       return list.length ? list : null;
-    }, { timeout: 3000 });
+    };
+    wrapper.scrollIntoView({ block: 'nearest' });
+    click(wrapper);
+    let items = await waitFor(options, { timeout: 1600 });
+    if (!items && combo && !expanded()) {
+      combo.focus({ preventScroll: true });
+      if (!expanded()) press('ArrowDown');
+    }
+    if (!items) items = await waitFor(options, { timeout: 1600 });
     const hit = items && pickText(items, value);
-    if (hit) click(hit);
-    else if (combo) combo.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-    await optionsClosed(V2_OPTION);
-    return !!hit;
+    const label = textOf(hit);
+    if (hit && !selected(label)) click(hit);
+    const applied = hit && await waitFor(() => selected(label), { timeout: 1200 });
+    await close();
+    return Boolean(applied);
   }
 
   /** 只读框点开是数字弹层（纸张尺寸：长、宽），按顺序填文本里的数字，再点弹层里的“确定” */
@@ -271,6 +297,11 @@
   const REMARK_RE = /备注/;
   const DRAWER_CONFIRM_TRIES = 3;
 
+  function hasFieldValue(root) {
+    const select = root.querySelector('.jd-select-v2');
+    return (select && v2Selection(select).length > 0) || qsa('input', root).some((i) => i.value && !i.closest('.jd-select-v2'));
+  }
+
   /** 逐个字段填写；返回填好的、必填但还空着的 */
   async function fillFields(container, ctx) {
     const filled = [];
@@ -283,7 +314,7 @@
         done = false;
       }
       if (done) filled.push(field.label);
-      else if (ctx.quantityFields?.numbers[field.label] !== undefined || (field.required && !qsa('input', field.root).some((i) => i.value))) {
+      else if (ctx.quantityFields?.numbers[field.label] !== undefined || (field.required && !hasFieldValue(field.root))) {
         missing.push(field.label);
       }
     }

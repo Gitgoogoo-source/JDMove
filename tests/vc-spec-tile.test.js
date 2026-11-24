@@ -23,6 +23,38 @@ const numberUnits = (placeholder, options) =>
 
 const notes = (placeholder) => el('div.shop-dynamic-component', {}, [el('div.shop-form-item-tips', {}, [el('div.sale-custom-notes', {}, [input(placeholder)])])]);
 
+const skuField = (title, control) => el('div.shop-dynamic-component', {}, [
+  el('div.shop-dynamic-component-title.is-required-star', { ownText: title }), control,
+]);
+
+function skuDrawer(fields, preceding = []) {
+  const drawer = el('div.jd-drawer', { shown: false }, [
+    ...fields,
+    el('button', { ownText: '确定', onClick: () => { drawer.shown = false; } }),
+  ]);
+  const drawerTrigger = el('button', { onClick: () => { drawer.shown = true; } });
+  const tr = el('tr', {}, [el('td', {}, [drawerTrigger])]);
+  return { body: el('body', {}, [...preceding, tr, drawer]), tr, drawerTrigger };
+}
+
+/** 京麦新版单选：实际选中的文字在 placeholder 节点里，搜索框始终为空。 */
+function nativeSelect(options, selected = '') {
+  const popup = el('div.jd-select-v2__popper', { shown: false });
+  const combo = el('input.jd-select-v2__combobox-input', {
+    getAttribute: (key) => key === 'aria-expanded' ? String(popup.shown) : null,
+  });
+  const display = el('span.jd-select-v2__placeholder');
+  function choose(label) {
+    display.ownText = label || '请选择';
+    if (label) display.classList.add('is-has-model-value');
+    popup.shown = false;
+  }
+  choose(selected);
+  const wrapper = el('div.jd-select-v2__wrapper', { onClick: () => { popup.shown = !popup.shown; } }, [combo, display]);
+  options.forEach((label) => popup.append(el('li.jd-select-dropdown__option-item', { ownText: label, onClick: () => choose(label) })));
+  return el('div.jd-select-v2.adv-select-native', {}, [wrapper, popup]);
+}
+
 /** 湿厕纸的规格格子 + “请设置”的弹层；弹层两组都填好后“请设置”框显示组合值（页面：信息全部补充后才会应用） */
 function wetWipePage() {
   const pop = el('div.jd-popper', { shown: false }, [
@@ -135,4 +167,30 @@ test('SKU抽屉的总净含量区间和精确数值分别填写，包装规格�
   assert.equal(ranges.querySelector('input').value, '0-1L');
   assert.equal(pack.value, '1桶');
   assert.deepEqual(volume.querySelectorAll('input').map((i) => i.value), ['900', 'mL']);
+});
+
+test('香皂 SKU 使用各自的新版下拉填写已采集的必填项', async () => {
+  const shape = nativeSelect(['固体', '液体', '果冻']);
+  const license = nativeSelect(['消字号', '非消字号'], '消字号');
+  const spec = nativeSelect(['单品', '套装', '小样']);
+  // 页面上另一个还未收起的下拉有同名选项，不能点到它。
+  const otherPopup = el('div.jd-select-v2__popper', {}, [el('li.jd-select-dropdown__option-item', { ownText: '固体' })]);
+  const page = skuDrawer([skuField('形态', shape), skuField('是否消字号商品', license), skuField('规格类型', spec)], [otherPopup]);
+  const res = await load(page).vcFillSkuAttrs({ values: { 形态: '固体', 是否消字号商品: '非消字号', 规格类型: '单品' } });
+  assert.equal(res.confirmed, true);
+  assert.deepEqual([...res.missing], []);
+  assert.deepEqual([shape, license, spec].map((box) => box.querySelector('.is-has-model-value')?.textContent), ['固体', '非消字号', '单品']);
+});
+
+test('SKU 新版下拉通过组件的选中标记判断必填项，搜索框为空也可以提交', async () => {
+  const filled = nativeSelect(['固体', '液体'], '固体');
+  const page = skuDrawer([skuField('形态', filled)]);
+  const res = await load(page).vcFillSkuAttrs({});
+  assert.equal(res.confirmed, true);
+  assert.deepEqual([...res.missing], []);
+
+  const blank = skuDrawer([skuField('形态', nativeSelect(['固体', '液体']))]);
+  const blankRes = await load(blank).vcFillSkuAttrs({});
+  assert.equal(blankRes.confirmed, false);
+  assert.deepEqual([...blankRes.missing], ['形态']);
 });
