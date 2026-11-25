@@ -220,6 +220,16 @@
 
   function saleDims() {
     const dims = [];
+    for (const group of qsa('.specification-group')) {
+      const name = text(group.querySelector('.specification-group-label'));
+      const values = qsa('.specification-item-sku', group).map((el) => ({
+        text: text(el.querySelector('.specification-item-sku-text')) || text(el),
+        skuId: el.getAttribute('data-sku') || '',
+        selected: el.classList.contains('specification-item-sku--selected'),
+      })).filter((v) => v.text);
+      if (name && values.length) dims.push({ name, values });
+    }
+    if (dims.length) return dims;
     for (const box of qsa('#choose-attrs .p-choose, [class*="choose-attr"], [class*="sku-attr"] > div')) {
       const name = (box.getAttribute('data-type') || text(box.querySelector('.dt, [class*="label"], [class*="title"]'))).replace(/[：:]/g, '').trim();
       const values = qsa('.item, [class*="item"], li', box)

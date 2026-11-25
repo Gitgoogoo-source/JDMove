@@ -2,7 +2,7 @@
 // 商品属性用发布流程同一套匹配（buildPropPlan 的结果）；SKU属性在发布页的抽屉里按标签名取值，
 // 这里照抄抽屉脚本（src/inject/backend-vc-drawer.js 的 plannedValue / pickText / 各控件取数）的规则，结果和发布时一致
 import { normSkuLabel as norm, plannedKey } from './sku-attrs.js';
-import { isExactTotal, skuQuantityValue } from './sku-quantity.js';
+import { isExactTotal, skuQuantityKey, skuQuantityValue } from './sku-quantity.js';
 import { BUILTIN_ATTR_DEFAULTS } from './vc-plan.js';
 import { parseAttrDefaults } from './settings.js';
 import { formatNumberParts, numberSegments } from './attr-numbers.js';
@@ -40,6 +40,7 @@ function skuValue(attr, raw, units) {
   const quantity = skuQuantityValue(attr, raw);
   if (quantity !== undefined) {
     if (quantity) return { value: quantity };
+    if (raw == null) return null;
     // 件数已知但容器未知时，检查表保留该件数并标红，供核对后补单位。
     if (attr.title === '包装规格' && /^\d+件$/.test(raw)) {
       return { value: raw, bad: `清单只标明 ${raw}，请核对包装单位（${attr.segments?.[0]?.units?.join('、') || '见类目选项'}）` };
@@ -112,7 +113,7 @@ export function reviewSkuAttrs(attrs, { sources, units = {}, upcValues = {} }) {
   const merged = { ...sources.defaults, ...sources.params, ...sources.overrides, ...upcValues };
   const exactTotal = attrs.find(isExactTotal);
   return attrs.map((attr) => {
-    const key = plannedKey(attr.title, merged);
+    const key = skuQuantityKey(attr, merged);
     const raw = key == null ? null : merged[key];
     const got = skuValue(attr, raw, units);
     const base = { key: attrKey(attr.title), id: `sku:${attr.field}`, title: attr.title, required: attr.required, kind: attr.kind, options: optionLabels(attr), suffix: attr.suffix, own: String(sources.overrides[attr.title] ?? '') };

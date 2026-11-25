@@ -3,6 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { ITEM_HOSTS } from '../src/shared/url-utils.js';
+import { normalizeProduct } from '../src/shared/product-normalize.js';
 import { fiber, loadItemPage as loadPage } from './helpers/item-page.js';
 
 const loadItemPage = ({ hostname = 'item.jd.com', tree = null } = {}) => loadPage({ url: `https://${hostname}/100200187696.html`, tree });
@@ -89,6 +90,26 @@ test('图文详情只采集明确标注且不冲突的整件保质期', async ()
   assert.equal((await NS.extractItem({ scrollDetail: false, detailWaitMs: 0 })).detailShelfLife, '3年');
   detail.innerText += '\n保质期：2年';
   assert.equal((await NS.extractItem({ scrollDetail: false, detailWaitMs: 0 })).detailShelfLife, '');
+});
+
+test('新版规格区识别当前选项，主数据只含其他 SKU 时仍可回填', async () => {
+  const option = (value, selected) => ({
+    querySelector: () => ({ textContent: value }),
+    getAttribute: () => null,
+    classList: { contains: (name) => name === 'specification-item-sku--selected' && selected },
+  });
+  const group = {
+    querySelector: () => ({ textContent: '规格' }),
+    querySelectorAll: () => [option('邻近 SKU 750ml', false), option('500ml', true)],
+  };
+  const dom = {
+    querySelector: () => null,
+    querySelectorAll: (selector) => selector === '.specification-group' ? [group] : [],
+  };
+  const biz = { ...HEALTH_BIZ, colorSizeVO: { colorSizeList: [{ title: '规格', buttons: [{ skuId: '100200187697', text: '邻近 SKU 750ml' }] }] } };
+  const raw = await loadPage({ dom, tree: fiber(biz) }).extractItem({ scrollDetail: false, detailWaitMs: 0 });
+  assert.deepEqual(normalizeProduct(raw).saleDims, [{ name: '规格', values: ['500ml'] }]);
+  assert.deepEqual(normalizeProduct(raw, { allVariants: true }).variants.map((v) => v.skuId), ['100200187697', '100200187696']);
 });
 
 test('同时有没带主数据的商品数据和带 wareInfoReadMap 的商品数据时，用带主数据的那份', async () => {

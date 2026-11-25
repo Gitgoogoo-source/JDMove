@@ -139,6 +139,44 @@ test('用同一商品另一处的明确单位补足旧记录的通用件数，�
   assert.equal(withPackListParams({ ...product, title: '磨砂膏 2支装', packList: '磨砂膏250g×2盒' }).params[0].value, '2件');
 });
 
+test('洗洁精按清单确定单件净含量，同规格组合可以合计，容器未知时保留件数', () => {
+  const values = (raw) => Object.fromEntries(normalizeProduct({ wareInfo: { category_id: '15930' }, ...raw }).params.map((p) => [p.name, p.value]));
+  assert.deepEqual(values({ packList: '香橙洗洁精 500ml*1' }), { 总净含量: '500mL', 单件净含量: '500mL', 包装规格: '1件' });
+  assert.deepEqual(values({ domTitle: '洗洁精500ml*2瓶 香橙+柠檬', packList: '香橙洗洁精500ml+柠檬洗洁精500ml', wareInfo: {
+    category_id: '15930', sale_attributes: '[{"saleName":"香型规格","saleValue":"香橙+柠檬"}]',
+  } }), { 总净含量: '1000mL', 单件净含量: '500mL', 包装规格: '2瓶' });
+  assert.deepEqual(values({ packList: '洗洁精500ml+赠品洗洁精500ml' }), {});
+});
+
+test('明确瓶装且当前规格与清单容量一致时补足单瓶包装规格', () => {
+  const raw = {
+    skuId: '100007196929', params: [['包装形式', '瓶装']], packList: '污渍克星清洁剂 500ml 意大利进口衣领净',
+    saleDims: [{ name: '规格', values: [{ text: '污渍克星500ml', selected: true }, { text: '喷雾500ml' }] }],
+  };
+  assert.equal(normalizeProduct(raw).params.find((p) => p.name === '包装规格')?.value, '1瓶');
+  assert.equal(normalizeProduct({ ...raw, params: [] }).params.find((p) => p.name === '包装规格'), undefined);
+});
+
+test('洗衣皂的固定单位输入框填写块数和总克数，混装克数留空', () => {
+  const template = JSON.parse(readFileSync(new URL('../templates/vc/15926.json', import.meta.url)));
+  const attrs = vcTemplateSkuAttrs(template).filter((a) => ['销售规格', '总净含量'].includes(a.title));
+  for (const [packList, spec, title, expected] of [
+    ['植物洗衣皂 300g*1', '洗衣皂 | 植物皂300g', '植物洗衣皂300g', { 销售规格: '1块', 总净含量: '300g' }],
+    ['马赛洗衣皂300g*4', '马赛皂*4', '马赛洗衣皂300g*4', { 销售规格: '4块', 总净含量: '1200g' }],
+    ['', '马赛皂*6', '马赛洗衣皂300g*6', { 销售规格: '6块', 总净含量: '1800g' }],
+    ['马赛洗衣皂300g*2+白苔洗衣液1.5L', '马赛皂*2+白苔洗衣液', '', { 销售规格: '2块', 总净含量: '' }],
+  ]) {
+    const product = withPackListParams({ packList, title, leafCategory: '普通洗衣皂', vc: { saleAttrs: [{ name: '规格', value: spec }] } });
+    const params = Object.fromEntries(product.params.map((p) => [p.name, p.value]));
+    assert.deepEqual(skuQuantityFields(attrs, params).numbers, expected);
+    const rows = reviewSkuAttrs(attrs, { sources: { params, defaults: {}, overrides: {} }, units: { g: '300' } });
+    assert.deepEqual(rows.map(({ title, value }) => [title, value]), Object.entries(expected));
+    assert.equal(rows[1].state, expected.总净含量 ? 'ok' : 'missing');
+  }
+  assert.deepEqual(skuQuantityFields(attrs, { 规格: '300g', 总净含量: '1.2kg' }).numbers, { 销售规格: '', 总净含量: '1200g' });
+  assert.deepEqual(skuQuantityFields(attrs, { 销售规格: '300g', 总净含量: '600g+1500mL' }).numbers, { 销售规格: '', 总净含量: '' });
+});
+
 test('调味油模板按 SKU 保质期的原单位填入抽屉和检查表', () => {
   const template = JSON.parse(readFileSync(new URL('../templates/vc/34945.json', import.meta.url)));
   const attrs = vcTemplateSkuAttrs(template).filter((a) => a.title === '保质期');

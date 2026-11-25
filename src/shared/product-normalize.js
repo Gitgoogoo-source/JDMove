@@ -110,6 +110,29 @@ function fromDomDims(domDims) {
   return { saleDims, variants };
 }
 
+function withSelectedDims(dims, domDims, skuId) {
+  if (!skuId) return dims;
+  const selected = {};
+  for (const dim of domDims ?? []) {
+    const name = str(dim?.name);
+    const hits = (dim?.values ?? []).filter((v) => v.selected && (!v.skuId || String(v.skuId) === skuId));
+    if (name && hits.length === 1 && str(hits[0].text)) selected[name] = str(hits[0].text);
+  }
+  if (!Object.keys(selected).length) return dims;
+  const current = dims.variants.find((v) => v.skuId === skuId);
+  const values = { ...selected, ...current?.values };
+  const allValues = new Map(dims.saleDims.map((d) => [d.name, new Set(d.values)]));
+  for (const [name, value] of Object.entries(values)) {
+    if (!allValues.has(name)) allValues.set(name, new Set());
+    allValues.get(name).add(value);
+  }
+  const variant = { skuId, values };
+  return {
+    saleDims: Array.from(allValues, ([name, choices]) => ({ name, values: [...choices] })),
+    variants: current ? dims.variants.map((v) => v === current ? variant : v) : [...dims.variants, variant],
+  };
+}
+
 // 每个规格在京东上是独立 SKU、价格各不相同；默认只保留当前 SKU，避免用同一价格铺满所有规格
 function onlyCurrent(dims, skuId) {
   const current = dims.variants.find((v) => v.skuId === skuId);
@@ -163,7 +186,7 @@ export function normalizeProduct(raw = {}, opts = {}) {
   const pcImages = Array.isArray(pc?.imageList) ? pc.imageList : [];
   const crumbs = (raw.crumbs ?? []).map(str).filter(Boolean);
   const skuId = str(raw.skuId || pc?.skuid);
-  const allDims = fromColorSize(pc?.colorSize) ?? fromDomDims(raw.saleDims);
+  const allDims = withSelectedDims(fromColorSize(pc?.colorSize) ?? fromDomDims(raw.saleDims), raw.saleDims, skuId);
   const dims = opts.allVariants || allDims.variants.length === 0 ? allDims : onlyCurrent(allDims, skuId);
   const title = str(raw.domTitle) || str(pc?.name) || cleanDocTitle(raw.docTitle);
   const brandName = str(raw.brandText) || brandParam?.value || crumbBrand(crumbs, title);
