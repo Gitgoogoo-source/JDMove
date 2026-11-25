@@ -66,12 +66,17 @@ const SPECIAL_COSMETIC_NUMBER = /国妆特(?:进|制)?字[GHJ]?\d{8,10}(?!\d)/i;
 export function withCollectedParams(product) {
   const enriched = withPackListParams(product);
   const params = enriched?.params;
-  if (!Array.isArray(params) || params.some((p) => normalizeName(p?.name) === COSMETIC_TYPE && str(p.value))) return enriched;
+  if (!Array.isArray(params)) return enriched;
+  const type = params.find((p) => normalizeName(p?.name) === COSMETIC_TYPE);
+  const current = str(type?.value);
+  if (current && current !== '非妆字号') return enriched;
   const numbers = params.filter((p) => COSMETIC_NUMBER_LABELS.has(normalizeName(p?.name))).map((p) => toHalfWidth(p.value).replace(/\s+/g, ''));
   const ordinary = numbers.some((value) => ORDINARY_COSMETIC_NUMBER.test(value));
   const special = numbers.some((value) => SPECIAL_COSMETIC_NUMBER.test(value));
-  if (ordinary === special) return enriched;
-  return { ...enriched, params: [...params, { name: COSMETIC_TYPE, value: special ? '特殊化妆品' : '非特殊化妆品' }] };
+  // 京东商品页有时写“非妆字号”，京麦只接受“非特殊化妆品”。用普通化妆品备案号确认后再换成后者。
+  if (ordinary === special || (current && !ordinary)) return enriched;
+  const value = { name: COSMETIC_TYPE, value: special ? '特殊化妆品' : '非特殊化妆品' };
+  return { ...enriched, params: type ? params.map((p) => p === type ? value : p) : [...params, value] };
 }
 
 function fromColorSize(colorSize) {

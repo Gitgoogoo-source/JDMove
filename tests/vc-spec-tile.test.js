@@ -23,8 +23,8 @@ const numberUnits = (placeholder, options) =>
 
 const notes = (placeholder) => el('div.shop-dynamic-component', {}, [el('div.shop-form-item-tips', {}, [el('div.sale-custom-notes', {}, [input(placeholder)])])]);
 
-const skuField = (title, control) => el('div.shop-dynamic-component', {}, [
-  el('div.shop-dynamic-component-title.is-required-star', { ownText: title }), control,
+const skuField = (title, control, required = true) => el('div.shop-dynamic-component', {}, [
+  el(`div.shop-dynamic-component-title${required ? '.is-required-star' : ''}`, { ownText: title }), control,
 ]);
 
 function skuDrawer(fields, preceding = []) {
@@ -37,11 +37,15 @@ function skuDrawer(fields, preceding = []) {
   return { body: el('body', {}, [...preceding, tr, drawer]), tr, drawerTrigger };
 }
 
-/** 京麦新版单选：实际选中的文字在 placeholder 节点里，搜索框始终为空。 */
-function nativeSelect(options, selected = '') {
+/** 京麦新版单选：实际选中的文字在 placeholder 节点里，搜索框只用来筛选选项。 */
+function nativeSelect(options, selected = '', initial = options) {
   const popup = el('div.jd-select-v2__popper', { shown: false });
   const combo = el('input.jd-select-v2__combobox-input', {
     getAttribute: (key) => key === 'aria-expanded' ? String(popup.shown) : null,
+    focus: () => {},
+    onInput: (value) => {
+      for (const option of popup.children) option.shown = value ? option.textContent.includes(value) : initial.includes(option.textContent);
+    },
   });
   const display = el('span.jd-select-v2__placeholder');
   function choose(label) {
@@ -50,9 +54,36 @@ function nativeSelect(options, selected = '') {
     popup.shown = false;
   }
   choose(selected);
-  const wrapper = el('div.jd-select-v2__wrapper', { onClick: () => { popup.shown = !popup.shown; } }, [combo, display]);
-  options.forEach((label) => popup.append(el('li.jd-select-dropdown__option-item', { ownText: label, onClick: () => choose(label) })));
+  const wrapper = el('div.jd-select-v2__wrapper.is-filterable', { onClick: () => { popup.shown = !popup.shown; } }, [combo, display]);
+  for (const label of options) {
+    popup.append(el('li.jd-select-dropdown__option-item', { ownText: label, shown: initial.includes(label), onClick: () => choose(label) }));
+  }
   return el('div.jd-select-v2.adv-select-native', {}, [wrapper, popup]);
+}
+
+function multiSelect(options, initial) {
+  const popup = el('div.jd-select-v2__popper', { id: 'benefit-options', shown: false });
+  const tags = el('div.jd-select-v2__tags');
+  const combo = el('input.jd-select-v2__combobox-input', {
+    getAttribute: () => String(popup.shown),
+    focus: () => {},
+    onInput: (value) => {
+      for (const option of popup.children) option.shown = value ? option.textContent.includes(value) : initial.includes(option.textContent);
+    },
+  });
+  const wrapper = el('div.jd-select-v2__wrapper.is-filterable', {
+    getAttribute: () => popup.id,
+    onClick: () => { popup.shown = !popup.shown; },
+  }, [tags, combo]);
+  for (const label of options) {
+    const checkbox = el('input.jd-checkbox__original', { checked: false });
+    const optionLabel = el('span.jd-checkbox__label', {
+      ownText: label,
+      onClick: () => { checkbox.checked = true; tags.append(el('span.jd-select-v2__tags-text', { ownText: label })); },
+    });
+    popup.append(el('li.jd-select-dropdown__option-item', { shown: initial.includes(label) }, [checkbox, optionLabel]));
+  }
+  return { control: el('div.jd-select-v2.select-option', {}, [wrapper]), popup, tags };
 }
 
 /** 湿厕纸的规格格子 + “请设置”的弹层；弹层两组都填好后“请设置”框显示组合值（页面：信息全部补充后才会应用） */
@@ -89,7 +120,7 @@ function load(page) {
       }
       return null;
     },
-    setNativeValue: (n, v) => (n.value = v),
+    setNativeValue: (n, v) => { n.value = v; n.onInput?.(v); },
     click: (n) => n.click(),
     buttonByText: (label, root) => root.querySelectorAll('button').find((b) => b.textContent === label),
   };
@@ -193,4 +224,36 @@ test('SKU 新版下拉通过组件的选中标记判断必填项，搜索框为�
   const blankRes = await load(blank).vcFillSkuAttrs({});
   assert.equal(blankRes.confirmed, false);
   assert.deepEqual([...blankRes.missing], ['形态']);
+});
+
+test('京麦 SKU 下拉搜索未渲染的香型，并分开勾选功效复选项', async () => {
+  const scent = nativeSelect(['花香型', '奶香型'], '', ['花香型']);
+  const benefits = multiSelect(['去屑', '丰盈蓬松', '柔顺', '芳香'], ['去屑']);
+  const page = skuDrawer([skuField('香型', scent), skuField('功效', benefits.control)], [benefits.popup]);
+  const res = await load(page).vcFillSkuAttrs({ values: { 香型: '奶香型', 功效: '丰盈蓬松 柔顺 芳香' } });
+  assert.equal(res.confirmed, true);
+  assert.deepEqual([...res.missing], []);
+  assert.equal(scent.querySelector('.is-has-model-value')?.textContent, '奶香型');
+  assert.deepEqual(benefits.tags.children.map((tag) => tag.textContent), ['丰盈蓬松', '柔顺', '芳香']);
+});
+
+test('京麦化妆品类型只匹配完整选项，普通化妆品不会选成特殊化妆品', async () => {
+  const page = skuDrawer([skuField('是否特殊化妆品', nativeSelect(['特殊化妆品', '跨境商品']))]);
+  const res = await load(page).vcFillSkuAttrs({ values: { 是否特殊化妆品: '非特殊化妆品' } });
+  assert.equal(res.confirmed, false);
+  assert.deepEqual([...res.missing], ['是否特殊化妆品']);
+});
+
+test('洗发水填了 700g 时，留空同名的选填毫升区间仍能确认', async () => {
+  const exact = el('div.sale-number-units', {}, [input('输入数值'), unitSelect(['g', 'ml'])]);
+  const range = nativeSelect(['401-750mL']);
+  const page = skuDrawer([skuField('总净含量', exact, false), skuField('总净含量', range, false)]);
+  const res = await load(page).vcFillSkuAttrs({
+    values: { 总净含量: '700g' },
+    quantityFields: { numbers: { 总净含量: '700g' }, select: { 总净含量: '' } },
+  });
+  assert.equal(res.confirmed, true);
+  assert.deepEqual([...res.missing], []);
+  assert.equal(exact.querySelector('input')?.value, '700');
+  assert.equal(range.querySelector('.is-has-model-value'), null);
 });

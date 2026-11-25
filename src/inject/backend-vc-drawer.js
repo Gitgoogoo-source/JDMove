@@ -57,12 +57,18 @@
 
   const CLASSIC_OPTION = '.jd-select-dropdown__item';
   const V2_OPTION = 'li.jd-select-dropdown__option-item';
-  const V2_SELECTION = '.jd-select-v2__placeholder.is-has-model-value, .jd-select-v2__tags';
+  const V2_POPUP = '.jd-select-v2__popper';
+  const V2_SELECTION = '.jd-select-v2__placeholder.is-has-model-value, .jd-select-v2__tags .jd-select-v2__tags-text';
   const visibleOptions = (sel, root) => qsa(sel, root).filter(visible);
   const v2Selection = (box) => qsa(V2_SELECTION, box).map(textOf).filter(Boolean);
+  const v2Count = (box) => v2Selection(box).length + Number(textOf(box.querySelector('.jd-select-v2__collapse-tag')).match(NUMBER_RE)?.[0] ?? 0);
+  const exactText = (els, value) => {
+    const want = norm(value);
+    return want ? els.find((el) => norm(textOf(el)) === want) : null;
+  };
   const pickText = (els, value) => {
     const want = norm(value);
-    return els.find((el) => norm(textOf(el)) === want) || els.find((el) => want && (norm(textOf(el)).includes(want) || want.includes(norm(textOf(el))))) || null;
+    return exactText(els, value) || els.find((el) => want && (norm(textOf(el)).includes(want) || want.includes(norm(textOf(el))))) || null;
   };
 
   function hoverClick(el) {
@@ -182,7 +188,7 @@
   /**
    * 新版下拉的搜索框不保存选中值。用当前控件的选中标签验收；选项可能挂在控件内，也可能挂在页面外层。
    */
-  async function fillSelectV2(root, value) {
+  async function fillSelectV2(root, value, { exact = false } = {}) {
     if (!value) return false;
     const box = root.querySelector('.jd-select-v2');
     const wrapper = box.querySelector('.jd-select-v2__wrapper') || box;
@@ -204,7 +210,8 @@
     const before = new Set(visibleOptions(V2_OPTION));
     const options = () => {
       if (combo?.getAttribute('aria-expanded') === 'false') return null;
-      const popup = box.querySelector('.jd-select-v2__popper');
+      const popup = box.querySelector(V2_POPUP) || qsa(V2_POPUP).find((el) =>
+        visible(el) && wrapper.getAttribute('aria-describedby')?.split(/\s+/).includes(el.id));
       const list = popup ? visibleOptions(V2_OPTION, popup) : visibleOptions(V2_OPTION).filter((el) => !before.has(el));
       return list.length ? list : null;
     };
@@ -216,12 +223,53 @@
       if (!expanded()) press('ArrowDown');
     }
     if (!items) items = await waitFor(options, { timeout: 1600 });
-    const hit = items && pickText(items, value);
-    const label = textOf(hit);
-    if (hit && !selected(label)) click(hit);
-    const applied = hit && await waitFor(() => selected(label), { timeout: 1200 });
-    await close();
-    return Boolean(applied);
+
+    async function findOption(want, allowPartial) {
+      const initial = options() ?? [];
+      const hit = exactText(initial, want);
+      if (hit) return hit;
+      // 虚拟列表只渲染前几项，先按原文搜索，再考虑与可见选项近似匹配。
+      if (combo && wrapper.classList.contains('is-filterable')) {
+        combo.focus({ preventScroll: true });
+        setNativeValue(combo, want);
+        const found = await waitFor(() => exactText(options() ?? [], want), { timeout: 1500, interval: 100 });
+        if (found) return found;
+        if (allowPartial && pickText(initial, want)) {
+          setNativeValue(combo, '');
+          return waitFor(() => pickText(options() ?? [], want), { timeout: 1000 });
+        }
+      }
+      return allowPartial ? pickText(options() ?? [], want) : null;
+    }
+
+    try {
+      if (!items) return false;
+      const multi = items.some((item) => item.querySelector('.jd-checkbox__label'));
+      const choices = !multi || exactText(items, value) ? [value] : [...new Set(String(value).split(/[\s,，、/;；|]+/).filter(Boolean))];
+      let applied = false;
+      for (const want of choices) {
+        if (selected(want)) {
+          applied = true;
+          continue;
+        }
+        const hit = await findOption(want, !multi && !exact);
+        if (!hit) continue;
+        const label = textOf(hit);
+        const checkbox = hit.querySelector('input.jd-checkbox__original');
+        const isSelected = () => selected(label) || checkbox?.checked;
+        if (isSelected()) {
+          applied = true;
+          continue;
+        }
+        const count = multi ? v2Count(box) : 0;
+        click(hit.querySelector('.jd-checkbox__label') || hit);
+        const added = await waitFor(() => isSelected() || (multi && v2Count(box) > count), { timeout: 1200 });
+        if (added) applied = true;
+      }
+      return applied;
+    } finally {
+      await close();
+    }
   }
 
   /** 只读框点开是数字弹层（纸张尺寸：长、宽），按顺序填文本里的数字，再点弹层里的“确定” */
@@ -265,11 +313,12 @@
   }
 
   /** 字段本身是旧版下拉：按文字（可模糊）选 */
-  async function fillClassic(root, value) {
+  async function fillClassic(root, value, { exact = false } = {}) {
     const select = root.querySelector('.jd-select');
     if (!value || !select) return false;
     await openClassic(select);
-    const hit = pickText(visibleOptions(CLASSIC_OPTION), value);
+    const options = visibleOptions(CLASSIC_OPTION);
+    const hit = exact ? exactText(options, value) : pickText(options, value);
     if (hit) click(hit);
     else await closeClassic(select);
     await optionsClosed(CLASSIC_OPTION);
@@ -280,6 +329,7 @@
     const value = plannedValue(label, ctx.values);
     const number = ctx.quantityFields?.numbers[label];
     const selection = ctx.quantityFields?.select[label] ?? value;
+    const exact = label === '是否特殊化妆品';
     if (number !== undefined && qsa('input', root).some((i) => i.readOnly && !i.closest('.jd-select, .jd-select-v2'))) {
       return !!number && fillNumberPopover(root, number, unitOfValue(number));
     }
@@ -288,8 +338,8 @@
     // 规格描述（【王牌爆款】）只写进“产品描述”，备注这类说明框不拿它填
     if (root.querySelector('.sale-custom-notes')) return fillText(root, value != null ? value : REMARK_RE.test(label) ? null : ctx.desc);
     if (root.querySelector('.sale-structured-template')) return fillTemplate(root, value);
-    if (root.querySelector('.jd-select-v2')) return fillSelectV2(root, selection);
-    if (root.querySelector('.jd-select')) return fillClassic(root, selection);
+    if (root.querySelector('.jd-select-v2')) return fillSelectV2(root, selection, { exact });
+    if (root.querySelector('.jd-select')) return fillClassic(root, selection, { exact });
     if (qsa('input', root).some((i) => i.readOnly)) return fillNumberPopover(root, value);
     return fillPlain(root, number ?? value, ctx);
   }
@@ -314,11 +364,17 @@
         done = false;
       }
       if (done) filled.push(field.label);
-      else if (ctx.quantityFields?.numbers[field.label] !== undefined || (field.required && !hasFieldValue(field.root))) {
+      else if ((field.required && !hasFieldValue(field.root)) || needsExactNumber(field, ctx.quantityFields)) {
         missing.push(field.label);
       }
     }
     return { filled, missing };
+  }
+
+  function needsExactNumber({ label, root }, quantityFields) {
+    // 区间下拉可能和数字框同名，不能用数字计划去判定区间下拉缺项。
+    return quantityFields?.numbers[label] !== undefined
+      && (root.querySelector('.sale-number-units') || !root.querySelector('.jd-select-v2, .jd-select'));
   }
 
   /**

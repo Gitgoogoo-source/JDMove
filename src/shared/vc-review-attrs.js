@@ -2,7 +2,7 @@
 // 商品属性用发布流程同一套匹配（buildPropPlan 的结果）；SKU属性在发布页的抽屉里按标签名取值，
 // 这里照抄抽屉脚本（src/inject/backend-vc-drawer.js 的 plannedValue / pickText / 各控件取数）的规则，结果和发布时一致
 import { normSkuLabel as norm, plannedKey } from './sku-attrs.js';
-import { skuQuantityValue } from './sku-quantity.js';
+import { isExactTotal, skuQuantityValue } from './sku-quantity.js';
 import { BUILTIN_ATTR_DEFAULTS } from './vc-plan.js';
 import { parseAttrDefaults } from './settings.js';
 import { formatNumberParts, numberSegments } from './attr-numbers.js';
@@ -24,6 +24,7 @@ export function pickOption(labels, value) {
 }
 
 const optionLabels = (attr) => (attr.options ?? []).map((o) => String(o.label ?? '')).filter(Boolean);
+const exactOption = (labels, value) => labels.find((l) => norm(l) === norm(value));
 
 /** 多段数字（纸张尺寸 长×宽）需要几个数 */
 const partsOf = (attr) => Math.max(1, (attr.options ?? []).filter((o) => o.label).length);
@@ -53,7 +54,14 @@ function skuValue(attr, raw, units) {
   }
   if (attr.kind === 'select' || attr.kind === 'multi') {
     if (raw == null) return null;
-    const hit = pickOption(optionLabels(attr), raw);
+    const labels = optionLabels(attr);
+    if (attr.kind === 'multi') {
+      const exact = exactOption(labels, raw);
+      const choices = exact ? [exact] : String(raw).split(/[\s,，、/;；|]+/).map((s) => exactOption(labels, s)).filter(Boolean);
+      const hits = [...new Set(choices)].slice(0, attr.maxLength || choices.length);
+      return hits.length ? { value: hits.join('、') } : { bad: `“${raw}”不在可选项里` };
+    }
+    const hit = attr.title === '是否特殊化妆品' ? exactOption(labels, raw) : pickOption(labels, raw);
     return hit ? { value: hit } : { bad: `“${raw}”不在可选项里` };
   }
   if (attr.suffix) {
@@ -102,12 +110,16 @@ function sourceLabel(key, sources) {
  */
 export function reviewSkuAttrs(attrs, { sources, units = {}, upcValues = {} }) {
   const merged = { ...sources.defaults, ...sources.params, ...sources.overrides, ...upcValues };
+  const exactTotal = attrs.find(isExactTotal);
   return attrs.map((attr) => {
     const key = plannedKey(attr.title, merged);
     const raw = key == null ? null : merged[key];
     const got = skuValue(attr, raw, units);
     const base = { key: attrKey(attr.title), id: `sku:${attr.field}`, title: attr.title, required: attr.required, kind: attr.kind, options: optionLabels(attr), suffix: attr.suffix, own: String(sources.overrides[attr.title] ?? '') };
     if (!got) return { ...base, ...missing(attr, attr.required ? '源商品没有这个参数' : '') };
+    if (got.bad && exactTotal && attr.title === exactTotal.title && attr.kind === 'select' && !attr.required && skuQuantityValue(exactTotal, raw)) {
+      return { ...base, ...missing(attr, '已填写精确净含量') };
+    }
     if (got.bad) return { ...base, value: got.value ?? '', from: key ? sourceLabel(key, sources) : '', state: badState(attr, base.own), note: `${got.bad}，发布时填不上` };
     return { ...base, ...ok(got.value, got.fromSpec ? '规格' : sourceLabel(key, sources)), note: '' };
   });

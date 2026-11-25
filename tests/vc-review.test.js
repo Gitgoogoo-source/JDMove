@@ -222,6 +222,17 @@ test('SKU属性和发布页抽屉的取值规则一致：完全相同优先、�
   assert.equal(rows.find((a) => a.title === '包数').state, 'missing');
 });
 
+test('洗发水检查表保留全部功效，有精确 700g 时不把选填毫升区间列为缺项', () => {
+  const attrs = vcTemplateSkuAttrs(read('16756.json'));
+  const rows = reviewSkuAttrs(attrs, { sources: {
+    params: { 功效: '丰盈蓬松 柔顺 芳香' },
+    overrides: { 总净含量: '700g' },
+    defaults: {},
+  } });
+  assert.equal(rows.find((a) => a.title === '功效').value, '丰盈蓬松、柔顺、芳香');
+  assert.deepEqual(rows.filter((a) => a.title === '总净含量').map(({ value, state }) => [value, state]), [['700g', 'ok'], ['', 'empty']]);
+});
+
 test('rebaseEdits：保存时只覆盖弹窗里改过的项，弹窗打开期间在别处的修改保留；ERP 三个键当成一项', () => {
   const base = { title: 'A', vc: { marketPrice: 9, erpCode: 'a.b' }, attrOverrides: { 香型: '有香型' } };
   const draft = { title: 'A', vc: { marketPrice: 9, jdPrice: 8, buyerErp: 'a.b', salerErp: 'c.d' }, attrOverrides: { 香型: '有香型', 层数: '3层' }, cateList: ['1', '2'], cateName: 'x' };

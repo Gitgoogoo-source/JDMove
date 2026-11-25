@@ -193,6 +193,11 @@ test('按明确的备案或注册编号补化妆品类型，保留原值并跳�
   assert.equal(type([filing, registered]), undefined);
   assert.equal(type([['批准文号', '国妆原备字2025000012']]), undefined);
   assert.equal(type([filing, ['是否特殊化妆品', '跨境商品']]), '跨境商品');
+  const nonCosmeticLabel = ['是否特殊化妆品', '非妆字号'];
+  assert.equal(type([nonCosmeticLabel, ['批准文号/备案编号', '皖G妆网备字2024000673']]), '非特殊化妆品');
+  assert.equal(type([nonCosmeticLabel]), '非妆字号');
+  assert.equal(type([nonCosmeticLabel, registered]), '非妆字号');
+  assert.equal(type([nonCosmeticLabel, filing, registered]), '非妆字号');
 });
 
 test('取 wareInfoReadMap.upc_code 作为商品条形码', () => {
