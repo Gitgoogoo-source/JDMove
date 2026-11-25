@@ -230,11 +230,12 @@ export function autoTemplate({ product, edits = {}, settings, catalog }) {
   return reviewTemplate({ product, edits: rest, settings, catalog });
 }
 
-function imagesOf(plan, product) {
+function imagesOf(plan, product, localImages) {
   const main = plan.images.mainImageUrls;
   return {
     main,
-    transparent: main[0] ?? '',
+    transparent: plan.images.transparentUrl ?? '',
+    ...(localImages && { local: true, dir: localImages.dir, error: localImages.error, keepTransparency: plan.images.keepTransparency }),
     detailCount: plan.images.detailImageUrls.length,
     problems: [...(main.length ? [] : ['主图']), ...(product?.detailImages?.length ? [] : ['详情图'])],
   };
@@ -252,12 +253,12 @@ function imagesOf(plan, product) {
 
 /**
  * 一个商品的发布前检查结果
- * @param {{product: object, edits?: object, settings: object, template?: object|null}} input
+ * @param {{product: object, edits?: object, settings: object, template?: object|null, localImages?: object|null}} input
  * @returns {Review}
  */
-export function buildReview({ product, edits = {}, settings, template = null }) {
+export function buildReview({ product, edits = {}, settings, template = null, localImages = null }) {
   const propAttrs = vcTemplateAttrs(template);
-  const plan = buildVcPublishPlan({ product, edits, settings, schema: { attrs: propAttrs }, template });
+  const plan = buildVcPublishPlan({ product, edits, settings, schema: { attrs: propAttrs }, template, localImages });
   const target = vcTarget({ product, edits, settings });
   const ctx = { product, edits, settings, template, prices: plan.prices };
   const fields = REVIEW_FIELDS.map((def) => fieldState(def, ctx));
@@ -265,7 +266,7 @@ export function buildReview({ product, edits = {}, settings, template = null }) 
   const skuAttrsOn = settings.publish.fillSkuAttrs !== false;
   const upc = plan.sku.upc ? { [UPC_LABEL]: plan.sku.upc } : {};
   const skuAttrs = reviewSkuAttrs(vcTemplateSkuAttrs(template), { sources: skuValueSources(product, edits, settings), units: plan.skuAttrUnits, upcValues: upc });
-  const images = imagesOf(plan, product);
+  const images = imagesOf(plan, product, localImages);
   const skuProblems = skuAttrsOn ? skuAttrs.filter(attrProblem) : [];
   // 填错（state=error）的带上原因，缺的只有名字：“缺 京东价”和“京东价高于市场价”要分开说
   const issueOf = (name, x) => ({ name, note: x.state === 'error' ? x.note || '' : '' });

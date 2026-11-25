@@ -9,7 +9,7 @@ export const INFO_TXT = '商品信息.txt';
 export const RAW_JSON = '原始数据.json';
 
 const MAX_NAME_LENGTH = 80;
-const IMAGE_EXTS = new Set(['jpg', 'jpeg', 'png', 'webp', 'gif', 'avif', 'bmp']);
+export const IMAGE_EXTS = new Set(['jpg', 'jpeg', 'png', 'webp', 'gif', 'avif', 'bmp']);
 
 /** 文件夹/文件名里不能出现的字符替换成下划线，去掉首尾空格和结尾的点 */
 export function safeName(name, fallback = '_') {

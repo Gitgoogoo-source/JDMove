@@ -1,6 +1,7 @@
 // 把一个已采集的商品写到本地文件夹：<存储位置>/<品牌>/<SKU>/{主图,详情图,商品信息.*}
-import { buildLocalPlan, pickBrandDir, safeName, IMAGE_DIRS, INFO_JSON } from '../shared/local-layout.js';
-import { itemBrand } from '../shared/brand-folders.js';
+import { buildLocalPlan, pickBrandDir, safeName, IMAGE_DIRS, IMAGE_EXTS, INFO_JSON } from '../shared/local-layout.js';
+import { brandKey, itemBrand } from '../shared/brand-folders.js';
+import { isTransparentPng } from './images.js';
 
 const IMAGE_CONCURRENCY = 4;
 
@@ -128,12 +129,79 @@ async function isEmptyDir(dir) {
 }
 
 /** 商品的本地文件夹：优先用保存时记录的路径（只接受“品牌/SKU”这种两级、且末级就是该 SKU 的路径），否则按品牌推算 */
-async function locateItemFolder(root, item) {
+async function locateItemFolder(root, item, brandNames) {
   const skuName = safeName(item.skuId);
   const [brand, sku, ...rest] = String(item.local?.dir ?? '').split('/');
   if (!rest.length && sku === skuName && isPlainName(brand)) return { brand, sku };
   if (!item.product) return null;
-  return { brand: pickBrandDir(await subDirNames(root), itemBrand(item)), sku: skuName };
+  return { brand: pickBrandDir(brandNames ?? await subDirNames(root), itemBrand(item)), sku: skuName };
+}
+
+/** 读取当前文件，发布与预览共用。返回 null 表示没有本地主图目录。 */
+export async function readLocalPublishImages(root, item, { isTransparent = isTransparentPng } = {}) {
+  const brandNames = await subDirNames(root);
+  const target = await locateItemFolder(root, item, brandNames);
+  if (!target) return null;
+  const sourceBrand = itemBrand({ product: item.product });
+  const knownBrands = [target.brand, itemBrand(item), sourceBrand].filter(Boolean);
+  const folders = [...new Set([
+    target.brand,
+    ...knownBrands.map((name) => safeName(name)),
+    ...brandNames.filter((name) => knownBrands.some((brand) => brandKey(brand) === brandKey(name))),
+  ])];
+  for (const brand of folders) {
+    let dir;
+    try {
+      const brandDir = await root.getDirectoryHandle(brand);
+      const skuDir = await brandDir.getDirectoryHandle(target.sku);
+      dir = await skuDir.getDirectoryHandle(IMAGE_DIRS.main);
+    } catch (e) {
+      if (e?.name === 'NotFoundError' || e?.name === 'TypeMismatchError') continue;
+      throw e;
+    }
+
+    const entries = [];
+    for await (const [name, handle] of dir.entries()) {
+      const ext = name.split('.').pop().toLowerCase();
+      if (handle.kind === 'file' && !name.startsWith('.') && name.includes('.') && IMAGE_EXTS.has(ext)) {
+        entries.push({ name, handle });
+      }
+    }
+    entries.sort((a, b) => a.name.localeCompare(b.name, 'zh-CN', { numeric: true }));
+    const main = [];
+    let transparent = null;
+    for (const { name, handle } of entries) {
+      const file = await handle.getFile();
+      if (!file.size) throw new Error(`主图文件为空：${name}`);
+      const namedTransparent = /透图|透明|transparent/i.test(name);
+      const numberedTransparent = /^0*6\.png$/i.test(name);
+      if ((namedTransparent || numberedTransparent) && /\.png$/i.test(name) && await isTransparent(file)) {
+        if (transparent) throw new Error('主图目录中有多张透图，请只保留一张');
+        transparent = file;
+      } else {
+        if (namedTransparent) throw new Error(`透图需要透明底 PNG：${name}`);
+        main.push(file);
+      }
+    }
+    return { main, transparent, dir: `${brand}/${target.sku}/${IMAGE_DIRS.main}` };
+  }
+  return null;
+}
+
+/** 本地 URL 只在当前预览或发布期间有效。 */
+export function localPublishImageUrls(files) {
+  if (!files) return null;
+  const mainImageUrls = files.main.map((file) => URL.createObjectURL(file));
+  const transparentUrl = files.transparent ? URL.createObjectURL(files.transparent) : null;
+  return {
+    mainImageUrls,
+    transparentUrl,
+    dir: files.dir,
+    release() {
+      mainImageUrls.forEach((url) => URL.revokeObjectURL(url));
+      if (transparentUrl) URL.revokeObjectURL(transparentUrl);
+    },
+  };
 }
 
 /**

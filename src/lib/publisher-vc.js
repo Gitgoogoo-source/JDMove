@@ -6,6 +6,7 @@ import { callVcBackend, openWorkTab, navigateTab, closeTab, sleep, waitForTabUrl
 import { landedPageKind } from './category-search.js';
 import { forgetLeaf, resolveLeafTarget, sharedLeafCache } from './vc-leaf.js';
 import { startImagePrep } from './image-prep.js';
+import { localPublishImageUrls } from './local-store.js';
 import { createStopwatch } from '../shared/stopwatch.js';
 import { detectSaveThrottle, parseSaveResponse } from '../shared/publish-throttle.js';
 import { loadVcTemplate } from './vc-templates.js';
@@ -84,7 +85,12 @@ async function fillFields(tabId, plan, log, timer) {
 
 /** 方图（上传）→ 透图（上传 PNG）→ 图片信息识别（勾选刚传的第一张主图） */
 async function fillImages(tabId, log, { timer, images }) {
-  const mains = await images.main;
+  let mains;
+  try {
+    mains = await images.main;
+  } catch (e) {
+    return stop('need_action', `本地主图处理失败：${e.message}`);
+  }
   timer.lap('等待主图处理');
   if (!mains.length) return stop('failed', '主图处理失败，没有可上传的图片');
   const main = await callVcBackend(tabId, 'vcPutImages', { field: 'imageList', images: mains });
@@ -92,11 +98,11 @@ async function fillImages(tabId, log, { timer, images }) {
   if (!main?.ok) return stop('failed', `方图上传失败：${(main?.errors ?? []).join('；') || '页面没有返回结果'}`);
   log(`方图 ${main.count} 张`);
   const png = await images.transparent;
-  if (!png) return stop('need_action', '透图生成失败（见日志），请在发布页手动上传 1 张透明底 PNG');
+  if (!png) return stop('need_action', '透图处理失败（见日志），请在发布页手动上传 1 张透明底 PNG');
   const transparent = await callVcBackend(tabId, 'vcPutImages', { field: 'transparentImageList', images: [png] });
   timer.lap('透图上传');
   if (!transparent?.ok) return stop('failed', `透图上传失败：${(transparent?.errors ?? []).join('；') || '页面没有返回结果'}`);
-  log('透图：由第一张主图自动去掉白底生成，请在页面上核对效果');
+  log(images.keepTransparency ? '透图：已上传本地透明 PNG' : '透图：由第一张主图自动去掉白底生成，请在页面上核对效果');
   const rec = await callVcBackend(tabId, 'vcPutImages', { field: 'aiRecImages', names: [mains[0].name] });
   timer.lap('图片信息识别');
   if (!rec?.ok) return stop('failed', `图片信息识别没有放上图片：${(rec?.errors ?? []).join('；') || '页面没有返回结果'}`);
@@ -357,7 +363,7 @@ async function publishOnPage(tab, item, settings, log, target, ctx) {
 
     const schema = await callVcBackend(tab.id, 'getFormSchema');
     if (!schema?.ok) throw new Error(schema?.error || '读取表单结构失败');
-    const plan = buildVcPublishPlan({ product: item.product, edits: item.edits, settings, schema, template: ctx.template });
+    const plan = buildVcPublishPlan({ product: item.product, edits: item.edits, settings, schema, template: ctx.template, localImages: ctx.localImages });
     plan.warnings.forEach((w) => log(w));
     if (plan.blockers.length) return { status: 'need_action', message: plan.blockers.join('；'), target };
 
@@ -452,7 +458,8 @@ async function templateFor(target, log, loadTemplate) {
 
 /**
  * 发布单个条目到 VC 自营店铺
- * @param {{imageMakers?: {main?: Function, detail?: Function, transparent?: Function}, landTimeoutMs?: number, applyRetryMs?: number,
+ * @param {{imageMakers?: {main?: Function, detail?: Function, transparent?: Function, localTransparent?: Function}, readLocalImages?: (item: object) => Promise<object|null>,
+ *   landTimeoutMs?: number, applyRetryMs?: number,
  *   leafCache?: Map<string, object[]>, loadTemplate?: (cateList: string[]) => Promise<object|null>, takenSkus?: Set<string>}} [deps]
  *   leafCache：读到的子类目（类目ID → 子类目），默认整个运行期共用一份；loadTemplate：读上架模板（测试时替换）
  *   takenSkus：已经记给别的商品的 SKU（上架总表记录里的自动加上），按商品名称兜底找 SKU 时不再选它们
@@ -466,6 +473,7 @@ export async function publishVcItem(
   log,
   {
     imageMakers,
+    readLocalImages = async () => null,
     landTimeoutMs = LAND_TIMEOUT_MS,
     applyRetryMs = APPLY_LIST_RETRY_MS,
     leafCache = sharedLeafCache,
@@ -476,8 +484,22 @@ export async function publishVcItem(
   if (!item.product) return { status: 'need_action', message: '尚未采集' };
   const picked = vcTarget({ product: item.product, edits: item.edits, settings });
   if (picked.error) return { status: 'need_action', message: picked.error };
+  let localImages;
+  try {
+    localImages = localPublishImageUrls(await readLocalImages(item));
+  } catch (e) {
+    return { status: 'need_action', message: `本地主图读取失败：${e.message}`, target: picked.target };
+  }
+  try {
+    return await publishWithImages(item, settings, log, { picked, localImages, imageMakers, landTimeoutMs, applyRetryMs, leafCache, loadTemplate, takenSkus });
+  } finally {
+    localImages?.release();
+  }
+}
+
+async function publishWithImages(item, settings, log, { picked, localImages, imageMakers, landTimeoutMs, applyRetryMs, leafCache, loadTemplate, takenSkus }) {
   const template = await templateFor(picked.target, log, loadTemplate);
-  const { blockers } = vcPreflight({ product: item.product, edits: item.edits, settings, template });
+  const { blockers } = vcPreflight({ product: item.product, edits: item.edits, settings, template, localImages });
   if (blockers.length) return { status: 'need_action', message: blockers.join('；'), target: picked.target };
   // 之前已经读到过这个类目的子类目（不是末级类目）：直接换成子类目，不再打开会报错的发布页
   const leafArgs = { product: item.product, edits: item.edits, log, cache: leafCache };
@@ -486,7 +508,8 @@ export async function publishVcItem(
   const { target } = known;
 
   const timer = createStopwatch();
-  const { images: imagePlan } = buildVcPublishPlan({ product: item.product, edits: item.edits, settings, schema: { attrs: [] } });
+  const { images: imagePlan } = buildVcPublishPlan({ product: item.product, edits: item.edits, settings, schema: { attrs: [] }, localImages });
+  if (localImages) log(`主图来源：${localImages.dir}（${imagePlan.mainImageUrls.length} 张）`);
   // 文件名带时间戳：按文件名在图片空间里勾选时不会选到以前传过的同名图片
   const sku = `vc_${item.skuId}_${Date.now() % 1e6}`;
   const images = startImagePrep(
@@ -501,7 +524,7 @@ export async function publishVcItem(
     throw e;
   }
   timer.lap('打开页面');
-  const ctx = { timer, images, landTimeoutMs, applyRetryMs, template, takenSkus };
+  const ctx = { timer, images, localImages, landTimeoutMs, applyRetryMs, template, takenSkus };
   const first = await publishInVcTab(tab, item, settings, log, target, ctx);
   // 用记下的子类目打开后仍报不是末级类目：清掉记录，从源类目重新选
   if (first.notLeaf && known.changed) forgetLeaf(leafCache, target.cateList);

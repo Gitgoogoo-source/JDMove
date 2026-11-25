@@ -211,6 +211,7 @@ export function createBatchFlow({ runner, storage, onLog, onUploadStatus, reload
     await reload();
     if (choice !== 'publish') return onLog('只保存了修改，没有发布');
     if (!confirmCooldown()) return;
+    if (storage.isSet() && !(await storage.ensureAccess())) return onLog('请点击“存储位置”授权后再发布，以便读取本地主图');
     if (runner.getState().running) return onLog('有任务正在执行：修改已保存，等当前任务结束后勾选这些商品点“发布选中”');
     onLog(`开始发布 ${pub.ready.length} 条（填写完成后：${PUBLISH_ACTIONS[settings.publish.action] ?? settings.publish.action}）`);
     runner.publish(pub.ready);

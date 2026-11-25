@@ -22,13 +22,14 @@ const COLLECT_TAB_MODES = new Set(['collect']);
 /**
  * @param {{onChange: () => void, onLog: (line: string) => void,
  *   saveLocal?: (item: object, opts?: {raw?: object}) => Promise<{dir: string, saved: number, failed: string[]}|null>,
+ *   readLocalImages?: (item: object) => Promise<object|null>,
  *   onRunEnd?: (info: RunEndInfo) => void}} hooks
  *   saveLocal 把商品写到本地存储位置（刚采集时带上页面原始数据 raw）；未设置存储位置时返回 null；
  *   onRunEnd 每轮批量任务（采集/发布/保存）结束后调用（上架表批次据此判断采集完了没有；发布结束后写上架总表文件）
  * @param {{publish?: (item: object, settings: object, log: (msg: string) => void) => Promise<object>}} [deps]
  *   publish：发布单个商品，默认 VC 自营发布流程（测试时替换）
  */
-export function createQueueRunner({ onChange, onLog, saveLocal = async () => null, onRunEnd = () => {} }, { publish = publishVcItem } = {}) {
+export function createQueueRunner({ onChange, onLog, saveLocal = async () => null, readLocalImages, onRunEnd = () => {} }, { publish = publishVcItem } = {}) {
   let state = { running: false, mode: null, currentId: null, stopRequested: false, pauseReason: '', pausedMode: null };
   const setState = (patch) => {
     state = { ...state, ...patch };
@@ -121,7 +122,7 @@ export function createQueueRunner({ onChange, onLog, saveLocal = async () => nul
   async function publishOne(item, settings) {
     await itemRepo.update(item.id, { status: 'publishing', message: '' });
     const { log } = itemLogger(item.id);
-    const res = await publish(item, settings, log);
+    const res = await publish(item, settings, log, { readLocalImages });
     if (res.status === 'published') {
       const records = await finishPublished(item, res, log);
       publishResults = [...publishResults, publishResult(item, res, records)];

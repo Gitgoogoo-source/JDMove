@@ -59,6 +59,7 @@ const runner = createQueueRunner({
   onChange: renderState,
   onLog: appendLog,
   saveLocal: (item, opts) => storage.save(item, opts),
+  readLocalImages: (item) => storage.readPublishImages(item),
   // 上架表的商品采集完后自动生成发布前检查表；每轮发布结束后把发布成功的商品写进上架总表，
   // 再弹出发布结果（成功/失败），有失败的商品时下载失败表格
   onRunEnd: (info) => {
@@ -121,10 +122,10 @@ function render() {
     busy,
     onEdit: handleEdit,
     onRemove: (id) => deleteItems([id]),
-    onRetry: (id) => {
+    onRetry: async (id) => {
       const item = items.find((i) => i.id === id);
       if (!item?.product) return runner.collect([id]);
-      return confirmPublishDuringCooldown() && runner.publish([id]);
+      if (confirmPublishDuringCooldown() && await ensurePublishStorage()) return runner.publish([id]);
     },
     onRecollect: handleRecollect,
   });
@@ -282,6 +283,12 @@ async function handleVcImport() {
   await reload();
 }
 
+async function ensurePublishStorage() {
+  if (!storage.isSet() || await storage.ensureAccess()) return true;
+  appendLog('请点击“存储位置”授权后再发布，以便读取本地主图');
+  return false;
+}
+
 /**
  * 「发布选中」：先打开发布前检查弹窗（按上架模板列出每个商品要填的内容，缺的可以补、可以选模板、可以表格批量填），
  * 保存弹窗里的修改后发布勾选的商品
@@ -289,10 +296,13 @@ async function handleVcImport() {
 async function handlePublishSelected() {
   const ids = targetIds((i) => i.product && ['collected', 'failed', 'need_action'].includes(i.status));
   if (!ids.length) return appendLog('没有可发布的条目（需先采集；发布成功的商品已写进上架总表并移出任务列表）');
-  if (!confirmPublishDuringCooldown()) return;
+  if (!confirmPublishDuringCooldown() || !(await ensurePublishStorage())) return;
   let res;
   try {
-    res = await openPublishReview({ items: ids.map((id) => items.find((i) => i.id === id)).filter(Boolean), settings, onLog: appendLog });
+    res = await openPublishReview({
+      items: ids.map((id) => items.find((i) => i.id === id)).filter(Boolean),
+      settings, onLog: appendLog, readLocalImages: (item) => storage.readPublishImages(item),
+    });
   } catch (e) {
     return appendLog(`发布前检查打不开：${e.message}`);
   }

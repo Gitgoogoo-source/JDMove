@@ -22,10 +22,7 @@ export function fakeDir(name = 'root') {
         data: null,
         async getFile() {
           const d = file.data;
-          return {
-            arrayBuffer: async () => (d instanceof Blob ? d.arrayBuffer() : (d ?? new Uint8Array()).buffer),
-            text: async () => (d instanceof Blob ? d : new Blob([d ?? ''])).text(),
-          };
+          return new File([d ?? ''], child, { type: d instanceof Blob ? d.type : '' });
         },
         async createWritable() {
           return {

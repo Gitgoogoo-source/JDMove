@@ -204,17 +204,17 @@ function templatePropBlockers(product, edits, settings, template) {
 /**
  * 打开发布页之前就能判断的缺项，缺了就不打开页面。有上架模板（templates/vc/）时，长宽高/毛重按模板里该类目的上下限检查，
  * 并按模板检查必填商品属性
- * @param {{product: object, edits?: object, settings: object, template?: object|null}} input
+ * @param {{product: object, edits?: object, settings: object, template?: object|null, localImages?: object|null}} input
  * @returns {{blockers: string[]}}
  */
-export function vcPreflight({ product, edits = {}, settings, template = null }) {
+export function vcPreflight({ product, edits = {}, settings, template = null, localImages = null }) {
   const title = planTitle(product, edits, settings);
-  const { mainImageUrls } = publishImagePlan({ product, edits, settings });
+  const { mainImageUrls } = publishImagePlan({ product, edits, settings, localImages });
   const blockers = [
     ...(title ? [] : ['缺少标题']),
     ...priceBlockers(vcPrices(edits)),
     ...(vcField(product, edits, 'model') ? [] : [`缺少型号（${modelHint(product)}）`]),
-    ...(mainImageUrls.length ? [] : ['缺少主图']),
+    ...(mainImageUrls.length ? [] : [localImages ? '本地主图目录没有可用的白底图' : '缺少主图']),
     ...(product?.detailImages?.length ? [] : ['缺少详情图（采集时没有拿到详情图，请重新采集后再发布）']),
     ...formatBlockers(product, edits, vcTemplateLimits(template)),
     ...templatePropBlockers(product, edits, settings, template),
@@ -331,11 +331,11 @@ function planWarnings({ props, erp, prices, unit, upc, dangerGoods }) {
 }
 
 /**
- * @param {{product: object, edits?: object, settings: object, schema: {attrs?: object[]}, template?: object|null}} input
+ * @param {{product: object, edits?: object, settings: object, schema: {attrs?: object[]}, template?: object|null, localImages?: object|null}} input
  *   schema：发布页上读到的表单结构（属性以它为准）；template：上架模板（长宽高/毛重的上下限）
  */
-export function buildVcPublishPlan({ product, edits = {}, settings, schema, template = null }) {
-  const pre = vcPreflight({ product, edits, settings, template });
+export function buildVcPublishPlan({ product, edits = {}, settings, schema, template = null, localImages = null }) {
+  const pre = vcPreflight({ product, edits, settings, template, localImages });
   const { attrDefaults, overrides, source, defaults } = propSource(product, edits, settings);
   const props = buildPropPlan(schema?.attrs ?? [], source, { defaults });
   // 属性以发布页上实际读到的为准：模板里的属性检查结果换成页面的
@@ -351,7 +351,7 @@ export function buildVcPublishPlan({ product, edits = {}, settings, schema, temp
   const prices = vcPrices(edits);
   // VC 不用默认 UPC：同一个条码填到所有商品上会被判重码，入仓还要贴码
   const upc = normalizeUpc(edits.upc) || productUpc(product);
-  const { mainImageUrls, detailImageUrls } = publishImagePlan({ product, edits, settings });
+  const { mainImageUrls, detailImageUrls } = publishImagePlan({ product, edits, settings, localImages });
   const skuAttrValues = skuAttrValueMap({ params: product.params ?? [], defaults: attrDefaults, overrides });
   const model = vcField(product, edits, 'model');
   const logistics = logisticsOf(product, edits, settings, source, unit.unit);
@@ -368,7 +368,12 @@ export function buildVcPublishPlan({ product, edits = {}, settings, schema, temp
     // 按页面格式转好的字符串，页面脚本原样写入（不写数字：数字会被保存接口拒收）
     form: form.entries,
     props,
-    images: { mainImageUrls, detailImageUrls, transparentUrl: mainImageUrls[0] ?? null, aiRecUrl: mainImageUrls[0] ?? null },
+    images: {
+      mainImageUrls, detailImageUrls,
+      transparentUrl: localImages?.transparentUrl ?? mainImageUrls[0] ?? null,
+      aiRecUrl: mainImageUrls[0] ?? null,
+      ...(localImages && { local: true, keepTransparency: Boolean(localImages.transparentUrl) }),
+    },
     sku: { name: skuName(title, spec), spec, upc },
     skuAttrValues,
     skuQuantityFields: skuQuantityFields(vcTemplateSkuAttrs(template), skuAttrValues),

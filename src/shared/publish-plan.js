@@ -18,13 +18,12 @@ export function descriptionHtml(urls) {
 
 /**
  * 要上传的主图 / 详情图地址。不依赖发布页表单结构，打开发布页之前就能算出来，用于提前处理图片
- * @param {{product: object, edits?: object, settings: object}} input
+ * @param {{product: object, edits?: object, settings: object, localImages?: {mainImageUrls: string[]}|null}} input
  * @returns {{mainImageUrls: string[], detailImageUrls: string[]}}
  */
-export function publishImagePlan({ product, edits = {}, settings }) {
+export function publishImagePlan({ product, edits = {}, settings, localImages = null }) {
   // 早先采集的数据里存的是带水印的 /n0/ 地址，发布前统一换成无水印原图
-  const mainImageUrls = (edits.mainImages ?? product.mainImages ?? [])
-    .slice(0, settings.publish.maxMainImages)
-    .map(toOriginalImageUrl);
+  const mainSource = localImages?.mainImageUrls ?? (edits.mainImages ?? product.mainImages ?? []).map(toOriginalImageUrl);
+  const mainImageUrls = mainSource.slice(0, settings.publish.maxMainImages);
   return { mainImageUrls, detailImageUrls: (product.detailImages ?? []).slice(0, settings.publish.maxDetailImages) };
 }

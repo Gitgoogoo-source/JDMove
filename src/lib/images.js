@@ -3,11 +3,34 @@ import { squarePlan, detailSlicePlan, isDecorativeImage, clearBackground, opaque
 
 const MAX_BYTES = 2.8 * 1024 * 1024;
 
-async function fetchBitmap(url) {
+async function fetchImageBlob(url) {
   const res = await fetch(url, { credentials: 'omit', referrerPolicy: 'no-referrer' });
   if (!res.ok) throw new Error(`图片下载失败 ${res.status}: ${url}`);
-  const blob = await res.blob();
-  return createImageBitmap(blob);
+  return res.blob();
+}
+
+const fetchBitmap = async (url) => createImageBitmap(await fetchImageBlob(url));
+
+export async function isTransparentPng(blob) {
+  const signature = new Uint8Array(await blob.slice(0, 8).arrayBuffer());
+  if (signature.join(',') !== '137,80,78,71,13,10,26,10') return false;
+  const bmp = await createImageBitmap(blob);
+  try {
+    const canvas = new OffscreenCanvas(bmp.width, bmp.height);
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(bmp, 0, 0);
+    const { data } = ctx.getImageData(0, 0, bmp.width, bmp.height);
+    let hasBackground = false;
+    let hasSubject = false;
+    for (let i = 3; i < data.length; i += 4) {
+      hasBackground ||= data[i] === 0;
+      hasSubject ||= data[i] > 0;
+      if (hasBackground && hasSubject) return true;
+    }
+    return false;
+  } finally {
+    bmp.close();
+  }
 }
 
 async function encodeJpeg(canvas) {
@@ -39,12 +62,20 @@ function whiteCanvas(w, h) {
  * @returns {Promise<{name: string, mime: string, b64: string}>}
  */
 export async function makeMainImage(url, name) {
-  const bmp = await fetchBitmap(url);
-  const p = squarePlan(bmp.width, bmp.height);
-  const { canvas, ctx } = whiteCanvas(p.side, p.side);
-  ctx.drawImage(bmp, p.dx, p.dy, p.dw, p.dh);
-  bmp.close();
-  return { name, mime: 'image/jpeg', b64: await blobToBase64(await encodeJpeg(canvas)) };
+  const blob = await fetchImageBlob(url);
+  const bmp = await createImageBitmap(blob);
+  try {
+    const p = squarePlan(bmp.width, bmp.height);
+    if (url.startsWith('blob:') && blob.type === 'image/jpeg' && blob.size <= MAX_BYTES && bmp.width === p.side && bmp.height === p.side) {
+      const signature = new Uint8Array(await blob.slice(0, 3).arrayBuffer());
+      if (signature[0] === 255 && signature[1] === 216 && signature[2] === 255) return { name, mime: 'image/jpeg', b64: await blobToBase64(blob) };
+    }
+    const { canvas, ctx } = whiteCanvas(p.side, p.side);
+    ctx.drawImage(bmp, p.dx, p.dy, p.dw, p.dh);
+    return { name, mime: 'image/jpeg', b64: await blobToBase64(await encodeJpeg(canvas)) };
+  } finally {
+    bmp.close();
+  }
 }
 
 /**
@@ -96,4 +127,25 @@ export async function makeTransparentImage(url, name) {
     bmp.close();
   }
   throw new Error('透图压缩后仍超过 3MB');
+}
+
+/** 已制作的透图保留 alpha，符合规格时直接上传原文件。 */
+export async function makeLocalTransparentImage(url, name) {
+  const blob = await fetchImageBlob(url);
+  const bmp = await createImageBitmap(blob);
+  try {
+    if (blob.type === 'image/png' && blob.size <= MAX_BYTES && bmp.width === bmp.height && bmp.width >= 480) {
+      return { name, mime: 'image/png', b64: await blobToBase64(blob) };
+    }
+    for (const side of TRANSPARENT_SIDES) {
+      const p = squarePlan(bmp.width, bmp.height, { minSide: side, maxSide: side });
+      const canvas = new OffscreenCanvas(side, side);
+      canvas.getContext('2d').drawImage(bmp, p.dx, p.dy, p.dw, p.dh);
+      const png = await canvas.convertToBlob({ type: 'image/png' });
+      if (png.size <= MAX_BYTES) return { name, mime: 'image/png', b64: await blobToBase64(png) };
+    }
+  } finally {
+    bmp.close();
+  }
+  throw new Error('本地透图压缩后仍超过 3MB');
 }

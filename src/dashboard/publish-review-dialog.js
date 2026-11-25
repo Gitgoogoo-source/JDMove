@@ -4,6 +4,8 @@
 import { h, openDialog } from './dom.js';
 import { createReviewCard } from './review-card.js';
 import { loadVcCatalog } from '../lib/vc-templates.js';
+import { localPublishImageUrls } from '../lib/local-store.js';
+import { mapPool } from '../shared/async-pool.js';
 import { applyTemplateChoice, templateChoices } from '../shared/vc-review.js';
 import { planReviewImport } from '../shared/vc-review-sheet.js';
 import { reviewFileName, reviewWorkbook } from '../shared/review-workbook.js';
@@ -92,12 +94,27 @@ function bulkTemplate({ items, drafts, cards, catalog, onDone }) {
 }
 
 /**
- * @param {{items: object[], settings: object, onLog: (line: string) => void}} opts items：要发布的商品（都已采集）
+ * @param {{items: object[], settings: object, onLog: (line: string) => void, readLocalImages?: (item: object) => Promise<object|null>}} opts items：要发布的商品（都已采集）
  * @returns {Promise<{changes: {id: string, before: object, edits: object}[], publishIds: string[]} | null>} 取消时为 null；
  *   changes：编辑内容有变化的商品（before 为弹窗打开时的编辑内容，保存时用 rebaseEdits 合并）；
  *   publishIds：要发布的商品（点“只保存修改”时为空）
  */
-export async function openPublishReview({ items, settings, onLog }) {
+export async function openPublishReview({ items, settings, onLog, readLocalImages = async () => null }) {
+  const localImages = await mapPool(items, 4, async (item) => {
+    try {
+      return localPublishImageUrls(await readLocalImages(item));
+    } catch (e) {
+      return { mainImageUrls: [], error: e.message };
+    }
+  });
+  try {
+    return await showPublishReview({ items, settings, onLog, localImages });
+  } finally {
+    localImages.forEach((image) => image?.release?.());
+  }
+}
+
+async function showPublishReview({ items, settings, onLog, localImages }) {
   const { catalog, errors } = await loadVcCatalog();
   errors.forEach(onLog);
   const drafts = new Map(items.map((i) => [i.id, i.edits ?? {}]));
@@ -112,8 +129,8 @@ export async function openPublishReview({ items, settings, onLog }) {
     publishBtn.disabled = n === 0;
   };
   const cards = [];
-  items.forEach((item) => {
-    cards.push(createReviewCard({ item, catalog, settings, getEdits: () => drafts.get(item.id), setEdits: (e) => drafts.set(item.id, e), onChange: () => cards.length === items.length && update() }));
+  items.forEach((item, i) => {
+    cards.push(createReviewCard({ item, catalog, settings, localImages: localImages[i], getEdits: () => drafts.get(item.id), setEdits: (e) => drafts.set(item.id, e), onChange: () => cards.length === items.length && update() }));
   });
   const rebuildSome = (ids) => {
     items.forEach((item, i) => ids.has(item.id) && cards[i].rebuild());

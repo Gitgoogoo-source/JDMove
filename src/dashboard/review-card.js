@@ -111,15 +111,19 @@ function attrNode(attr, ctx, refs) {
 
 function imagesNode(images) {
   const bad = images.problems.length > 0;
+  const transparencyNote = images.keepTransparency ? '使用本地透明 PNG' : '由第一张主图自动去白底生成';
+  let hint = bad ? `缺少${images.problems.join('、')}：请在任务列表里点「重新采集」` : '';
+  if (images.local && images.problems.includes('主图')) hint = '本地主图目录没有可用的白底图';
+  if (images.error) hint = `本地主图读取失败：${images.error}`;
   return h(
     'div',
     { class: `rv-images${bad ? ' is-missing' : ''}` },
-    h('div', { class: 'thumbs' }, ...images.main.slice(0, MAX_THUMBS).map((u, i) => h('img', { class: `thumb${i === 0 ? ' rv-first' : ''}`, src: safeImgSrc(u), referrerpolicy: 'no-referrer', alt: '', title: i === 0 ? '第一张主图：透图、图片信息识别都用它' : '' }))),
+    h('div', { class: 'thumbs' }, ...images.main.slice(0, MAX_THUMBS).map((u, i) => h('img', { class: `thumb${i === 0 ? ' rv-first' : ''}`, src: images.local ? u : safeImgSrc(u), referrerpolicy: 'no-referrer', alt: '', title: i === 0 ? '第一张主图：用于图片信息识别' : '' }))),
     h(
       'div',
       { class: 'sub' },
-      `方图（主图）${images.main.length} 张 · 详情图 ${images.detailCount} 张 · 透图：由第一张主图自动去白底生成（发布页上请核对效果）`,
-      bad ? h('div', { class: 'rv-bad' }, `缺少${images.problems.join('、')}：图片要重新采集（在任务列表里点「重新采集」）`) : null,
+      `${images.local ? '本地主图' : '采集主图'} ${images.main.length} 张 · 详情图 ${images.detailCount} 张 · 透图：${transparencyNote}`,
+      hint ? h('div', { class: 'rv-bad' }, hint) : null,
     ),
   );
 }
@@ -167,7 +171,7 @@ function messages(review) {
  * @returns {{node: HTMLElement, state: () => {review: object, match: object, picked: boolean}, rebuild: () => void,
  *   invalidInput: () => HTMLInputElement|null, expand: () => void, setPicked: (on: boolean) => void}}
  */
-export function createReviewCard({ item, catalog, settings, getEdits, setEdits, onChange }) {
+export function createReviewCard({ item, catalog, settings, localImages, getEdits, setEdits, onChange }) {
   let match = null;
   let review = null;
   let picked = null;
@@ -186,7 +190,7 @@ export function createReviewCard({ item, catalog, settings, getEdits, setEdits, 
     'header',
     { class: 'rv-head' },
     h('label', { class: 'rv-pick', title: '勾选的商品在点“保存并发布”时发布' }, pick, '发布'),
-    h('img', { class: 'thumb', src: safeImgSrc(item.product?.mainImages?.[0]), referrerpolicy: 'no-referrer', alt: '' }),
+    h('img', { class: 'thumb', src: localImages ? localImages.mainImageUrls[0] : safeImgSrc(getEdits()?.mainImages?.[0] ?? item.product?.mainImages?.[0]), referrerpolicy: 'no-referrer', alt: '' }),
     h('div', { class: 'rv-name' }, h('div', { class: 'title clamp' }, item.product?.title || `SKU ${item.skuId}`), h('div', { class: 'sub' }, sourceLine(item))),
     tplBox,
     status,
@@ -203,7 +207,7 @@ export function createReviewCard({ item, catalog, settings, getEdits, setEdits, 
   const evaluate = () => {
     const edits = getEdits();
     match = reviewTemplate({ product: item.product, edits, settings, catalog });
-    review = buildReview({ product: item.product, edits, settings, template: match.template });
+    review = buildReview({ product: item.product, edits, settings, template: match.template, localImages });
   };
   const ctx = { catalog, getEdits, setEdits, invalid: new Map(), template: () => match?.template ?? null, refresh: () => refresh(), rebuild: () => rebuild() };
 

@@ -11,6 +11,7 @@
   const { aiRecState } = B.vcUtil;
 
   const UPLOAD_TIMEOUT_MS = 30000;
+  const CARD_TIMEOUT_MS = 8000;
   const isImageSpace = (d) => visible(d) && /图片空间/.test(textOf(d).slice(0, 40));
   const imageSpaceDialog = () => qsa('.jd-overlay-dialog, .jd-dialog').find(isImageSpace) || null;
   // 图片信息识别的图片存在组件内部（表单值一直是空的，校验时报在 recProduct 上），按显示的缩略图计数
@@ -115,11 +116,14 @@
 
   const cardByName = (dialog, name) =>
     qsa('.dialog-card-item', dialog).find((c) => textOf(c.querySelector('.image-name') || c) === name) || null;
+  const uploadInput = (dialog) =>
+    qsa('input[type=file]:not([webkitdirectory])', dialog).find((i) => componentChain(i, 2).includes('upload-button'));
+  const clickCard = (card) => click(card.querySelector('img') || card);
 
   /** 本地上传：每张传完后等它出现在卡片里并被勾选 */
   async function uploadInto(dialog, images, errors) {
     const captured = installUploadCapture();
-    const input = qsa('input[type=file]', dialog).find((i) => componentChain(i, 2).includes('upload-button'));
+    const input = uploadInput(dialog);
     if (!input) {
       errors.push('图片空间里找不到“本地上传”');
       return [];
@@ -134,9 +138,64 @@
         continue;
       }
       urls.push(hit.url);
-      const card = await waitFor(() => cardByName(dialog, img.name), { timeout: 8000 });
-      if (card && !card.classList.contains('selected')) click(card.querySelector('img') || card);
+      const card = await waitFor(() => cardByName(dialog, img.name), { timeout: CARD_TIMEOUT_MS });
+      if (card && !card.classList.contains('selected')) clickCard(card);
       await sleep(200);
+    }
+    return urls;
+  }
+
+  /** 方图共用一次文件选择，京麦负责排队上传；每收到一张结果就继续等待后续图片 */
+  async function uploadBatchInto(dialog, images, errors) {
+    const input = uploadInput(dialog);
+    if (!input?.multiple) return uploadInto(dialog, images, errors);
+
+    const captured = installUploadCapture();
+    const pending = new Set(images.map(({ name }) => name));
+    const uploaded = new Map();
+    let cursor = captured.length;
+    putFiles(input, images.map(b64ToFile));
+    while (pending.size) {
+      const progressed = await waitFor(() => {
+        const previousSize = pending.size;
+        for (; cursor < captured.length; cursor += 1) {
+          const { name, url } = captured[cursor];
+          if (pending.delete(name)) uploaded.set(name, url);
+        }
+        return pending.size < previousSize;
+      }, { timeout: UPLOAD_TIMEOUT_MS });
+      if (!progressed) break;
+    }
+    const urls = images.map(({ name }) => uploaded.get(name)).filter(Boolean);
+    if (pending.size) {
+      errors.push(`这些方图上传超时：${[...pending].join('、')} ${messages().join(' ')}`.trim());
+      return urls;
+    }
+
+    const names = images.map(({ name }) => name);
+    const findCards = () => names.map((name) => cardByName(dialog, name));
+    const cards = await waitFor(() => {
+      const found = findCards();
+      return found.every(Boolean) && found;
+    }, { timeout: CARD_TIMEOUT_MS });
+    if (!cards) {
+      const found = findCards();
+      errors.push(`图片空间里没有 ${names.filter((_, i) => !found[i]).join('、')}`);
+      return urls;
+    }
+
+    // 京麦会自动勾选新图。以弹窗的选中序号为准，必要时重新按原顺序勾选，保住首图。
+    const selected = () => qsa('.dialog-card-item.selected', dialog);
+    const ordered = () => selected().length === names.length && findCards().every((card, i) =>
+      card?.classList.contains('selected') && textOf(card.querySelector('.select-sort')) === String(i + 1));
+    if (!ordered()) {
+      // 等每次点击同步到页面，再点下一张；先取消自动勾选，再按原顺序选择。
+      for (const card of [...selected(), ...cards]) {
+        const select = !card.classList.contains('selected');
+        clickCard(card);
+        if (!(await waitFor(() => card.classList.contains('selected') === select, { timeout: CARD_TIMEOUT_MS }))) break;
+      }
+      if (!ordered()) errors.push('图片空间未按原顺序勾选全部方图');
     }
     return urls;
   }
@@ -144,12 +203,12 @@
   /** 按文件名勾选已经在图片空间里的图片（同一次发布里先传过的主图） */
   async function selectByName(dialog, names, errors) {
     for (const name of names) {
-      const card = await waitFor(() => cardByName(dialog, name), { timeout: 8000 });
+      const card = await waitFor(() => cardByName(dialog, name), { timeout: CARD_TIMEOUT_MS });
       if (!card) {
         errors.push(`图片空间里没有 ${name}`);
         continue;
       }
-      if (!card.classList.contains('selected')) click(card.querySelector('img') || card);
+      if (!card.classList.contains('selected')) clickCard(card);
       await sleep(200);
     }
   }
@@ -162,23 +221,36 @@
   async function vcPutImages({ field, images = [], names = [] }) {
     const api = B.getFApi();
     if (!api || !api.fields().includes(field)) return { ok: false, count: 0, urls: [], errors: [`页面没有 ${field} 字段`] };
+    const batch = field === 'imageList' && images.length > 1;
+    const previous = batch ? api.getValue(field) : null;
+    const result = (ok, urls, errors) => {
+      if (batch && !ok) api.setValue(field, previous);
+      return { ok, count: valueCount(api, field), urls, errors };
+    };
     if (field !== AI_REC_FIELD) {
       api.setValue(field, []);
       await sleep(300);
     }
     const before = valueCount(api, field);
     const { dialog, error } = await openImageSpace(api, field);
-    if (!dialog) return { ok: false, count: 0, urls: [], errors: [`图片空间没有打开：${error}`] };
+    if (!dialog) return result(false, [], [`图片空间没有打开：${error}`]);
     const errors = [];
-    const urls = images.length ? await uploadInto(dialog, images, errors) : [];
+    const upload = batch ? uploadBatchInto : uploadInto;
+    const urls = images.length ? await upload(dialog, images, errors) : [];
     if (names.length) await selectByName(dialog, names, errors);
     const ok = buttonByText('确定', dialog);
     if (!ok) errors.push('图片空间里找不到“确定”');
-    else click(ok);
+    if (batch && errors.length) {
+      const cancel = buttonByText('取消', dialog);
+      if (cancel) click(cancel);
+      return result(false, urls, errors);
+    }
+    if (ok) click(ok);
     await waitFor(() => !visible(dialog), { timeout: 5000 });
     const want = before + images.length + names.length;
     const count = await waitFor(() => (valueCount(api, field) >= want ? valueCount(api, field) : null), { timeout: 5000 });
-    return { ok: !!count && errors.length === 0, count: valueCount(api, field), urls, errors };
+    if (batch && !count) errors.push(`方图回填 ${valueCount(api, field)}/${want} 张`);
+    return result(!!count && errors.length === 0, urls, errors);
   }
 
   // ---------- 图片信息识别：点“开始识别” ----------

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { findCollectedItems, saveItemToFolder, removeItemFolder } from '../src/lib/local-store.js';
+import { findCollectedItems, readLocalPublishImages, saveItemToFolder, removeItemFolder } from '../src/lib/local-store.js';
 import { fakeDir } from './helpers/fake-fs.js';
 
 const product = {
@@ -113,4 +113,44 @@ test('saveItemToFolder: 采集时写入原始数据；之后“保存到本地�
   await saveItemToFolder(root, item, { fetchImpl: fakeFetch });
   assert.ok(root.tree().includes(path));
   assert.deepEqual(await rawIn(), raw);
+});
+
+test('发布主图按实际文件和自然顺序读取，保留同目录的透明 PNG，且重读磁盘修改', async () => {
+  const root = fakeDir();
+  const brand = await root.getDirectoryHandle('华为（HUAWEI）', { create: true });
+  const sku = await brand.getDirectoryHandle(item.skuId, { create: true });
+  const main = await sku.getDirectoryHandle('主图', { create: true });
+  const detail = await sku.getDirectoryHandle('详情图', { create: true });
+  const put = async (dir, name, value) => (await (await dir.getFileHandle(name, { create: true })).createWritable()).write(value);
+  await put(main, '10.jpg', 'ten');
+  await put(main, '2.JPG', 'two');
+  await put(main, '06.png', 'transparent');
+  await put(main, '01.jpg', 'edited front');
+  await put(main, '.hidden.jpg', '');
+  await put(main, '备注.txt', '');
+  await put(detail, '03.jpg', 'detail');
+  const opts = { isTransparent: async (file) => file.name === '06.png' };
+  const read = () => readLocalPublishImages(root, { ...item, edits: { brandName: '发布时改了品牌' }, local: { dir: `旧目录/${item.skuId}` } }, opts);
+  const local = await read();
+  assert.equal(local.dir, `华为（HUAWEI）/${item.skuId}/主图`);
+  assert.deepEqual(local.main.map((file) => file.name), ['01.jpg', '2.JPG', '10.jpg']);
+  assert.equal(await local.main[0].text(), 'edited front');
+  assert.equal(await local.transparent.text(), 'transparent');
+  await put(main, '01.jpg', 'edited again');
+  const latest = await read();
+  assert.equal(await latest.main[0].text(), 'edited again');
+  assert.equal(await readLocalPublishImages(root, { ...item, skuId: '1234' }), null);
+});
+
+test('普通 06.png 仍作主图，空主图目录不回到采集链接', async () => {
+  const root = fakeDir();
+  const brand = await root.getDirectoryHandle('华为（HUAWEI）', { create: true });
+  const sku = await brand.getDirectoryHandle(item.skuId, { create: true });
+  const main = await sku.getDirectoryHandle('主图', { create: true });
+  assert.deepEqual((await readLocalPublishImages(root, item)).main, []);
+  const file = await main.getFileHandle('06.png', { create: true });
+  await (await file.createWritable()).write('opaque PNG');
+  const local = await readLocalPublishImages(root, item, { isTransparent: async () => false });
+  assert.deepEqual(local.main.map((file) => file.name), ['06.png']);
+  assert.equal(local.transparent, null);
 });

@@ -127,6 +127,47 @@ test('publishVcItem: 直接打开带品牌和末级类目的 VC 发布页，按�
   assert.ok(lines.some((l) => /入仓需贴码/.test(l)), '重码提示写进日志');
 });
 
+test('publishVcItem: 按本地主图顺序上传，单独上传已有透图，识别用本地首图', async () => {
+  const page = vcPage();
+  installFakeChrome({ backend: page.backend });
+  const dir = '大公鸡管家/100114866451/主图';
+  const sendLocal = (mime) => async (url, name) => {
+    assert.match(url, /^blob:/);
+    const file = await (await fetch(url)).blob();
+    return { name, mime, b64: Buffer.from(await file.arrayBuffer()).toString('base64') };
+  };
+  const lines = [];
+  const res = await publishVcItem(vcItem(), settings(), (line) => lines.push(line), {
+    readLocalImages: async () => ({
+      main: ['front', 'back'].map((text) => new Blob([text], { type: 'image/jpeg' })),
+      transparent: new Blob(['cutout'], { type: 'image/png' }),
+      dir,
+    }),
+    imageMakers: {
+      main: sendLocal('image/jpeg'),
+      transparent: () => assert.fail('不应重新生成透图'),
+      localTransparent: sendLocal('image/png'),
+    },
+  });
+  assert.equal(res.status, 'filled', res.message);
+  const [mains, png, recognition] = page.calls.filter((c) => c.method === 'vcPutImages').map((c) => c.args[0]);
+  assert.deepEqual(mains.images.map((image) => Buffer.from(image.b64, 'base64').toString()), ['front', 'back']);
+  assert.equal(Buffer.from(png.images[0].b64, 'base64').toString(), 'cutout');
+  assert.deepEqual(recognition.names, [mains.images[0].name]);
+  assert.ok(lines.some((line) => line.includes(dir)));
+});
+
+test('publishVcItem: 本地主图目录为空时拦下，采集图不会补位', async () => {
+  const fake = installFakeChrome({ backend: vcPage().backend });
+  const res = await publishVcItem(vcItem(), settings(), () => {}, {
+    readLocalImages: async () => ({ main: [], transparent: null, dir: '品牌/100114866451/主图' }),
+    imageMakers: makers,
+  });
+  assert.equal(res.status, 'need_action');
+  assert.match(res.message, /本地主图目录没有可用/);
+  assert.ok(!fake.ops().includes('tabs.create'));
+});
+
 test('publishVcItem: 详情图转存到图片空间后按顺序写进商品详情（每次最多传 6 张）', async () => {
   let n = 0;
   const page = vcPage({ uploadDetailImages: (args) => ({ ok: true, urls: args[0].map(() => `jfs/t1/d${(n += 1)}.jpg`), errors: [] }) });
