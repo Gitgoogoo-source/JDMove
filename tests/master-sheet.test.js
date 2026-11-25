@@ -78,6 +78,8 @@ test('listingName：标题已经以品牌开头时不重复', () => {
 test('itemBrand：编辑里改过的品牌优先，没有品牌时为未识别品牌', () => {
   assert.equal(itemBrand({ product: { brand: { name: '华为（HUAWEI）' } } }), '华为（HUAWEI）');
   assert.equal(itemBrand({ edits: { brandName: ' 荣耀 ' }, product: { brand: { name: '华为' } } }), '荣耀');
+  assert.equal(itemBrand({ edits: { brandName: 123 }, product: { brand: { name: '华为' } } }), '华为');
+  assert.equal(itemBrand({ product: { brand: { name: 123 } } }), UNKNOWN_BRAND);
   assert.equal(itemBrand({ product: null }), UNKNOWN_BRAND);
 });
 

@@ -1,6 +1,6 @@
 // 任务面板入口：列表展示、批量采集/发布、设置与编辑
 import { h, $, openDialog } from './dom.js';
-import { renderRow } from './rows.js';
+import { createTaskList } from './task-list.js';
 import { editItem } from './editor.js';
 import { editSettings } from './settings-dialog.js';
 import { createStorageController } from './storage-ui.js';
@@ -31,7 +31,7 @@ let items = [];
 let settings = null;
 // 最近一次保存接口限流的记录（冷却期内发布前提醒）
 let throttle = null;
-let selected = new Set();
+const selected = new Set();
 let logLines = [];
 let lastShopUrl = '';
 
@@ -78,7 +78,9 @@ const publishResult = createPublishResult({ storage, onLog: appendLog, exportRev
 
 const TASKS_EMPTY_TEXT = $('#empty').textContent;
 const TASKS_DONE_NOTE = '发布成功的商品会写进上架总表（点上方“上架总表”设置位置）并移出任务列表。';
+const taskList = createTaskList();
 
+// 批量操作按状态筛选取商品，折叠品牌组只影响展示。
 function visibleItems() {
   const filter = $('#filter').value;
   return filter === 'all' ? items : items.filter((i) => i.status === filter);
@@ -114,33 +116,22 @@ function confirmPublishDuringCooldown() {
 function render() {
   const busy = runner.getState().running;
   const list = visibleItems();
-  $('#rows').replaceChildren(
-    ...list.map((item) =>
-      renderRow(item, {
-        settings,
-        busy,
-        checked: selected.has(item.id),
-        onCheck: (id, on) => {
-          selected = new Set(selected);
-          if (on) selected.add(id);
-          else selected.delete(id);
-        },
-        onEdit: handleEdit,
-        onRemove: (id) => deleteItems([id]),
-        onRetry: (id) => {
-          const item = items.find((i) => i.id === id);
-          if (!item?.product) return runner.collect([id]);
-          return confirmPublishDuringCooldown() && runner.publish([id]);
-        },
-        onRecollect: handleRecollect,
-      }),
-    ),
-  );
+  taskList.render(list, selected, {
+    settings,
+    busy,
+    onEdit: handleEdit,
+    onRemove: (id) => deleteItems([id]),
+    onRetry: (id) => {
+      const item = items.find((i) => i.id === id);
+      if (!item?.product) return runner.collect([id]);
+      return confirmPublishDuringCooldown() && runner.publish([id]);
+    },
+    onRecollect: handleRecollect,
+  });
   $('#empty').hidden = list.length > 0;
   $('#empty').textContent = items.length ? '没有符合筛选条件的任务' : `${TASKS_EMPTY_TEXT}${TASKS_DONE_NOTE}`;
   const count = (s) => items.filter((i) => i.status === s).length;
   $('#summary').textContent = `任务 ${items.length} · 待采集 ${count('pending')} · 已采集 ${count('collected')} · 需处理 ${count('need_action')} · 失败 ${count('failed')}`;
-  $('#checkAll').checked = list.length > 0 && list.every((i) => selected.has(i.id));
   batchFlow.render($('#batchBar'), items, busy);
   renderState();
 }
@@ -179,9 +170,12 @@ async function reload(selectIds = []) {
       filter.value = 'all';
     }
   }
-  // 发布成功的商品会移出任务列表：同时取消它的勾选，避免“删除选中”等操作作用到看不见的条目
-  const visible = new Set(visibleItems().map((i) => i.id));
-  selected = new Set([...selected, ...selectIds].filter((id) => visible.has(id)));
+  for (const id of selectIds) selected.add(id);
+  // 发布成功的商品会移出列表，刷新任务时清理已不在当前结果中的勾选。
+  const visible = new Set(visibleItems().map((item) => item.id));
+  for (const id of selected) {
+    if (!visible.has(id)) selected.delete(id);
+  }
   render();
 }
 
@@ -352,7 +346,7 @@ async function deleteItems(ids) {
   const keep = new Set(withFolder.filter((i) => !cleared.has(i.id)).map((i) => i.id));
   const dropIds = targets.map((i) => i.id).filter((id) => !keep.has(id));
   await itemRepo.remove(dropIds);
-  selected = new Set([...selected].filter((id) => !dropIds.includes(id)));
+  for (const id of dropIds) selected.delete(id);
   appendLog(`已删除 ${dropIds.length} 条任务${keep.size ? `，${keep.size} 条因本地文件夹删除失败而保留` : ''}`);
   await reload();
 }
@@ -431,10 +425,6 @@ function bind() {
   $('#filter').addEventListener('change', render);
   $('#btnMaster').addEventListener('click', () => master.click());
   $('#btnListingTemplate').addEventListener('click', handleListingTemplate);
-  $('#checkAll').addEventListener('change', (e) => {
-    selected = e.target.checked ? new Set(visibleItems().map((i) => i.id)) : new Set();
-    render();
-  });
   $('#btnCollect').addEventListener('click', async () => {
     const ids = targetIds((i) => ['pending', 'failed'].includes(i.status) || (!i.product && i.status !== 'collecting'));
     if (!ids.length) return appendLog('没有需要采集的条目（选中或筛选“待采集/失败”）');

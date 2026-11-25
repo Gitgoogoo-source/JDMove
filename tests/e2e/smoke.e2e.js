@@ -2,6 +2,7 @@
 // 运行：npm run test:e2e（没有调试浏览器时自动以无头模式启动；E2E_ONLINE=1 时额外访问京东商品页）
 import { after, before, test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import * as b from '../../scripts/e2e/browser.mjs';
 import { extUrl } from '../../scripts/e2e/config.mjs';
 
@@ -107,6 +108,94 @@ test('添加链接后自动勾选本次提交的商品', async () => {
     }
     assert.equal(await row(unrelated).locator('input').isChecked(), false);
     assert.equal(await filter.inputValue(), 'all');
+    assert.deepEqual(problems, []);
+  } finally {
+    await page.evaluate(async (ids) => {
+      const { itemRepo } = await import('/src/lib/chrome-env.js');
+      await itemRepo.remove(ids);
+    }, ids);
+  }
+});
+
+test('品牌组可折叠、整组选中并随商品勾选和状态筛选更新', async () => {
+  const { page, problems } = await openWatched(extUrl('src/dashboard/dashboard.html'));
+  const prefix = Date.now();
+  const brand = `测试品牌${prefix}`;
+  const ids = Array.from({ length: 5 }, (_, i) => `${prefix}${i}`);
+  const [first, second, other, unknown, pending] = ids;
+  const firstBrand = `${brand}（JD）`;
+  const otherBrand = `${brand}乙`;
+  const groupCheck = page.getByRole('checkbox', { name: `全选品牌组 ${firstBrand}`, exact: true });
+  const otherCheck = page.getByRole('checkbox', { name: `全选品牌组 ${otherBrand}`, exact: true });
+  const toggle = page.getByRole('button', { name: new RegExp(`^${firstBrand}`) });
+  const row = (id) => page.locator(`#itemsTable tr[data-id="${id}"]`);
+  const productCheck = (id) => row(id).getByRole('checkbox');
+  const checkAll = page.locator('#checkAll');
+
+  try {
+    await page.evaluate(async ({ ids, firstBrand, secondBrand, otherBrand }) => {
+      const { itemRepo } = await import('/src/lib/chrome-env.js');
+      await itemRepo.addTasks(ids);
+      for (const [index, name] of [firstBrand, secondBrand, otherBrand, 123].entries()) {
+        await itemRepo.update(ids[index], {
+          status: index === 1 ? 'need_action' : 'collected',
+          product: { title: `商品 ${ids[index]}`, brand: { name } },
+        });
+      }
+    }, { ids, firstBrand, secondBrand: `${brand}(jd)`, otherBrand });
+    await toggle.filter({ hasText: '2 件' }).waitFor();
+    await page.getByRole('checkbox', { name: '全选品牌组 未识别品牌', exact: true }).waitFor();
+    assert.equal(await row(pending).isVisible(), true);
+    assert.equal(await toggle.getAttribute('aria-expanded'), 'false');
+    assert.equal(await row(first).isVisible(), false);
+    assert.equal(await row(second).isVisible(), false);
+
+    await groupCheck.check();
+    assert.match(await toggle.textContent(), /2 件 · 已选 2 件$/);
+    assert.equal(await checkAll.evaluate((node) => node.indeterminate), true);
+    const [download] = await Promise.all([page.waitForEvent('download'), page.locator('#btnExport').click()]);
+    const exported = JSON.parse(await readFile(await download.path(), 'utf8'));
+    assert.deepEqual(exported.items.map((item) => item.skuId), [first, second]);
+
+    await toggle.click();
+    assert.equal(await toggle.getAttribute('aria-expanded'), 'true');
+    assert.equal(await productCheck(first).isChecked(), true);
+    assert.equal(await productCheck(second).isChecked(), true);
+    assert.equal(await otherCheck.isChecked(), false);
+    await productCheck(first).uncheck();
+    assert.equal(await groupCheck.evaluate((node) => node.indeterminate), true);
+
+    await toggle.click();
+    assert.match(await toggle.textContent(), /2 件 · 已选 1 件$/);
+    await toggle.click();
+    assert.equal(await productCheck(first).isChecked(), false);
+    assert.equal(await productCheck(second).isChecked(), true);
+    await groupCheck.check();
+    await groupCheck.uncheck();
+    assert.equal(await productCheck(first).isChecked(), false);
+    assert.equal(await productCheck(second).isChecked(), false);
+
+    await page.locator('#collapseAllBrands').click();
+    assert.equal(await row(second).isVisible(), false);
+    await checkAll.check();
+    assert.equal(await groupCheck.isChecked(), true);
+    assert.equal(await otherCheck.isChecked(), true);
+    assert.equal(await productCheck(pending).isChecked(), true);
+    await checkAll.uncheck();
+    await page.locator('#expandAllBrands').click();
+    assert.equal(await row(other).isVisible(), true);
+    assert.equal(await row(unknown).isVisible(), true);
+    assert.equal(await productCheck(second).isChecked(), false);
+
+    await page.locator('#filter').selectOption('collected');
+    assert.equal(await toggle.getAttribute('aria-expanded'), 'true');
+    assert.equal(await row(second).isVisible(), false);
+    await groupCheck.check();
+    assert.match(await toggle.textContent(), /1 件 · 已选 1 件$/);
+    await page.locator('#filter').selectOption('all');
+    assert.equal(await productCheck(first).isChecked(), true);
+    assert.equal(await productCheck(second).isChecked(), false);
+    assert.equal(await groupCheck.evaluate((node) => node.indeterminate), true);
     assert.deepEqual(problems, []);
   } finally {
     await page.evaluate(async (ids) => {

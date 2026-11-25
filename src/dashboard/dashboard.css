@@ -80,6 +80,12 @@ table.items th, table.items td {
   vertical-align: top;
 }
 table.items th { background: #fafbfc; font-weight: 600; white-space: nowrap; }
+table.items .brand-header > * { padding-block: 4px; vertical-align: middle; background: #eef2f6; }
+table.items .brand-header th { white-space: normal; }
+.brand-toggle { display: inline-flex; align-items: center; gap: 10px; padding: 4px 8px; border-color: transparent; background: transparent; text-align: left; }
+.brand-chevron { width: 7px; height: 7px; flex: 0 0 auto; border: solid currentColor; border-width: 0 2px 2px 0; transform: rotate(-45deg); }
+.brand-toggle[aria-expanded="true"] .brand-chevron { transform: translateY(-2px) rotate(45deg); }
+.brand-count { font-weight: 400; color: #555e6c; white-space: nowrap; }
 .col-check { width: 36px; }
 .col-img { width: 72px; }
 .col-price { width: 150px; }

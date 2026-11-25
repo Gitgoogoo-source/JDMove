@@ -55,7 +55,13 @@ export function renderRow(item, ctx) {
   return h(
     'tr',
     { dataset: { id: item.id } },
-    h('td', {}, h('input', { type: 'checkbox', checked: ctx.checked, onchange: (e) => ctx.onCheck(item.id, e.target.checked) })),
+    h('td', {}, h('input', {
+      class: 'task-check',
+      type: 'checkbox',
+      checked: ctx.checked,
+      'aria-label': `勾选 SKU ${item.skuId}`,
+      onchange: (e) => ctx.onCheck(item.id, e.target.checked),
+    })),
     h('td', {}, img ? h('img', { class: 'thumb', src: img, alt: '', referrerpolicy: 'no-referrer', loading: 'lazy' }) : h('div', { class: 'thumb' })),
     h(
       'td',

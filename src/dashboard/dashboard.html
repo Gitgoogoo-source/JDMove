@@ -42,6 +42,8 @@
         <option value="failed">失败</option>
       </select>
     </label>
+    <button id="expandAllBrands" disabled>展开全部品牌</button>
+    <button id="collapseAllBrands" disabled>折叠全部品牌</button>
     <span id="summary" class="muted"></span>
   </section>
 
@@ -53,7 +55,7 @@
     <table id="itemsTable" class="items">
       <thead>
         <tr>
-          <th class="col-check"><input type="checkbox" id="checkAll" aria-label="全选" /></th>
+          <th class="col-check"><input type="checkbox" id="checkAll" aria-label="全选当前筛选结果" disabled /></th>
           <th class="col-img">主图</th>
           <th>商品</th>
           <th class="col-price">价格</th>
