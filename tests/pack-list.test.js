@@ -157,17 +157,18 @@ test('明确瓶装且当前规格与清单容量一致时补足单瓶包装规�
   assert.equal(normalizeProduct({ ...raw, params: [] }).params.find((p) => p.name === '包装规格'), undefined);
 });
 
-test('洗衣皂的固定单位输入框填写块数和总克数，混装克数留空', () => {
+test('洗衣皂的固定单位输入框填写块数和总克数，混装只计算皂块', () => {
   const template = JSON.parse(readFileSync(new URL('../templates/vc/15926.json', import.meta.url)));
   const attrs = vcTemplateSkuAttrs(template).filter((a) => ['销售规格', '总净含量'].includes(a.title));
   for (const [packList, spec, title, expected] of [
     ['植物洗衣皂 300g*1', '洗衣皂 | 植物皂300g', '植物洗衣皂300g', { 销售规格: '1块', 总净含量: '300g' }],
     ['马赛洗衣皂300g*4', '马赛皂*4', '马赛洗衣皂300g*4', { 销售规格: '4块', 总净含量: '1200g' }],
     ['', '马赛皂*6', '马赛洗衣皂300g*6', { 销售规格: '6块', 总净含量: '1800g' }],
-    ['马赛洗衣皂300g*2+白苔洗衣液1.5L', '马赛皂*2+白苔洗衣液', '', { 销售规格: '2块', 总净含量: '' }],
+    ['马赛洗衣皂300g*2+白苔洗衣液1.5L', '马赛皂*2+白苔洗衣液', '', { 销售规格: '2块', 总净含量: '600g' }],
+    ['马赛洗衣皂300g*2+白苔洗衣液1.5L', '马赛皂*3+白苔洗衣液', '', { 销售规格: '', 总净含量: '' }],
   ]) {
     const product = withPackListParams({ packList, title, leafCategory: '普通洗衣皂', vc: { saleAttrs: [{ name: '规格', value: spec }] } });
-    const params = Object.fromEntries(product.params.map((p) => [p.name, p.value]));
+    const params = Object.fromEntries((product.params ?? []).map((p) => [p.name, p.value]));
     assert.deepEqual(skuQuantityFields(attrs, params).numbers, expected);
     const rows = reviewSkuAttrs(attrs, { sources: { params, defaults: {}, overrides: {} }, units: { g: '300' } });
     assert.deepEqual(rows.map(({ title, value }) => [title, value]), Object.entries(expected));
@@ -175,6 +176,15 @@ test('洗衣皂的固定单位输入框填写块数和总克数，混装克数�
   }
   assert.deepEqual(skuQuantityFields(attrs, { 规格: '300g', 总净含量: '1.2kg' }).numbers, { 销售规格: '', 总净含量: '1200g' });
   assert.deepEqual(skuQuantityFields(attrs, { 销售规格: '300g', 总净含量: '600g+1500mL' }).numbers, { 销售规格: '', 总净含量: '' });
+});
+
+test('普通洗衣液的不同容量组合按清单合计，不合计赠品或缺少净含量的组件', () => {
+  const net = (packList) => normalizeProduct({ packList, wareInfo: { category_id: '15924' } })
+    .params.find((p) => p.name === '总净含量')?.value;
+  assert.equal(net('洗衣液1500ml+柔顺剂1.14L'), '2640mL');
+  assert.equal(net('洗衣液1500ml×2+柔顺剂600ml'), '3600mL');
+  assert.equal(net('洗衣液1500ml+赠品柔顺剂1.14L'), undefined);
+  assert.equal(net('洗衣液1500ml+柔顺剂'), undefined);
 });
 
 test('调味油模板按 SKU 保质期的原单位填入抽屉和检查表', () => {

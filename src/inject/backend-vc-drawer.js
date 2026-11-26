@@ -105,7 +105,8 @@
 
   /** 旧版下拉：选文字等于 wanted 中第一个有的选项；返回选中的文字 */
   async function pickClassic(selectRoot, wanted) {
-    const current = (selectRoot.querySelector('input') || {}).value || '';
+    const input = selectRoot.querySelector('input');
+    const current = input?.value || '';
     const already = wanted.find((w) => w === current);
     if (already) return already;
     const labels = await openClassic(selectRoot);
@@ -114,7 +115,7 @@
     if (hit) click(hit);
     else await closeClassic(selectRoot);
     await optionsClosed(CLASSIC_OPTION);
-    return hit ? label : null;
+    return hit && await waitFor(() => input?.value === label, { timeout: 800 }) ? label : null;
   }
 
   /** 旧版下拉的全部选项文字（展开再收起） */
@@ -277,16 +278,18 @@
     const nums = allNumbers(value);
     const trigger = qsa('input', root).find((i) => i.readOnly && !i.closest('.jd-select, .jd-select-v2'));
     if (!trigger || !nums.length) return false;
+    if (unit && trigger.value === value) return true;
+    const before = new Set(qsa('.jd-popper').filter(visible));
     click(trigger);
-    const pop = await waitFor(() => qsa('.jd-popper').find((p) => visible(p) && buttonByText('确定', p) && editable(p)), { timeout: 3000 });
+    const pop = await waitFor(() => qsa('.jd-popper').find((p) => !before.has(p) && visible(p) && buttonByText('确定', p) && editable(p)), { timeout: 3000 });
     if (!pop) return false;
     if (unit) {
       const classic = pop.querySelector('.jd-select');
       const v2 = pop.querySelector('.jd-select-v2');
       const fixed = textOf(pop.querySelector('.jd-input-group__append'));
-      const selected = classic ? await pickClassic(classic, [unit]) : v2 ? await fillSelectV2(pop, unit) : fixed === unit;
+      const selected = classic ? await pickClassic(classic, [unit]) : v2 ? await fillSelectV2(pop, unit, { exact: true }) : fixed === unit;
       if (!selected) {
-        click(trigger);
+        click(buttonByText('取消', pop) || trigger);
         return false;
       }
     }
@@ -294,8 +297,9 @@
     inputs.forEach((input, i) => nums[i] != null && commitInput(input, nums[i]));
     await sleep(150);
     click(buttonByText('确定', pop));
-    await sleep(300);
-    return unit ? trigger.value.replace(/\s/g, '').toLowerCase() === String(value).replace(/\s/g, '').toLowerCase() : !!trigger.value;
+    const applied = await waitFor(() => !visible(pop) && (unit ? trigger.value === value : !!trigger.value), { timeout: 1200 });
+    if (!applied && visible(pop)) click(buttonByText('取消', pop) || trigger);
+    return !!applied;
   }
 
   async function fillPlain(root, value, ctx) {
@@ -327,8 +331,8 @@
 
   async function fillField({ root, label }, ctx) {
     const value = plannedValue(label, ctx.values);
-    const number = ctx.quantityFields?.numbers[label];
-    const selection = ctx.quantityFields?.select[label] ?? value;
+    const number = ctx.fallbackNumbers?.[label] ?? ctx.quantityFields?.numbers?.[label];
+    const selection = ctx.quantityFields?.select?.[label] ?? value;
     const exact = label === '是否特殊化妆品';
     if (number !== undefined && qsa('input', root).some((i) => i.readOnly && !i.closest('.jd-select, .jd-select-v2'))) {
       return !!number && fillNumberPopover(root, number, unitOfValue(number));
@@ -346,6 +350,24 @@
 
   const REMARK_RE = /备注/;
   const DRAWER_CONFIRM_TRIES = 3;
+
+  function recognizedSinglePack(row, net) {
+    const name = textOf(row.querySelector('.shop-standard-product-attributes .adv-select-shadow-value'));
+    const match = /(?:^|[^\d.])(\d+(?:\.\d+)?\s*(?:ml|l|kg|g))\s*[/／]\s*([瓶桶袋盒箱])(?:\s|$)/i.exec(name);
+    if (!match || match[1].replace(/\s/g, '').toLowerCase() !== String(net).toLowerCase()) return '';
+    return `1${match[2]}`;
+  }
+
+  function skuFallbackNumbers(row, values, quantityFields, useRecognizedPack) {
+    const fallback = {};
+    const pack = useRecognizedPack && recognizedSinglePack(row, quantityFields?.numbers?.['单件净含量']);
+    if (pack) fallback['包装规格'] = pack;
+    if (!plannedValue('保质期', values)) {
+      const days = Number(B.getFApi?.()?.getValue('sldays'));
+      if (Number.isSafeInteger(days) && days > 0) fallback['保质期'] = `${days}天`;
+    }
+    return fallback;
+  }
 
   function hasFieldValue(root) {
     const select = root.querySelector('.jd-select-v2');
@@ -373,7 +395,7 @@
 
   function needsExactNumber({ label, root }, quantityFields) {
     // 区间下拉可能和数字框同名，不能用数字计划去判定区间下拉缺项。
-    return quantityFields?.numbers[label] !== undefined
+    return quantityFields?.numbers?.[label] !== undefined
       && (root.querySelector('.sale-number-units') || !root.querySelector('.jd-select-v2, .jd-select'));
   }
 
@@ -395,7 +417,10 @@
       click(ok);
       if (await waitFor(() => !visible(drawer), { timeout: 2500 })) return { confirmed: true, errors: [] };
     }
-    const errors = qsa('.jd-form-item__error, .shop-dynamic-component-error, [class*="error"]', drawer).filter(visible).map(textOf).filter(Boolean);
+    const errorsIn = (root) => qsa('.jd-form-item__error, .shop-dynamic-component-error, [class*="error"]', root)
+      .filter(visible).map(textOf).filter(Boolean);
+    const fieldErrors = fieldsOf(drawer).flatMap(({ root, label }) => errorsIn(root).map((message) => `${label}：${message}`));
+    const errors = fieldErrors.length ? fieldErrors : errorsIn(drawer);
     const close = buttonByText('关闭', drawer) || buttonByText('取消', drawer);
     if (close) click(close);
     await sleep(400);
@@ -407,7 +432,7 @@
    * @param {'SaleDrawer'|'ShopSkuAttributeCommon'} column
    * @param {{rowIndex?: number, values?: Record<string, string>, units?: Record<string, string>, desc?: string}} plan
    */
-  async function fillRowDrawer(column, { rowIndex = 0, values = {}, units = {}, desc = '', quantityFields }) {
+  async function fillRowDrawer(column, { rowIndex = 0, values = {}, units = {}, desc = '', quantityFields, useRecognizedPack }) {
     const tr = vcSkuRows()[rowIndex];
     const trigger = tr && cellOf(tr, column);
     const tile = !trigger && tr && column === 'SaleDrawer' ? tr.querySelector('.sale-dimension-container .sale-tile') : null;
@@ -419,10 +444,12 @@
     const drawer = await waitFor(() => qsa('.jd-drawer').find((d) => visible(d) && !before.has(d)), { timeout: 5000 });
     if (!drawer) return { opened: false, confirmed: false, filled: [], missing: [], errors: ['抽屉没有打开'] };
     await sleep(500);
-    const { filled, missing } = await fillFields(drawer, { values, units, desc, quantityFields });
+    const fallbackNumbers = column === 'ShopSkuAttributeCommon' ? skuFallbackNumbers(tr, values, quantityFields, useRecognizedPack) : {};
+    const { filled, missing } = await fillFields(drawer, { values, units, desc, quantityFields, fallbackNumbers });
     if (column === 'ShopSkuAttributeCommon' && missing.length) return { opened: true, confirmed: false, filled, missing, errors: [] };
     const result = await confirm(drawer);
-    return { opened: true, ...result, filled, missing };
+    const recognizedPack = filled.includes('包装规格') ? fallbackNumbers['包装规格'] : undefined;
+    return { opened: true, ...result, filled, missing, ...(recognizedPack && { recognizedPack }) };
   }
 
   Object.assign(B, {

@@ -126,6 +126,7 @@ function load(page) {
   };
   const backend = {
     __vc: true,
+    getFApi: () => ({ getValue: (key) => key === 'sldays' ? page.logisticsDays : null }),
     util,
     mediaUtil: { commitInput: (n, v) => (n.value = v) },
     vcUtil: { vcSkuRows: () => [page.tr], cellOf: () => page.drawerTrigger ?? null },
@@ -133,6 +134,21 @@ function load(page) {
   class Ev {}
   vm.runInNewContext(SRC, { window: { __JDMOVE__: { backend } }, document: page.body, MouseEvent: Ev, KeyboardEvent: Ev });
   return backend;
+}
+
+function quantityPopover(initial, units, selected) {
+  const number = input('请输入');
+  const unit = unitSelect(units);
+  unit.querySelector('input').value = selected;
+  const trigger = input('请选择', { readOnly: true, value: initial, onClick: () => { pop.shown = true; } });
+  trigger.value = initial;
+  const pop = el('div.jd-popper', { shown: false }, [number, unit, el('button', {
+    ownText: '确定', onClick: () => {
+      trigger.value = number.value + unit.querySelector('input').value;
+      pop.shown = false;
+    },
+  })]);
+  return { trigger, pop };
 }
 
 const WET_WIPE_PLAN = { values: { 香型: '无香型', 包装形式: '箱装' }, units: { 片: '80', 包: '6' }, desc: '王牌爆款' };
@@ -256,4 +272,29 @@ test('洗发水填了 700g 时，留空同名的选填毫升区间仍能确认',
   assert.deepEqual([...res.missing], []);
   assert.equal(exact.querySelector('input')?.value, '700');
   assert.equal(range.querySelector('.is-has-model-value'), null);
+});
+
+test('洗洁精根据同一 SKU 标准产品的净含量和单位填写 1瓶，保质期按物流天数纠正', async () => {
+  for (const [name, expected] of [['洗洁精 500mL/瓶', '1瓶'], ['洗洁精 900mL/袋', '']]) {
+    const pack = quantityPopover('', ['瓶', '桶', '袋'], '瓶');
+    const shelf = quantityPopover('1825年', ['天', '个月', '年'], '年');
+    const page = skuDrawer([skuField('包装规格', pack.trigger, false), skuField('保质期', shelf.trigger)], [pack.pop, shelf.pop]);
+    page.tr.append(el('td', {}, [el('div.shop-standard-product-attributes', {}, [el('span.adv-select-shadow-value', { ownText: name })])]));
+    page.logisticsDays = '1825';
+    const result = await load(page).vcFillSkuAttrs({
+      values: { 包装规格: '1件' }, quantityFields: { numbers: { 包装规格: '', 单件净含量: '500mL' } }, useRecognizedPack: true,
+    });
+    assert.equal(shelf.trigger.value, '1825天');
+    assert.equal(pack.trigger.value, expected);
+    assert.equal(result.confirmed, !!expected);
+    assert.equal(result.recognizedPack, expected || undefined);
+  }
+});
+
+test('源商品标注 5年时用选项里的年修复图片识别留下的带空格单位', async () => {
+  const shelf = quantityPopover('5年 ', ['天', '个月', '年'], '年 ');
+  const page = skuDrawer([skuField('保质期', shelf.trigger)], [shelf.pop]);
+  const result = await load(page).vcFillSkuAttrs({ values: { 保质期: '5年' }, quantityFields: { numbers: { 保质期: '5年' } } });
+  assert.equal(result.confirmed, true);
+  assert.equal(shelf.trigger.value, '5年');
 });

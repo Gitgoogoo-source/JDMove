@@ -746,30 +746,6 @@
   ],
   "productProps": [
     {
-      "field": "158344",
-      "title": "保质期",
-      "type": "ShopAttrMultiInputUnit",
-      "required": true,
-      "suffix": "年",
-      "options": [
-        {
-          "label": "",
-          "value": ""
-        }
-      ],
-      "segments": [
-        {
-          "name": "",
-          "units": [
-            "天",
-            "个月",
-            "年"
-          ]
-        }
-      ],
-      "group": "必填属性"
-    },
-    {
       "field": "213131",
       "title": "国产/进口",
       "type": "ShopAttrSelect",
@@ -1140,6 +1116,30 @@
     }
   ],
   "skuProps": [
+    {
+      "field": "158344",
+      "title": "保质期",
+      "type": "ShopAttrMultiInputUnit",
+      "required": true,
+      "suffix": "年",
+      "options": [
+        {
+          "label": "",
+          "value": ""
+        }
+      ],
+      "segments": [
+        {
+          "name": "",
+          "units": [
+            "天",
+            "个月",
+            "年"
+          ]
+        }
+      ],
+      "group": "必填属性"
+    },
     {
       "field": "126816",
       "title": "包装形式",

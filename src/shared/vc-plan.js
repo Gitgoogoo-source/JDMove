@@ -337,7 +337,12 @@ function planWarnings({ props, erp, prices, unit, upc, dangerGoods }) {
 export function buildVcPublishPlan({ product, edits = {}, settings, schema, template = null, localImages = null }) {
   const pre = vcPreflight({ product, edits, settings, template, localImages });
   const { attrDefaults, overrides, source, defaults } = propSource(product, edits, settings);
-  const props = buildPropPlan(schema?.attrs ?? [], source, { defaults });
+  const skuAttrs = vcTemplateSkuAttrs(template);
+  const shelfInSku = skuAttrs.find((attr) => attr.title === '保质期' && attr.kind === 'numbers');
+  // 实时模板有时仍在商品属性里声明已下沉的保质期。实际抽屉和页面校验会在识图后检查此项。
+  const pageAttrs = (schema?.attrs ?? []).map((attr) => shelfInSku?.field === attr.field && settings.publish.fillSkuAttrs
+    ? { ...attr, required: false } : attr);
+  const props = buildPropPlan(pageAttrs, source, { defaults });
   // 属性以发布页上实际读到的为准：模板里的属性检查结果换成页面的
   const blockers = [
     ...pre.blockers.filter((b) => !b.startsWith(PROP_BLOCKER_PREFIX)),
@@ -353,6 +358,11 @@ export function buildVcPublishPlan({ product, edits = {}, settings, schema, temp
   const upc = normalizeUpc(edits.upc) || productUpc(product);
   const { mainImageUrls, detailImageUrls } = publishImagePlan({ product, edits, settings, localImages });
   const skuAttrValues = skuAttrValueMap({ params: product.params ?? [], defaults: attrDefaults, overrides });
+  // 京麦可把商品属性下沉到 SKU 行。旧模板仍可能把保质期记在商品属性里。
+  const shelfLife = [...pageAttrs, ...vcTemplateAttrs(template)]
+    .find((attr) => attr.title === '保质期' && attr.kind === 'numbers');
+  const quantityAttrs = shelfLife && !skuAttrs.some((attr) => attr.title === shelfLife.title)
+    ? [...skuAttrs, shelfLife] : skuAttrs;
   const model = vcField(product, edits, 'model');
   const logistics = logisticsOf(product, edits, settings, source, unit.unit);
   const form = vcFormEntries({ model, prices, logistics }, vcTemplateLimits(template));
@@ -376,7 +386,11 @@ export function buildVcPublishPlan({ product, edits = {}, settings, schema, temp
     },
     sku: { name: skuName(title, spec), spec, upc },
     skuAttrValues,
-    skuQuantityFields: skuQuantityFields(vcTemplateSkuAttrs(template), skuAttrValues),
+    skuQuantityFields: skuQuantityFields(quantityAttrs, skuAttrValues),
+    // 清单已确定单件，包装单位未知时，用京麦当前行的标准产品匹配结果来补充。
+    useRecognizedPack: product.params?.some(({ name, value }) => name === '包装规格' && value === '1件')
+      && !Object.hasOwn(overrides, '包装规格')
+      && skuAttrs.some((attr) => attr.title === '单件净含量'),
     skuAttrUnits: quantitiesByUnit(spec.quantities),
     // 源商品的危险品标记（true/false/null）：页面选项结构没走查过，只提醒不填写
     dangerGoods: product.vc?.dangerGoods ?? null,

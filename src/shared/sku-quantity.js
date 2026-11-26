@@ -10,9 +10,10 @@ export const isExactTotal = (attr) => attr.title === '总净含量' && attr.kind
 const fixedQuantity = (attr) => attr.kind === 'input' && (
   (attr.title === '销售规格' && attr.suffix === '块') || (attr.title === '总净含量' && attr.suffix === 'g')
 );
+const PACK_LABEL = '包装规格';
 
 export function skuQuantityKey(attr, values) {
-  return fixedQuantity(attr)
+  return fixedQuantity(attr) || (attr.kind === 'numbers' && attr.title === PACK_LABEL)
     ? Object.keys(values ?? {}).find((key) => normSkuLabel(key) === normSkuLabel(attr.title))
     : plannedKey(attr.title, values);
 }
@@ -22,27 +23,29 @@ export function skuQuantityValue(attr, raw) {
   const fixed = fixedQuantity(attr);
   if (!fixed && (raw == null || !['总净含量', '单件净含量', '包装规格', '保质期'].includes(attr.title))) return undefined;
   const text = toHalfWidth(raw).trim();
-  const m = /^(\d+(?:\.\d+)?)\s*([a-z\u4e00-\u9fff]*)$/i.exec(text);
+  const m = /^(\d+(?:\.\d+)?|\.\d+)\s*([a-z\u4e00-\u9fff]*)$/i.exec(text);
   if (attr.kind === 'select' && attr.title === '总净含量') {
     const exact = attr.options.find((o) => o.label === text);
     if (exact) return exact.label;
     if (!m?.[2]) return '';
-    const range = rangeOption(attr.options, text);
+    const range = rangeOption(attr.options, `${Number(m[1])}${m[2]}`);
     return range === undefined ? undefined : range?.label ?? '';
   }
   const units = fixed ? [attr.suffix] : attr.segments?.[0]?.units;
   if (!fixed && (attr.kind !== 'numbers' || attr.segments?.length !== 1 || !units?.length)) return undefined;
-  if (!m || Number(m[1]) <= 0) return '';
+  const amount = Number(m?.[1]);
+  if (!Number.isFinite(amount) || amount <= 0) return '';
+  if (attr.title === PACK_LABEL && !Number.isSafeInteger(amount)) return '';
   if (fixed && attr.title === '销售规格') {
-    return Number.isSafeInteger(Number(m[1])) && (!m[2] || m[2] === attr.suffix) ? Number(m[1]) + attr.suffix : '';
+    return Number.isSafeInteger(amount) && (!m[2] || m[2] === attr.suffix) ? amount + attr.suffix : '';
   }
   // 手动填写纯数字时沿用模板的首选单位；带单位的值必须相符或可换算。
   const from = m[2].toLowerCase();
   const exact = units.find((u) => u.toLowerCase() === from);
-  if (!from || exact) return m[1] + (exact || units[0]);
+  if (!from || exact) return `${amount}${exact || units[0]}`;
   const group = UNIT_GROUPS.find((g) => from in g);
   const to = group && units.find((u) => u.toLowerCase() in group);
-  return to ? Number(((Number(m[1]) * group[from]) / group[to.toLowerCase()]).toFixed(6)) + to : '';
+  return to ? Number(((amount * group[from]) / group[to.toLowerCase()]).toFixed(6)) + to : '';
 }
 
 /** 按控件类型分开，同一标题的区间下拉不会覆盖精确数值。 */

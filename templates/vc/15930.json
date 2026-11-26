@@ -793,30 +793,6 @@
       "group": "必填属性"
     },
     {
-      "field": "159002",
-      "title": "保质期",
-      "type": "ShopAttrMultiInputUnit",
-      "required": true,
-      "suffix": "年",
-      "options": [
-        {
-          "label": "",
-          "value": ""
-        }
-      ],
-      "segments": [
-        {
-          "name": "",
-          "units": [
-            "天",
-            "个月",
-            "年"
-          ]
-        }
-      ],
-      "group": "必填属性"
-    },
-    {
       "field": "164386",
       "title": "是否浓缩",
       "type": "ShopAttrSelect",
@@ -1023,6 +999,30 @@
     }
   ],
   "skuProps": [
+    {
+      "field": "159002",
+      "title": "保质期",
+      "type": "ShopAttrMultiInputUnit",
+      "required": true,
+      "suffix": "年",
+      "options": [
+        {
+          "label": "",
+          "value": ""
+        }
+      ],
+      "segments": [
+        {
+          "name": "",
+          "units": [
+            "天",
+            "个月",
+            "年"
+          ]
+        }
+      ],
+      "group": "必填属性"
+    },
     {
       "field": "126917",
       "title": "功效",

@@ -169,12 +169,15 @@ async function fillSku(tabId, plan, settings, log, timer) {
   log(`SKU 商品名称：${plan.sku.name}`);
   if (row.upcNotice) log(`商品条形码 ${plan.sku.upc}：${row.upcNotice}`);
   if (settings.publish.fillSkuAttrs) {
-    const attrs = await callVcBackend(tabId, 'vcFillSkuAttrs', { ...ctx, quantityFields: plan.skuQuantityFields });
+    const attrs = await callVcBackend(tabId, 'vcFillSkuAttrs', {
+      ...ctx, quantityFields: plan.skuQuantityFields, useRecognizedPack: plan.useRecognizedPack,
+    });
     timer.lap('SKU属性');
     if (!attrs?.confirmed) {
       return stop('need_action', `SKU属性没有填好（${drawerNote(attrs) || '抽屉没有关上'}），请在「编辑 → 属性覆盖」中补充后重新发布`);
     }
     log(`SKU属性：已填写 ${attrs.filled.join('、')}`);
+    if (attrs.recognizedPack) log(`SKU属性：包装规格 ${attrs.recognizedPack}（按京麦标准产品关键属性填写，请核对）`);
   }
   // 填抽屉时页面可能重建这一行：名称被清空就再写一次
   const state = await callVcBackend(tabId, 'vcSkuRowState');

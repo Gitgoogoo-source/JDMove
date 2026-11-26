@@ -752,30 +752,6 @@
   ],
   "productProps": [
     {
-      "field": "158989",
-      "title": "保质期",
-      "type": "ShopAttrMultiInputUnit",
-      "required": true,
-      "suffix": "年",
-      "options": [
-        {
-          "label": "",
-          "value": ""
-        }
-      ],
-      "segments": [
-        {
-          "name": "",
-          "units": [
-            "天",
-            "个月",
-            "年"
-          ]
-        }
-      ],
-      "group": "必填属性"
-    },
-    {
       "field": "292883",
       "title": "去污范围",
       "type": "ShopAttrMultiSelect",
@@ -938,6 +914,30 @@
     }
   ],
   "skuProps": [
+    {
+      "field": "158989",
+      "title": "保质期",
+      "type": "ShopAttrMultiInputUnit",
+      "required": true,
+      "suffix": "年",
+      "options": [
+        {
+          "label": "",
+          "value": ""
+        }
+      ],
+      "segments": [
+        {
+          "name": "",
+          "units": [
+            "天",
+            "个月",
+            "年"
+          ]
+        }
+      ],
+      "group": "必填属性"
+    },
     {
       "field": "126853",
       "title": "功效",

@@ -1,6 +1,7 @@
 // VC 自营发布的填写计划（纯函数）：用 2026-11 走查过的维达抽纸样本
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { buildVcPublishPlan, vcPreflight, vcTarget, vcTitle, vcActionLabel, vcWeightKg, defaultPackListing } from '../src/shared/vc-plan.js';
 import { mergeSettings } from '../src/shared/settings.js';
 import { weightedLength } from '../src/shared/title.js';
@@ -262,6 +263,20 @@ test('buildVcPublishPlan: 参数里有保质期时换算成天数', () => {
   const p = { ...product(), params: [...product().params, { name: '保质期', value: '36个月' }] };
   const plan = buildVcPublishPlan({ product: p, edits: { vc: PRICES }, settings: settings(), schema: SCHEMA });
   assert.equal(plan.logistics.sldays, 1080);
+});
+
+test('洗洁精的保质期由 SKU 抽屉检查，只有采集到通用单件时才用京麦识别包装', () => {
+  const template = JSON.parse(readFileSync(new URL('../templates/vc/15930.json', import.meta.url)));
+  const p = { ...product(), params: [{ name: '包装规格', value: '1件' }, { name: '单件净含量', value: '500mL' }] };
+  const shelf = { ...template.skuProps.find((attr) => attr.title === '保质期'), kind: 'numbers' };
+  const input = { product: p, edits: { vc: PRICES }, settings: settings(), schema: { attrs: [shelf] }, template };
+  const plan = buildVcPublishPlan(input);
+  assert.deepEqual(plan.blockers, []);
+  assert.equal(plan.useRecognizedPack, true);
+  const edited = buildVcPublishPlan({ ...input, edits: { vc: PRICES, attrOverrides: { 包装规格: '1袋', 保质期: '5年' } } });
+  assert.equal(edited.useRecognizedPack, false);
+  assert.equal(edited.skuQuantityFields.numbers['包装规格'], '1袋');
+  assert.equal(edited.skuQuantityFields.numbers['保质期'], '5年');
 });
 
 test('vcActionLabel: VC 一律点“发布商品”，只填写不发布时不点按钮', () => {

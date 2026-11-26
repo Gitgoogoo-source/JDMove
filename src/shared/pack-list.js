@@ -81,15 +81,37 @@ function currentAttributes(product) {
   return [...attrs, ...(Array.isArray(product.vc?.saleAttrs) ? product.vc.saleAttrs : [])];
 }
 
-// 普通洗衣皂的“销售规格”要求肥皂块数。混装中的洗衣液、衣领净等不计入块数。
-function soapBlocks(text) {
+// 普通洗衣皂的块数和克数都只计算皂块。容量用 mL 标注的混装商品单独留在包装清单里。
+function soapSize(text) {
   const parts = toHalfWidth(text).split(/[+\r\n]/).filter((part) => SOAP_NAME.test(part));
   if (parts.length !== 1) return null;
   const part = parts[0].trim();
   const piece = readSize(part);
-  if (piece === undefined && !UNSAFE.test(part)) return Number(part.match(BLOCKS)?.[1]) || null;
+  if (piece === undefined && !UNSAFE.test(part)) {
+    const count = Number(part.match(BLOCKS)?.[1]);
+    return count ? { count } : null;
+  }
   return piece?.count && (!piece.unit || piece.unit === 'g') && (!concreteUnit(piece.container) || piece.container === '块')
-    ? piece.count : null;
+    ? piece : null;
+}
+
+function mixedNetContent(packList, specTexts, { soap, detergent }) {
+  const parts = toHalfWidth(packList).split(/\s*\+\s*/);
+  if (parts.length < 2 || parts.some((part) => !/[\u4e00-\u9fff]/.test(part))) return '';
+  const sizes = parts.map((part) => readSize(part));
+  if (sizes.some((size) => !size?.n)) return '';
+  if (soap) {
+    const bars = soapSize(packList);
+    const countAgrees = specTexts.every((spec) => {
+      const size = soapSize(spec);
+      return !size || (size.count === bars?.count && (!size.n || size.n === bars.n));
+    });
+    const onlySoapByWeight = sizes.filter((size) => size.unit === 'g').length === 1;
+    return bars?.unit === 'g' && countAgrees && onlySoapByWeight ? `${bars.n * bars.count}g` : '';
+  }
+  return detergent && sizes.every((size) => size.unit === 'mL')
+    ? `${Number(sizes.reduce((total, size) => total + size.n * (size.count ?? 1), 0).toFixed(6))}mL`
+    : '';
 }
 
 /** 页面的明确属性优先。只用属于本 SKU 的清单和规格补缺项，永远不从同款的其他选项取值。 */
@@ -100,6 +122,7 @@ export function withPackListParams(product) {
   const leafId = product.vc?.cateIds?.at(-1);
   const needsPerItem = ['磨砂膏', '洗洁精'].includes(product.leafCategory) || ['34485', '15930'].includes(leafId);
   const soap = product.leafCategory === '普通洗衣皂' || leafId === '15926';
+  const detergent = product.leafCategory === '普通洗衣液' || leafId === '15924';
 
   const current = currentAttributes(product);
   const extra = [];
@@ -116,7 +139,7 @@ export function withPackListParams(product) {
   const specTexts = [...params, ...current].filter((p) => /规格$/.test(p?.name) && p.name !== '包装规格'
     && !(soap && p.name === '销售规格' && /^[1-9]\d*块$/.test(p.value))).map((p) => p.value);
   if (soap && !param('销售规格')) {
-    const counts = new Set([packList, ...specTexts, product.title].map(soapBlocks).filter(Boolean));
+    const counts = new Set([packList, ...specTexts, product.title].map((text) => soapSize(text)?.count).filter(Boolean));
     if (counts.size === 1) extra.push({ name: '销售规格', value: `${[...counts][0]}块` });
   }
   const result = () => extra.length
@@ -125,8 +148,12 @@ export function withPackListParams(product) {
   if (net && pack && (!stated || concreteUnit(stated[2])) && (!needsPerItem || single)) return result();
 
   const fromTitle = soap && !packList ? readSize(product.title) : null;
-  const list = fromTitle?.n && fromTitle.count && specTexts.some((value) => soapBlocks(value) === fromTitle.count)
+  const list = fromTitle?.n && fromTitle.count && specTexts.some((value) => soapSize(value)?.count === fromTitle.count)
     ? fromTitle : readPackList(packList);
+  if (list === null && !net && (soap || detergent)) {
+    const value = mixedNetContent(packList, specTexts, { soap, detergent });
+    if (value) extra.push({ name: '总净含量', value });
+  }
   const specs = [...new Set(specTexts)].map((value) => {
     const size = readSize(value, list);
     return size === null && list?.multiLine && toHalfWidth(value).includes('+') ? readPackList(value) : size;
