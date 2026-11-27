@@ -12,8 +12,8 @@
 (() => {
   const NS = (window.__JDMOVE__ = window.__JDMOVE__ || {});
   // 以最新加入的标记判断，避免同一页面里残留旧版本脚本
-  if (NS.shopListSpus) return;
-  NS.shopListSpus = true;
+  if (NS.shopListTitles) return;
+  NS.shopListTitles = true;
 
   const POLL_MS = 400;
   const STABLE_POLLS = 2;
@@ -32,9 +32,15 @@
   // 商品卡片下方的规格缩略图：li[sid] 的 sid 是同一 SPU 其他规格的 SKU
   const THUMB_SEL = '[sid]';
   const CARD_SEL = '.jSubObject, .gl-item, .jItem';
+  // 商品卡片标题元素（兼容 jGoodsList / user-jSearchList / JColorSearchList / jSearchListArea 模板）
+  const TITLE_SEL = '.jDesc a, .p-name a, .jTitle a, .goods-name a, .jDesc, .p-name, .jTitle, .goods-name';
+  // 卡片里非标题区域的链接（缩略图、评价、价格、按钮），兜底找标题链接时排除
+  const NON_TITLE_SEL = '[sid], .jExtra, .p-commit, .jPrice, .p-price, .jBtnArea, .p-operate';
+  const NOISE_TITLE_RE = /^(?:已有.*评价|[\d万.+]*条评价|立即购买|加入购物车|查看详情|关注|对比)$/;
 
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const qsa = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+  const cleanText = (s) => String(s || '').replace(/\s+/g, ' ').trim();
   const text = (el) => (el ? (el.innerText || el.textContent || '').replace(/\s+/g, ' ') : '');
 
   function pageType() {
@@ -90,12 +96,67 @@
     return null;
   }
 
-  // 每张卡片是一个 SPU：主 SKU + 规格缩略图（最多显示 5 个）；模板不显示缩略图时 sids 为 null
+  function titleTextOf(el) {
+    if (!el) return '';
+    let raw = '';
+    if (el.querySelector && el.querySelector('.p-tag')) {
+      const clone = el.cloneNode(true);
+      qsa('.p-tag', clone).forEach((n) => n.remove());
+      raw = clone.textContent || '';
+    } else {
+      raw = el.innerText || el.textContent || '';
+    }
+    const cleaned = cleanText(raw);
+    if (cleaned && !NOISE_TITLE_RE.test(cleaned)) return cleaned;
+    const attr = cleanText(el.getAttribute && el.getAttribute('title'));
+    return attr && !NOISE_TITLE_RE.test(attr) ? attr : '';
+  }
+
+  // 从商品卡片上顺手读取商品名称（不点进商品页）
+  function titleOfCard(card, sku) {
+    if (!card) return '';
+    for (const el of qsa(TITLE_SEL, card)) {
+      if (el.closest(NON_TITLE_SEL)) continue;
+      const t = titleTextOf(el);
+      if (t) return t;
+    }
+    for (const a of qsa(`a[href*="item.jd.com/${sku}.html"]`, card)) {
+      if (a.closest(NON_TITLE_SEL) || /#comment\b/i.test(a.getAttribute('href') || '')) continue;
+      const t = titleTextOf(a);
+      if (t) return t;
+    }
+    const img = card.querySelector('.jPic img, .p-img img');
+    return cleanText((img && (img.getAttribute('alt') || img.getAttribute('title'))) || '');
+  }
+
+  // 规格缩略图上的规格名（如 <li sid="..."><a title="氨基酸经典丨大瓶装1L">）
+  function thumbSpecs(card) {
+    const specs = {};
+    for (const el of qsa(THUMB_SEL, card)) {
+      const sid = el.getAttribute('sid');
+      if (!/^\d{6,}$/.test(sid || '')) continue;
+      const a = el.querySelector('a');
+      const img = el.querySelector('img');
+      const raw =
+        (a && a.getAttribute('title')) ||
+        el.getAttribute('title') ||
+        (img && (img.getAttribute('alt') || img.getAttribute('title'))) ||
+        text(el);
+      const label = cleanText(raw);
+      if (label && !specs[sid]) specs[sid] = label;
+    }
+    return specs;
+  }
+
+  // 每张卡片是一个 SPU：主 SKU + 卡片标题 + 规格缩略图（最多显示 5 个）；模板不显示缩略图时 sids/specs 为 null
   function spusIn(root, skus) {
     const hasThumbs = thumbSkus(root).length > 0;
     return skus.map((sku) => {
-      const card = hasThumbs ? cardOf(root, sku) : null;
-      return { sku, sids: card ? Array.from(new Set(thumbSkus(card))) : null };
+      const card = cardOf(root, sku);
+      const title = titleOfCard(card, sku);
+      const sids = hasThumbs && card ? Array.from(new Set(thumbSkus(card))) : null;
+      const specs = hasThumbs && card ? thumbSpecs(card) : null;
+      return { sku, title, sids, specs };
     });
   }
 

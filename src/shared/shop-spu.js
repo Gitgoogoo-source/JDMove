@@ -15,8 +15,36 @@ const skuOrNull = (v) => {
 };
 const uniqueSkus = (list) => [...new Set((Array.isArray(list) ? list : []).map(skuOrNull).filter(Boolean))];
 
+/** 整理店铺列表 / 规格名文本（去首尾空白、合并连续空格） */
+export const cleanShopTitle = (raw) => (typeof raw === 'string' ? raw.replace(/\s+/g, ' ').trim() : '');
+
 /**
- * @typedef {{sku: string, sids: string[]|null}} Spu sids 为卡片上的缩略图 SKU；null 表示模板不显示缩略图
+ * 组合 SPU 标题与子规格名称：标题里已包含该规格字样时不重复追加
+ * @param {string} baseTitle
+ * @param {string} [spec]
+ */
+export function formatVariantTitle(baseTitle, spec = '') {
+  const base = cleanShopTitle(baseTitle);
+  const label = cleanShopTitle(spec);
+  if (!base) return label;
+  if (!label || base.includes(label)) return base;
+  return `${base}（${label}）`;
+}
+
+function normalizeSpecs(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const out = {};
+  for (const [k, v] of Object.entries(raw)) {
+    const sku = skuOrNull(k);
+    const label = cleanShopTitle(v);
+    if (sku && label) out[sku] = label;
+  }
+  return Object.keys(out).length ? out : null;
+}
+
+/**
+ * @typedef {{sku: string, sids: string[]|null, title?: string, specs?: Record<string, string>}} Spu
+ *   sids 为卡片上的缩略图 SKU；null 表示模板不显示缩略图；title 为卡片主标题；specs 为缩略图 SKU 的规格名
  */
 
 /**
@@ -31,7 +59,14 @@ export function normalizeSpus(raw) {
     const sku = skuOrNull(item?.sku);
     if (!sku || seen.has(sku)) continue;
     seen.add(sku);
-    out.push({ sku, sids: Array.isArray(item.sids) ? uniqueSkus(item.sids) : null });
+    const title = cleanShopTitle(item?.title);
+    const specs = normalizeSpecs(item?.specs);
+    out.push({
+      sku,
+      sids: Array.isArray(item.sids) ? uniqueSkus(item.sids) : null,
+      ...(title ? { title } : {}),
+      ...(specs ? { specs } : {}),
+    });
   }
   return out;
 }
@@ -43,6 +78,26 @@ export function normalizeSpus(raw) {
  */
 export function spuListSkus(spus) {
   return [...new Set(spus.flatMap((s) => [s.sku, ...(s.sids ?? [])]))];
+}
+
+/**
+ * 列表上直接抓到的商品名称（主 SKU 用卡片标题，缩略图 SKU 优先附带规格名；不覆盖别的卡片的主 SKU 精确标题）
+ * @param {Spu[]} spus
+ * @returns {Record<string, string>}
+ */
+export function spuListTitles(spus) {
+  const titles = {};
+  for (const spu of spus) {
+    if (spu.title) titles[spu.sku] = spu.title;
+  }
+  for (const spu of spus) {
+    for (const sid of spu.sids ?? []) {
+      if (titles[sid]) continue;
+      const t = formatVariantTitle(spu.title, spu.specs?.[sid]);
+      if (t) titles[sid] = t;
+    }
+  }
+  return titles;
 }
 
 /**
@@ -65,4 +120,24 @@ export function normalizeItemSkus(res, mainSku) {
   const ids = uniqueSkus(res?.skuIds);
   if (!ids.length) return [];
   return ids.includes(mainSku) ? [mainSku, ...ids.filter((id) => id !== mainSku)] : ids;
+}
+
+/**
+ * 展开 SPU 时顺带整理出每个规格 SKU 的商品名称（不额外打开其他规格页面）
+ * @param {{skuIds?: unknown, title?: unknown, specs?: unknown}|null} res
+ * @param {string} mainSku
+ * @param {string} [fallbackTitle] 店铺列表卡片上抓到的主标题
+ * @returns {Record<string, string>}
+ */
+export function normalizeItemTitles(res, mainSku, fallbackTitle = '') {
+  const ids = normalizeItemSkus(res, mainSku);
+  if (!ids.length) return {};
+  const baseTitle = cleanShopTitle(res?.title) || cleanShopTitle(fallbackTitle);
+  const specs = normalizeSpecs(res?.specs) ?? {};
+  const titles = {};
+  for (const id of ids) {
+    const t = id === mainSku ? baseTitle : formatVariantTitle(baseTitle, specs[id]);
+    if (t) titles[id] = t;
+  }
+  return titles;
 }

@@ -36,7 +36,7 @@ const toEntry = (r) => ({ ...r, skus: r.skus ?? [], statusText: STATUS_TEXT[r.st
 
 /** 任务列表里还在、但这轮没轮到的商品 → 结果 */
 function skippedEntry(item, why) {
-  return toEntry({ id: item.id, status: 'skipped', message: why, title: item.edits?.title || item.product?.title || '', refUrl: item.url ?? '', skus: [] });
+  return toEntry({ id: item.id, status: 'skipped', message: why, title: item.edits?.title || item.product?.title || item.shopTitle || '', refUrl: item.url ?? '', skus: [] });
 }
 
 /**

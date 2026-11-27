@@ -109,7 +109,7 @@ function upcInput(value, scraped) {
 export async function editItem(item, { onLog, settings }) {
   const e = item.edits ?? {};
   const vc = vcFields(item, settings?.vc);
-  const title = h('input', { value: e.title ?? '', placeholder: item.product?.title ?? '' });
+  const title = h('input', { value: e.title ?? '', placeholder: item.product?.title || item.shopTitle || '' });
   const upc = upcInput(e.upc, productUpc(item.product));
   const overrides = h('textarea', { placeholder: '属性名=值，每行一条，如：\n产地=中国大陆\n保质期=365' }, overridesToText(e.attrOverrides));
   const cat = categoryPicker(item, onLog);

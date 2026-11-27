@@ -134,3 +134,29 @@ test('在售商品的主数据晚到（先渲染出没有 wareInfoReadMap 的商
   assert.equal(raw.wareInfo.upc_code, wareInfoReadMap.upc_code);
   assert.ok(raw.wareInfoAll, '完整主数据写进原始数据.json');
 });
+
+test('extractSkuIds: 展开 SPU 时顺带返回主标题和各规格 SKU 的规格名', async () => {
+  const biz = {
+    ...HEALTH_BIZ,
+    skuHeadVO: { skuTitle: '威露士沐浴露1L*3家庭装' },
+    price: { id: '100103856391', p: '69.90' },
+    colorSizeVO: {
+      colorSizeList: [
+        {
+          title: '功效规格',
+          buttons: [
+            { text: '氨基酸经典丨大瓶装1L', skuId: '100043025636', skuList: ['100043025636'] },
+            { text: '【家庭装】大瓶1L*3', skuId: '100103856391', skuList: ['100103856391'] },
+          ],
+        },
+      ],
+    },
+  };
+  const res = await loadPage({ url: 'https://item.jd.com/100103856391.html', tree: fiber(biz) }).extractSkuIds({ timeoutMs: 0 });
+  assert.deepEqual(Array.from(res.skuIds), ['100103856391', '100043025636']);
+  assert.equal(res.title, '威露士沐浴露1L*3家庭装');
+  assert.deepEqual(JSON.parse(JSON.stringify(res.specs)), {
+    100043025636: '氨基酸经典丨大瓶装1L',
+    100103856391: '【家庭装】大瓶1L*3',
+  });
+});

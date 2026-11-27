@@ -421,3 +421,93 @@ test('crawlShop: 展开规格途中请求停止后不再打开商品页', async 
   assert.equal(res.status, 'stopped');
   assert.deepEqual(itemUrls(fake), ['https://item.jd.com/1000001.html']);
 });
+
+test('crawlShop: 在店铺列表页顺带抓取商品名称与缩略图规格名，不点进商品页', async () => {
+  const cards = [
+    {
+      sku: '100103856391',
+      title: '威露士沐浴露1L*3家庭装',
+      sids: ['100103856391', '100043025636'],
+      specs: { 100043025636: '氨基酸经典丨大瓶装1L' },
+    },
+    {
+      sku: '100314107289',
+      title: '威露士玉龙茶香精油沐浴露60ml',
+      sids: ['100314107289'],
+      specs: {},
+    },
+  ];
+  const fake = installFakeChrome({ page: fakeSpuShop({ cards }) });
+  const pages = [];
+  const res = await crawlShop(SEARCH_URL, { delaySec: NO_DELAY, onPage: (p) => pages.push(p) });
+  assert.equal(res.status, 'ok');
+  assert.deepEqual(itemUrls(fake), [], '缩略图少于 5 个时不打开任何商品页');
+  assert.deepEqual(res.state.titles, {
+    100103856391: '威露士沐浴露1L*3家庭装',
+    100043025636: '威露士沐浴露1L*3家庭装（氨基酸经典丨大瓶装1L）',
+    100314107289: '威露士玉龙茶香精油沐浴露60ml',
+  });
+  assert.deepEqual(pages[0].titles, res.state.titles);
+});
+
+test('crawlShop: 展开 5 缩略图 SPU 时顺带读取其他规格名称，且后一页主卡片精确标题覆盖前页缩略图派生标题', async () => {
+  const pagesData = [
+    {
+      pageType: 'shop',
+      moduleCount: 1,
+      skus: ['1000001'],
+      spus: [
+        {
+          sku: '1000001',
+          title: '商品甲主标题',
+          sids: ['1000001', '1000002', '1000003', '1000004', '1000005'],
+          specs: { 1000002: '规格2', 1000003: '规格3', 1000004: '规格4', 1000005: '规格5' },
+        },
+      ],
+      totalText: '共2件商品',
+      hasNext: true,
+      pagerMax: 2,
+    },
+    {
+      pageType: 'shop',
+      moduleCount: 1,
+      skus: ['1000002'],
+      spus: [{ sku: '1000002', title: '商品乙独立主标题', sids: ['1000002'], specs: {} }],
+      totalText: '共2件商品',
+      hasNext: false,
+      pagerMax: 2,
+    },
+  ];
+  let pageIdx = 0;
+  const fake = installFakeChrome({
+    page: (call) => {
+      if (isDisarm(call)) return undefined;
+      if (call.func.name === 'extractShopPageInTab') return pagesData[pageIdx];
+      if (call.func.name === 'nextShopPageInTab') {
+        if (pageIdx >= pagesData.length - 1) return { pageType: 'shop', action: 'end' };
+        pageIdx += 1;
+        return { pageType: 'shop', action: 'clicked', changed: true };
+      }
+      if (call.func.name === 'extractSkuIdsInTab') {
+        return {
+          pageType: 'item',
+          skuId: '1000001',
+          skuIds: ['1000001', '1000002', '1000003', '1000004', '1000005', '1000006'],
+          title: '商品甲主标题',
+          specs: { 1000001: '规格1', 1000002: '规格2', 1000006: '隐藏规格6' },
+        };
+      }
+      return undefined;
+    },
+  });
+  const updates = [];
+  const res = await crawlShop(SEARCH_URL, { delaySec: NO_DELAY, onPage: (p) => updates.push(p) });
+  assert.equal(res.status, 'ok');
+  assert.deepEqual(itemUrls(fake), ['https://item.jd.com/1000001.html']);
+  assert.equal(res.state.titles['1000001'], '商品甲主标题');
+  assert.equal(res.state.titles['1000002'], '商品乙独立主标题');
+  assert.equal(res.state.titles['1000006'], '商品甲主标题（隐藏规格6）');
+  // 第 2 页虽然 1000002 已在 seen 中，但精确主标题升级仍通过 onPage.titles 传给队列更新存储
+  assert.equal(updates[1].titles['1000002'], '商品乙独立主标题');
+  assert.equal(updates[2].titles['1000006'], '商品甲主标题（隐藏规格6）');
+});

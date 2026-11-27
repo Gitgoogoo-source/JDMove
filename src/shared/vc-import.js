@@ -267,7 +267,7 @@ function planOne(result, e, item) {
   if (!changes.length) return result.unchanged.push(e);
   const warning = marginWarning(after);
   if (warning) result.warnings.push({ row: e.row, skuId: e.skuId, message: warning });
-  return result.updates.push({ id: item.id, row: e.row, skuId: e.skuId, title: item.edits?.title || item.product?.title || '', values: e.values, changes });
+  return result.updates.push({ id: item.id, row: e.row, skuId: e.skuId, title: item.edits?.title || item.product?.title || item.shopTitle || '', values: e.values, changes });
 }
 
 export const TEMPLATE_HEADER = ['商品链接', 'SKU', '商品标题（仅供核对，导入时不读）', '市场价（元）', '京东价（元）', '采购价（元）', '采购员ERP', '销售员ERP'];
@@ -290,7 +290,7 @@ export function vcTemplateSheets(items) {
   const rows = items.map((i) => {
     const vc = i.edits?.vc ?? {};
     const erp = ownErp(vc);
-    return [i.url, i.skuId, i.edits?.title || i.product?.title || '', vc.marketPrice, vc.jdPrice, vc.costPrice, erp.buyer, erp.saler];
+    return [i.url, i.skuId, i.edits?.title || i.product?.title || i.shopTitle || '', vc.marketPrice, vc.jdPrice, vc.costPrice, erp.buyer, erp.saler];
   });
   return [
     { name: '商品', rows: [TEMPLATE_HEADER, ...rows], widths: [46, 16, 50, 12, 12, 12, 16, 16], textColumns: [1, 6, 7] },

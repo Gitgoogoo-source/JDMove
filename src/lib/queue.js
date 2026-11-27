@@ -1,6 +1,6 @@
 // 批量任务执行器：在任务面板页面中运行（页面保持打开即可持续执行）
 import { validateSettings } from '../shared/settings.js';
-import { collectFailurePatch, publishResultPatch } from '../shared/store.js';
+import { collectFailurePatch, itemTitle, publishResultPatch } from '../shared/store.js';
 import { throttleRecord } from '../shared/publish-throttle.js';
 import { masterRecords } from '../shared/master-sheet.js';
 import { itemRepo, settingsRepo, throttleRepo, masterRepo, sleep, randomBetween } from './chrome-env.js';
@@ -113,7 +113,7 @@ export function createQueueRunner({ onChange, onLog, saveLocal = async () => nul
     id: item.id,
     status: res.status,
     message: res.message ?? '',
-    title: item.edits?.title || item.product?.title || '',
+    title: itemTitle(item),
     refUrl: item.url ?? '',
     skus: records.map((r) => r.sku).filter(Boolean),
     name: records[0]?.name ?? '',
@@ -204,9 +204,10 @@ export function createQueueRunner({ onChange, onLog, saveLocal = async () => nul
       ? `SKU ${s.spu} ${s.found ? `共 ${s.found} 个规格` : '没读到规格（已用列表上显示的规格）'}，新找到 ${s.added.length} 个商品`
       : `新找到 ${s.added.length} 个商品`;
 
-  /** 每抓完一页/展开一个 SPU 就加入任务列表（以前发布过的也加入） */
+  /** 每抓完一页/展开一个 SPU 就加入任务列表（以前发布过的也加入），同时写入顺带抓到的商品名称 */
   async function addShopPage(s) {
-    const { added } = await itemRepo.addTasks(s.added);
+    const ids = [...new Set([...s.added, ...Object.keys(s.titles ?? {})])];
+    const { added } = await itemRepo.addTasks(ids, { titles: s.titles });
     setState({ currentId: pageLabel(s) });
     const listTotal = s.total != null ? `，本列表共 ${s.total} 件` : '';
     onLog(`店铺${pageLabel(s)}：${foundNote(s)}，新增任务 ${added.length} 个（累计 ${s.skus.length}${listTotal}）`);

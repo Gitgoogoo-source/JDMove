@@ -16,8 +16,11 @@ export const THROTTLE_KEY = 'publishThrottle';
  * 发布成功的商品写进上架总表（master-sheet.js）后移出任务列表，所以列表里没有“已发布”的条目
  * @typedef {'pending'|'collecting'|'collected'|'publishing'|'failed'|'need_action'} ItemStatus
  * @typedef {{id: string, skuId: string, url: string, status: ItemStatus, product: object|null,
- *   edits: object, target: object|null, message: string, log: string[], createdAt: number, updatedAt: number}} Item
+ *   edits: object, target: object|null, message: string, log: string[], shopTitle?: string, createdAt: number, updatedAt: number}} Item
  */
+
+/** 任务条目的展示名称：编辑标题 > 采集标题 > 抓取店铺顺带抓到的名称 */
+export const itemTitle = (item) => item?.edits?.title || item?.product?.title || item?.shopTitle || '';
 
 /** @returns {Item} */
 export function newItem(skuId, now = Date.now(), url = buildItemUrl(skuId)) {
@@ -189,10 +192,11 @@ export function createItemRepository(storage) {
   /**
    * 批量加入任务：已在列表里的不重复添加；以前发布过的商品照样加入（不去重）。
    * opts.urls（SKU → 链接）指定采集用的链接（京东万商），已在列表里的商品也改用这个链接
+   * opts.titles（SKU → 店铺页顺带抓到的名称）写入未采集任务的 shopTitle（不覆盖已采集的 product.title，也不污染 edits.title）
    * opts.collected 提供上架表匹配到的本地采集记录，只补入当前没有商品数据、也未在采集的任务
    * @returns {Promise<{added: Item[], existing: string[], restored: string[]}>}
    */
-  const addTasks = (skuIds, { urls = {}, collected = [] } = {}) =>
+  const addTasks = (skuIds, { urls = {}, titles = {}, collected = [] } = {}) =>
     serial(async () => {
       const items = await load();
       const plan = planNewSkus(skuIds, items);
@@ -203,12 +207,19 @@ export function createItemRepository(storage) {
       const apply = (item) => {
         const saved = savedById.get(item.id);
         const url = urls[item.id];
-        if (!saved?.product || item.product || RECOLLECT_BLOCKED.has(item.status)) return url && url !== item.url ? { ...item, url } : item;
+        const title = String(titles[item.id] ?? '').replace(/\s+/g, ' ').trim();
+        if (!saved?.product || item.product || RECOLLECT_BLOCKED.has(item.status)) {
+          const nextUrl = url && url !== item.url ? url : item.url;
+          const nextShopTitle = title && !item.product && title !== item.shopTitle ? title : item.shopTitle;
+          if (nextUrl === item.url && nextShopTitle === item.shopTitle) return item;
+          return { ...item, url: nextUrl, ...(nextShopTitle ? { shopTitle: nextShopTitle } : {}) };
+        }
         restored.push(item.id);
         const source = sourceUrlPatch(item.skuId, saved.product);
         return {
           ...item,
           url: url || source.url || item.url,
+          ...(title ? { shopTitle: title } : {}),
           product: saved.product,
           local: saved.local,
           edits: rebaseEdits({}, item.edits, saved.edits ?? {}),

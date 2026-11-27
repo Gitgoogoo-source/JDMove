@@ -2,7 +2,8 @@
 // 页面结构经常改版，因此每项数据都有多套兜底策略；归一化在扩展侧完成。
 (() => {
   const NS = (window.__JDMOVE__ = window.__JDMOVE__ || {});
-  if (NS.extractItem && NS.extractPrice && NS.extractSkuIds) return;
+  if (NS.extractItem && NS.extractPrice && NS.extractSkuIds && NS.extractSkuIdsWithTitles) return;
+  NS.extractSkuIdsWithTitles = true;
 
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const text = (el) => (el ? (el.innerText || el.textContent || '').replace(/\s+/g, ' ').trim() : '');
@@ -407,32 +408,61 @@
   const SKU_IDS_POLL_MS = 400;
 
   // 当前 SPU 全部规格的 SKU 编码；页面数据还没渲染出来时返回 null
-  function readSkuIds() {
+  function readSkuInfo() {
     const b = reactBusiness();
     if (b) {
       const ids = [(b.price && b.price.id) || skuIdFromUrl()];
+      const specParts = {};
       for (const dim of (b.colorSizeVO && b.colorSizeVO.colorSizeList) || []) {
-        for (const btn of dim.buttons || []) ids.push(...(btn.skuList || [btn.skuId]));
+        for (const btn of dim.buttons || []) {
+          const label = String(btn.text || '').replace(/\s+/g, ' ').trim();
+          for (const rawSku of btn.skuList || [btn.skuId]) {
+            const sku = String(rawSku || '');
+            ids.push(sku);
+            if (/^\d+$/.test(sku) && label) {
+              if (!specParts[sku]) specParts[sku] = [];
+              if (!specParts[sku].includes(label)) specParts[sku].push(label);
+            }
+          }
+        }
       }
-      return ids;
+      const specs = {};
+      for (const [sku, parts] of Object.entries(specParts)) specs[sku] = parts.join(' ');
+      const title = String((b.skuHeadVO && b.skuHeadVO.skuTitle) || '').replace(/\s+/g, ' ').trim();
+      return { ids, title, specs };
     }
     const pc = window.pageConfig && window.pageConfig.product;
-    if (pc && pc.skuid) return [pc.skuid, ...(pc.colorSize || []).map((x) => x && x.skuId)];
+    if (pc && pc.skuid) {
+      const ids = [pc.skuid];
+      const specs = {};
+      for (const row of pc.colorSize || []) {
+        if (!row || !row.skuId) continue;
+        const sku = String(row.skuId);
+        ids.push(sku);
+        const parts = Object.entries(row)
+          .filter(([k]) => k !== 'skuId')
+          .map(([, v]) => String(v || '').replace(/\s+/g, ' ').trim())
+          .filter(Boolean);
+        if (parts.length) specs[sku] = parts.join(' ');
+      }
+      const title = String(pc.name || '').replace(/\s+/g, ' ').trim();
+      return { ids, title, specs };
+    }
     return null;
   }
 
   /**
-   * 只读取当前 SPU 下全部规格的 SKU 编码（抓取店铺用，不取图片、价格）
-   * @returns {Promise<{pageType: string, skuId: string, skuIds: string[]}>}
+   * 只读取当前 SPU 下全部规格的 SKU 编码与规格名（抓取店铺用，不取图片、价格）
+   * @returns {Promise<{pageType: string, skuId: string, skuIds: string[], title: string, specs: Record<string, string>}>}
    */
   NS.extractSkuIds = async function extractSkuIds({ timeoutMs = SKU_IDS_WAIT_MS } = {}) {
     const end = Date.now() + timeoutMs;
     for (;;) {
       const type = pageType();
-      const ids = type === 'item' ? readSkuIds() : null;
-      if (ids || type !== 'item' || Date.now() >= end) {
-        const skuIds = Array.from(new Set((ids || []).map((v) => String(v || '')).filter((v) => /^\d+$/.test(v))));
-        return { pageType: type, skuId: skuIdFromUrl(), skuIds };
+      const info = type === 'item' ? readSkuInfo() : null;
+      if (info || type !== 'item' || Date.now() >= end) {
+        const skuIds = Array.from(new Set(((info && info.ids) || []).map((v) => String(v || '')).filter((v) => /^\d+$/.test(v))));
+        return { pageType: type, skuId: skuIdFromUrl(), skuIds, title: (info && info.title) || '', specs: (info && info.specs) || {} };
       }
       await sleep(SKU_IDS_POLL_MS);
     }

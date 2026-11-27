@@ -16,7 +16,7 @@ import {
   SORT_FALLBACKS,
 } from '../shared/shop-url.js';
 import { createCrawlState, applyPage, finishCrawl, DEFAULT_MAX_PAGES } from '../shared/shop-crawl.js';
-import { normalizeSpus, spuListSkus, needsItemPage, normalizeItemSkus } from '../shared/shop-spu.js';
+import { normalizeSpus, spuListSkus, spuListTitles, needsItemPage, normalizeItemSkus, normalizeItemTitles } from '../shared/shop-spu.js';
 import { classifyPageUrl, buildItemUrl } from '../shared/url-utils.js';
 import { SHOP_FILES, ITEM_FILES, runInPage, sleep, randomBetween } from './chrome-env.js';
 import { openInCollectTab, MERCHANT_BLOCK_MSG } from './collector.js';
@@ -84,31 +84,79 @@ function createTab() {
   };
 }
 
-/** 全局进度：跨模块、跨补抓轮次合并去重（SKU 与 SPU），并负责翻页间隔与停止 */
+/** 全局进度：跨模块、跨补抓轮次合并去重（SKU、SPU 与商品名称），并负责翻页间隔与停止 */
 function createControl({ maxPages = DEFAULT_MAX_PAGES, delaySec = SHOP_PAGE_DELAY_SEC, shouldStop = () => false, onPage = () => {} }) {
   const seen = new Set();
   const spus = new Map();
+  const titles = new Map();
+  const exactTitles = new Set();
   const addNew = (ids) => {
     const added = [...new Set(ids)].filter((id) => !seen.has(id));
     added.forEach((id) => seen.add(id));
     return added;
   };
+  const recordTitles = (map, exactIds = []) => {
+    const exact = new Set(exactIds);
+    const changed = {};
+    for (const [id, raw] of Object.entries(map ?? {})) {
+      const title = String(raw ?? '').trim();
+      if (!title) continue;
+      const isExact = exact.has(id);
+      const prev = titles.get(id);
+      if (isExact ? !exactTitles.has(id) || prev !== title : !prev) {
+        titles.set(id, title);
+        if (isExact) exactTitles.add(id);
+        changed[id] = title;
+      }
+    }
+    return changed;
+  };
+  const titlesFor = (ids, changed) =>
+    Object.fromEntries([...new Set([...ids, ...Object.keys(changed)])].map((id) => [id, titles.get(id)]).filter(([, t]) => t));
   return {
     maxPages,
     count: () => seen.size,
     spus: () => [...spus.values()],
-    result: () => ({ skus: [...seen] }),
-    /** 列表的一页：主 SKU + 卡片上的规格缩略图 */
+    result: () => ({ skus: [...seen], titles: Object.fromEntries(titles) }),
+    /** 列表的一页：主 SKU + 卡片上的规格缩略图 + 顺带抓取的商品名称 */
     async report(state, label, pageSpus = []) {
-      pageSpus.forEach((spu) => spus.has(spu.sku) || spus.set(spu.sku, spu));
+      for (const spu of pageSpus) {
+        const prev = spus.get(spu.sku);
+        if (!prev) spus.set(spu.sku, spu);
+        else if (!prev.title && spu.title) spus.set(spu.sku, { ...prev, title: spu.title });
+      }
       // 同一 SPU 的 SKU 排在一起
       const added = addNew([...spuListSkus(pageSpus), ...state.added]);
-      await onPage({ kind: 'list', label, pageNo: state.pageNo, pageCount: state.pageCount, total: state.total, added, skus: [...seen] });
+      const changed = recordTitles(spuListTitles(pageSpus), pageSpus.filter((s) => s.title).map((s) => s.sku));
+      const pageTitles = titlesFor(added, changed);
+      await onPage({
+        kind: 'list',
+        label,
+        pageNo: state.pageNo,
+        pageCount: state.pageCount,
+        total: state.total,
+        added,
+        skus: [...seen],
+        titles: pageTitles,
+      });
     },
-    /** 打开一个 SPU 的商品页后读到的全部规格 */
-    async reportSpu({ sku, found, index, planned }) {
+    /** 打开一个 SPU 的商品页后读到的全部规格（以及顺带读到的规格名称） */
+    async reportSpu({ sku, found, titles: spuTitles = {}, index, planned }) {
       const added = addNew(found);
-      await onPage({ kind: 'spu', label: '展开规格', pageNo: index, pageCount: planned, total: null, spu: sku, found: found.length, added, skus: [...seen] });
+      const changed = recordTitles(spuTitles, spuTitles[sku] ? [sku] : []);
+      const batchTitles = titlesFor(added, changed);
+      await onPage({
+        kind: 'spu',
+        label: '展开规格',
+        pageNo: index,
+        pageCount: planned,
+        total: null,
+        spu: sku,
+        found: found.length,
+        added,
+        skus: [...seen],
+        titles: batchTitles,
+      });
     },
     async pause() {
       const end = Date.now() + randomBetween(delaySec.min, delaySec.max) * 1000;
@@ -196,14 +244,15 @@ async function crawlFallback(tab, ctl, shop, info) {
   return `店铺“全部商品”页没有商品列表，已改用店内搜索抓取${totalNote}，店内搜索结果可能不完整，请核对数量`;
 }
 
-/** 打开主 SKU 的商品页读取全部规格的 SKU；读不到（下架、页面异常）时返回空数组，频控/登录/停止照常抛出 */
-async function readSpuSkus(tab, sku) {
+/** 打开主 SKU 的商品页读取全部规格的 SKU 和名称；读不到（下架、页面异常）时返回空结果，频控/登录/停止照常抛出 */
+async function readSpuSkus(tab, spu) {
   try {
-    await tab.open(buildItemUrl(sku));
-    return normalizeItemSkus(await tab.run(extractSkuIdsInTab, {}, ITEM_FILES), sku);
+    await tab.open(buildItemUrl(spu.sku));
+    const res = await tab.run(extractSkuIdsInTab, {}, ITEM_FILES);
+    return { skus: normalizeItemSkus(res, spu.sku), titles: normalizeItemTitles(res, spu.sku, spu.title) };
   } catch (e) {
     if (e instanceof CrawlStopped || (e instanceof CrawlHalt && e.status !== 'error')) throw e;
-    return [];
+    return { skus: [], titles: {} };
   }
 }
 
@@ -217,10 +266,10 @@ async function expandSpus(tab, ctl) {
     if (!needsItemPage(spu, fromItemPages)) continue;
     await ctl.pause();
     opened += 1;
-    const found = await readSpuSkus(tab, spu.sku);
+    const { skus: found, titles } = await readSpuSkus(tab, spu);
     found.forEach((id) => fromItemPages.add(id));
     if (!found.length) failed += 1;
-    await ctl.reportSpu({ sku: spu.sku, found, index: opened, planned });
+    await ctl.reportSpu({ sku: spu.sku, found, titles, index: opened, planned });
   }
   return { opened, failed };
 }
@@ -255,9 +304,9 @@ function summarize(results, spuCount) {
  * @param {{maxPages?: number, delaySec?: {min: number, max: number},
  *   shouldStop?: () => boolean,
  *   onPage?: (p: {kind: 'list'|'spu', label: string, pageNo: number, pageCount: number|null, total: number|null,
- *     added: string[], skus: string[], spu?: string, found?: number}) => any}} [opts]
+ *     added: string[], skus: string[], titles?: Record<string, string>, spu?: string, found?: number}) => any}} [opts]
  *   kind 'list'：列表的一页；kind 'spu'：展开第 pageNo/pageCount 个 SPU（主 SKU 为 spu，读到 found 个规格）
- * @returns {Promise<{status: 'ok'|'stopped'|'throttle'|'login'|'error', state: {skus: string[]}, message: string, partial?: boolean}>}
+ * @returns {Promise<{status: 'ok'|'stopped'|'throttle'|'login'|'error', state: {skus: string[], titles: Record<string, string>}, message: string, partial?: boolean}>}
  */
 export async function crawlShop(input, opts = {}) {
   const ctl = createControl(opts);

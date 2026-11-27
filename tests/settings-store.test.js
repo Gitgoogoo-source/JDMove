@@ -4,6 +4,7 @@ import { DEFAULT_SETTINGS, mergeSettings, validateSettings, parseAttrDefaults } 
 import {
   createItemRepository,
   createSettingsRepository,
+  itemTitle,
   newItem,
   publishResultPatch,
   editsEqual,
@@ -398,4 +399,26 @@ test('recoverInterrupted：停在“采集中”的条目改回已采集/待采�
   assert.deepEqual(after.map((i) => i.status), ['collected', 'pending', 'publishing']);
   assert.equal(after[0].message, INTERRUPTED_NOTE);
   assert.deepEqual(await repo.recoverInterrupted(), []);
+});
+
+test('addTasks + itemTitle: 顺带保存店铺抓到的商品名称（不冒充已采集、不污染编辑标题），支持补齐已有未采集条目', async () => {
+  const repo = createItemRepository(memoryStorage());
+  await repo.addTasks(['100001', '100002'], { titles: { 100001: '  威露士 沐浴露1L  ' } });
+  const a = await repo.findById('100001');
+  const b = await repo.findById('100002');
+  assert.equal(a.status, 'pending');
+  assert.equal(a.product, null);
+  assert.deepEqual(a.edits, {});
+  assert.equal(a.shopTitle, '威露士 沐浴露1L');
+  assert.equal(b.shopTitle, undefined);
+  assert.equal(itemTitle(a), '威露士 沐浴露1L');
+  assert.equal(itemTitle(b), '');
+
+  // 已采集的商品不受 shopTitle 覆盖，且展示优先级为 edits.title > product.title > shopTitle
+  await repo.saveCollected({ skuId: '100003', title: '详情页采集标题' });
+  await repo.addTasks(['100002', '100003'], { titles: { 100002: '补齐的名称', 100003: '店铺标题' } });
+  assert.equal((await repo.findById('100002')).shopTitle, '补齐的名称');
+  assert.equal((await repo.findById('100003')).shopTitle, undefined);
+  assert.equal(itemTitle(await repo.findById('100003')), '详情页采集标题');
+  assert.equal(itemTitle({ shopTitle: '店铺名', product: { title: '采集名' }, edits: { title: '编辑名' } }), '编辑名');
 });

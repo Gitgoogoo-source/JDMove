@@ -256,3 +256,10 @@ test('importEdit: 保存时按最新数据再检查——合并后京东价高�
   const stale = { vc: { marketPrice: 50 } };
   assert.equal(edit(stale), stale, '预览之后市场价被改低了');
 });
+
+test('vcTemplateSheets: 未采集但带店铺名称的商品也在模板标题列展示名称', () => {
+  const [sheet] = vcTemplateSheets([
+    { id: '1001', skuId: '1001', url: 'https://item.jd.com/1001.html', product: null, shopTitle: '威露士沐浴露1L', edits: {} },
+  ]);
+  assert.equal(sheet.rows[1][2], '威露士沐浴露1L');
+});
